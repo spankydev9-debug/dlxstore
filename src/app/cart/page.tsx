@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "../../context/CartContext";
 import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck, Heart } from "lucide-react";
 
@@ -58,11 +59,15 @@ export default function CartPage() {
                 <div key={item.id} className="flex flex-col sm:flex-row py-4 sm:items-center justify-between gap-4">
                   {/* Image & Details */}
                   <div className="flex gap-4">
-                    <img
-                      src={item.product.images[0]}
-                      alt={item.product.name}
-                      className="h-20 w-20 rounded-xl object-cover border border-border bg-muted flex-shrink-0"
-                    />
+                    <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-muted">
+                      <Image
+                        src={item.product.images[0]}
+                        alt={item.product.name}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="space-y-1">
                       <h3 className="font-bold text-sm text-foreground hover:underline">
                         <Link href={`/product/${item.product.slug}`}>{item.product.name}</Link>

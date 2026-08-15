@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getProductBySlug, getProducts } from "../../../services/db/products";
 import { getProductReviews, addReview } from "../../../services/db/reviews";
 import { addToWishlist, removeFromWishlist, isInWishlist } from "../../../services/db/wishlist";
@@ -178,11 +179,13 @@ export default function ProductDetailPage() {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-            <img
+            <Image
               src={activeImage}
               alt={product.name}
+              fill
               style={zoomStyle}
-              className="h-full w-full object-cover transition-transform duration-100 ease-out"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover transition-transform duration-100 ease-out"
             />
           </div>
 
@@ -195,7 +198,7 @@ export default function ProductDetailPage() {
                   onClick={() => setActiveImage(img)}
                   className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border transition-all ${activeImage === img ? 'border-primary ring-2 ring-ring' : 'border-border hover:border-muted-foreground'}`}
                 >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  <Image src={img} alt="" fill sizes="80px" className="object-cover" />
                 </button>
               ))}
             </div>
@@ -482,10 +485,12 @@ export default function ProductDetailPage() {
                   className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
                 >
                   <div className="relative aspect-square overflow-hidden bg-muted">
-                    <img
+                    <Image
                       src={product.images[0]}
                       alt={product.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
                   <div className="flex flex-col flex-1 p-4 space-y-1">

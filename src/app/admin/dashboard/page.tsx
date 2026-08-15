@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
 import { getProducts, createProduct, updateProduct, deleteProduct, adjustInventory, getInventoryHistory } from "../../../services/db/products";
@@ -502,7 +503,9 @@ function AdminDashboardContent() {
                         {products.map(p => (
                           <tr key={p.id} className="hover:bg-muted/30">
                             <td className="px-4 py-3 flex items-center gap-3">
-                              <img src={p.images[0]} alt="" className="h-8 w-8 rounded object-cover border" />
+                              <div className="relative h-8 w-8 rounded overflow-hidden border flex-shrink-0">
+                                <Image src={p.images[0]} alt="" fill sizes="32px" className="object-cover" />
+                              </div>
                               <div>
                                 <div className="font-bold text-foreground">{p.name}</div>
                                 <div className="text-[10px] text-muted-foreground">{p.brand}</div>

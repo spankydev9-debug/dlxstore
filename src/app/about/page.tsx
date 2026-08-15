@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Truck, ShieldCheck, Smile, HelpCircle } from "lucide-react";
 
 export default function AboutPage() {
@@ -26,10 +27,12 @@ export default function AboutPage() {
           </p>
         </div>
         <div className="relative rounded-2xl overflow-hidden aspect-video border bg-muted">
-          <img 
+          <Image 
             src="https://images.unsplash.com/photo-1556740758-90de374c12ad?w=500&auto=format&fit=crop&q=60" 
             alt="E-commerce Goma" 
-            className="object-cover h-full w-full"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
           />
         </div>
       </div>

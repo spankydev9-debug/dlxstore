@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { getProducts, getCategories } from "../services/db/products";
 import { Product, Category } from "../types";
 import { 
@@ -92,24 +93,24 @@ export default function HomePage() {
     <div className="space-y-20 pb-16 animate-fade-in">
       
       {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden rounded-3xl bg-neutral-950 text-white py-20 px-8 sm:px-12 lg:px-16 shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(30,58,138,0.2),transparent_55%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.1),transparent_45%)]"></div>
+      <section className="relative overflow-hidden rounded-3xl bg-neutral-950 text-white py-24 px-8 sm:px-12 lg:px-16 shadow-2xl border border-white/5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(212,175,55,0.15),transparent_60%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.05),transparent_45%)]"></div>
         
-        <div className="relative max-w-2xl space-y-6">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
+        <div className="relative max-w-2xl space-y-8">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-gold/10 px-4 py-1.5 text-xs font-medium text-gold border border-gold/20 backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5" />
-            Livraison gratuite dans tout Goma
+            Livraison premium dans tout Goma
           </div>
           
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-none">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-light tracking-tighter leading-[1.1]">
             Achetez Malin. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-blue-400 to-indigo-400">
+            <span className="font-bold bg-clip-text text-transparent bg-gradient-to-r from-gold via-gold-muted to-white">
               Payez à la Livraison.
             </span>
           </h1>
           
-          <p className="text-sm sm:text-base lg:text-lg text-neutral-300 max-w-lg leading-relaxed">
+          <p className="text-sm sm:text-base lg:text-lg text-neutral-400 max-w-lg leading-relaxed font-light">
             Profitez d'une sélection premium de téléphones, de mode et de solutions d'énergie solaire. Payez en espèces uniquement après réception et vérification de votre colis.
           </p>
           
@@ -132,17 +133,21 @@ export default function HomePage() {
 
         {/* Feature badges absolute container (Desktop only) */}
         <div className="hidden lg:absolute lg:bottom-12 lg:right-16 lg:flex lg:flex-col lg:space-y-3">
-          <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-xl backdrop-blur-md">
-            <Truck className="h-5 w-5 text-emerald-400" />
+          <div className="flex items-center gap-4 rounded-2xl bg-black/40 border border-white/10 px-5 py-4 shadow-xl backdrop-blur-xl">
+            <div className="bg-gold/10 p-2 rounded-full">
+              <Truck className="h-5 w-5 text-gold" />
+            </div>
             <div className="text-xs">
-              <p className="font-semibold text-white">Livraison 0 $</p>
+              <p className="font-medium text-white uppercase tracking-wider text-[10px]">Livraison 0 $</p>
               <p className="text-neutral-400">Partout à Goma</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-xl backdrop-blur-md">
-            <Banknote className="h-5 w-5 text-blue-400" />
+          <div className="flex items-center gap-4 rounded-2xl bg-black/40 border border-white/10 px-5 py-4 shadow-xl backdrop-blur-xl">
+            <div className="bg-gold/10 p-2 rounded-full">
+              <Banknote className="h-5 w-5 text-gold" />
+            </div>
             <div className="text-xs">
-              <p className="font-semibold text-white">Cash on Delivery</p>
+              <p className="font-medium text-white uppercase tracking-wider text-[10px]">Cash on Delivery</p>
               <p className="text-neutral-400">Paiement après vérification</p>
             </div>
           </div>
@@ -165,10 +170,12 @@ export default function HomePage() {
               href={`/shop?category=${cat.slug}`}
               className="group relative h-64 overflow-hidden rounded-2xl border border-border/60 shadow-sm transition-all hover:shadow-md"
             >
-              <img
+              <Image
                 src={cat.image_url}
                 alt={cat.name}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent"></div>
               <div className="absolute bottom-6 left-6 text-white space-y-1">
@@ -232,10 +239,12 @@ export default function HomePage() {
                 className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-muted">
-                  <img
+                  <Image
                     src={product.images[0]}
                     alt={product.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   {hasDiscount && (
                     <span className="absolute top-3 left-3 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold text-destructive-foreground">

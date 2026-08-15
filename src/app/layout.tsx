@@ -19,10 +19,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DLXSTORE - Shop Smart. Delivered Free.",
+  title: {
+    default: "DLXSTORE - Shop Smart. Delivered Free.",
+    template: "%s | DLXSTORE",
+  },
   description: "Boutique en ligne premium pour la ville de Goma. Livraison gratuite partout à Goma, paiement cash à la livraison uniquement (COD).",
   keywords: ["Goma", "Kivu", "RDC", "E-commerce", "Boutique en ligne", "Livraison gratuite"],
   robots: "index, follow",
+  openGraph: {
+    title: "DLXSTORE - Shop Smart. Delivered Free.",
+    description: "La première plateforme e-commerce premium à Goma. Livraison gratuite, paiement à la réception.",
+    url: "https://dlxstore.cd",
+    siteName: "DLXSTORE",
+    locale: "fr_FR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DLXSTORE",
+    description: "La première plateforme e-commerce premium à Goma.",
+  }
 };
 
 export const viewport = {

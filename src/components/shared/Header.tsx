@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
@@ -101,8 +102,8 @@ export default function Header() {
         {/* LOGO */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              DLX<span className="text-muted-foreground font-medium">STORE</span>
+            <span className="text-xl font-bold tracking-widest text-foreground sm:text-2xl uppercase">
+              DLX<span className="text-primary font-light">STORE</span>
             </span>
           </Link>
 
@@ -139,9 +140,11 @@ export default function Header() {
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <img 
+                    <Image 
                       src={product.images[0]} 
                       alt={product.name} 
+                      width={32}
+                      height={32}
                       className="h-8 w-8 rounded object-cover"
                     />
                     <div>

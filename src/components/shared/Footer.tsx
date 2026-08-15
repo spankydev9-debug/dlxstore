@@ -53,8 +53,8 @@ export default function Footer() {
         
         {/* Brand */}
         <div className="space-y-4">
-          <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
-            DLXSTORE
+          <Link href="/" className="text-xl font-bold tracking-widest text-foreground uppercase">
+            DLX<span className="text-primary font-light">STORE</span>
           </Link>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Le marché en ligne de premier choix pour Goma. Shop Smart. Delivered Free.

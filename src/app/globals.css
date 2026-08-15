@@ -20,6 +20,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-muted: var(--gold-muted);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -27,16 +32,17 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #09090b;
+  /* Light Mode (Premium Minimalist) */
+  --background: #fcfcfc;
+  --foreground: #0a0a0a;
   
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #0a0a0a;
   
   --popover: #ffffff;
-  --popover-foreground: #09090b;
+  --popover-foreground: #0a0a0a;
   
-  --primary: #000000;
+  --primary: #0a0a0a;
   --primary-foreground: #ffffff;
   
   --secondary: #f4f4f5;
@@ -50,63 +56,71 @@
   
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
+
+  --gold: #d4af37;
+  --gold-muted: #f3e5ab;
   
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #18181b;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #0a0a0a;
   
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
+  /* Dark Mode (Cinematic Black & Gold) */
+  --background: #000000;
+  --foreground: #f8f8f2;
   
-  --card: #09090b;
-  --card-foreground: #fafafa;
+  --card: #0a0a0a;
+  --card-foreground: #f8f8f2;
   
-  --popover: #09090b;
-  --popover-foreground: #fafafa;
+  --popover: #0a0a0a;
+  --popover-foreground: #f8f8f2;
   
-  --primary: #ffffff;
-  --primary-foreground: #09090b;
+  --primary: #d4af37; /* Refined Gold */
+  --primary-foreground: #000000;
   
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
+  --secondary: #171717;
+  --secondary-foreground: #f8f8f2;
   
-  --muted: #27272a;
+  --muted: #171717;
   --muted-foreground: #a1a1aa;
   
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
+  --accent: #d4af37;
+  --accent-foreground: #000000;
   
   --destructive: #7f1d1d;
-  --destructive-foreground: #fafafa;
+  --destructive-foreground: #f8f8f2;
+
+  --gold: #d4af37;
+  --gold-muted: #b89600;
   
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #fafafa;
+  --border: #262626;
+  --input: #262626;
+  --ring: #d4af37;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
+  letter-spacing: -0.01em; /* Tighter, more editorial typography */
 }
 
-/* Glassmorphism Classes */
+/* Glassmorphism Classes (Subtle & Premium) */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(252, 252, 252, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .dark .glass {
-  background: rgba(9, 9, 11, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Premium Animations */
@@ -116,13 +130,13 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom Scrollbars */
+/* Custom Scrollbars (Minimalist) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -131,9 +145,19 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* Subtle image reveal effect for premium feel */
+.image-reveal {
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+}
+
+.image-reveal.loaded {
+  opacity: 1;
 }
