@@ -1,0 +1,1 @@
+export default function OfflinePage() { return <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col justify-center text-center"><h1 className="text-3xl font-bold">You are offline</h1><p className="mt-3 text-muted-foreground">Reconnect to continue browsing DLXSTORE.</p></main>; }

@@ -1,4 +1,5 @@
 import { Category, Product, Order, Notification, Profile, Review, StoreSettings, InventoryHistoryEntry } from "../types";
+import { defaultStoreSettings } from "./store-config";
 
 export const mockCategories: Category[] = [
   {
@@ -378,14 +379,7 @@ export const mockNotifications: Notification[] = [
   }
 ];
 
-export const mockStoreSettings: StoreSettings = {
-  name: "DLXSTORE",
-  tagline: "Shop Smart. Delivered Free.",
-  city: "Goma",
-  contact_phone: "+243 990 123 456",
-  contact_email: "contact@dlxstore.cd",
-  whatsapp_enabled: true
-};
+export const mockStoreSettings: StoreSettings = defaultStoreSettings;
 
 export const mockInventoryHistory: InventoryHistoryEntry[] = [
   {

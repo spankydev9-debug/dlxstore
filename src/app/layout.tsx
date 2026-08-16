@@ -1,35 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../components/shared/ThemeProvider";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { NotificationProvider } from "../context/NotificationContext";
-import Header from "../components/shared/Header";
-import Footer from "../components/shared/Footer";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { LanguageProvider } from "../context/LanguageContext";
+import { StorefrontShell } from "../components/shared/StorefrontShell";
+import { PwaRegistration } from "../components/shared/PwaRegistration";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dlxstore.cd"),
   title: {
-    default: "DLXSTORE - Shop Smart. Delivered Free.",
+    default: "DLXSTORE | Digital marketplace for the DRC",
     template: "%s | DLXSTORE",
   },
-  description: "Boutique en ligne premium pour la ville de Goma. Livraison gratuite partout à Goma, paiement cash à la livraison uniquement (COD).",
-  keywords: ["Goma", "Kivu", "RDC", "E-commerce", "Boutique en ligne", "Livraison gratuite"],
+  description: "DLXSTORE is building a trusted digital marketplace for the Democratic Republic of Congo.",
+  keywords: ["RDC", "DRC", "marketplace", "e-commerce", "DLXSTORE"],
   robots: "index, follow",
   openGraph: {
-    title: "DLXSTORE - Shop Smart. Delivered Free.",
-    description: "La première plateforme e-commerce premium à Goma. Livraison gratuite, paiement à la réception.",
-    url: "https://dlxstore.cd",
+    title: "DLXSTORE | Digital marketplace for the DRC",
+    description: "A trusted digital marketplace for the Democratic Republic of Congo.",
     siteName: "DLXSTORE",
     locale: "fr_FR",
     type: "website",
@@ -37,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "DLXSTORE",
-    description: "La première plateforme e-commerce premium à Goma.",
+    description: "A trusted digital marketplace for the DRC.",
   }
 };
 
@@ -54,22 +44,21 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
+        <PwaRegistration />
         <ThemeProvider>
+          <LanguageProvider>
           <AuthProvider>
             <CartProvider>
               <NotificationProvider>
-                <Header />
-                <main className="flex-1 w-full mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-                  {children}
-                </main>
-                <Footer />
+                <StorefrontShell>{children}</StorefrontShell>
               </NotificationProvider>
             </CartProvider>
           </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

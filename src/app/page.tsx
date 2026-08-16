@@ -23,6 +23,7 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -33,6 +34,7 @@ export default function HomePage() {
         setBestSellers(prods.filter(p => p.is_best_seller).slice(0, 4));
       } catch (err) {
         console.error("Error loading homepage data:", err);
+        setLoadError("Impossible de charger la boutique. Vérifiez votre connexion puis réessayez.");
       } finally {
         setIsLoading(false);
       }
@@ -87,6 +89,10 @@ export default function HomePage() {
         <p className="text-sm text-muted-foreground">Chargement de votre boutique à Goma...</p>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div role="alert" className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">La boutique est indisponible</h1><p className="text-sm text-muted-foreground">{loadError}</p><button onClick={() => window.location.reload()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Réessayer</button></div>;
   }
 
   return (
@@ -170,13 +176,7 @@ export default function HomePage() {
               href={`/shop?category=${cat.slug}`}
               className="group relative h-64 overflow-hidden rounded-2xl border border-border/60 shadow-sm transition-all hover:shadow-md"
             >
-              <Image
-                src={cat.image_url}
-                alt={cat.name}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
-              />
+              {cat.image_url ? <Image src={cat.image_url} alt={cat.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent"></div>
               <div className="absolute bottom-6 left-6 text-white space-y-1">
                 <h3 className="text-xl font-bold">{cat.name}</h3>
@@ -239,13 +239,7 @@ export default function HomePage() {
                 className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-muted">
-                  <Image
-                    src={product.images[0]}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  {product.images[0] ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-muted" />}
                   {hasDiscount && (
                     <span className="absolute top-3 left-3 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold text-destructive-foreground">
                       Promo

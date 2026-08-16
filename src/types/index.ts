@@ -118,7 +118,13 @@ export interface StoreSettings {
   contact_phone: string;
   contact_email: string;
   whatsapp_enabled: boolean;
+  launch: { mode: "active" | "coming_soon"; starts_at: string | null; timezone: string; announcement: string };
+  contacts: Partial<Record<"general" | "support" | "orders" | "delivery" | "partnerships", { phone?: string; email?: string; whatsapp?: string }>>;
+  delivery_zones: DeliveryZone[];
 }
+
+export interface DeliveryZone { country: "CD"; province: string; city?: string; territory?: string; commune?: string; active: boolean; fee: number; currency: "USD" | "CDF"; }
+export interface PartnerApplication { id: string; business_name: string; owner_name: string; phone: string; email?: string; social_media?: string; province: string; city: string; business_category: string; description: string; products_services?: string; location?: string; collaboration_type: "vendor" | "brand" | "creator" | "partner"; additional_information?: string; status: "pending" | "reviewing" | "approved" | "declined"; created_at: string; }
 
 export interface InventoryHistoryEntry {
   id: string;

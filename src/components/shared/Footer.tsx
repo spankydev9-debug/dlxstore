@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Truck, ShieldCheck, Mail, Phone, MapPin, MessageSquare } from "lucide-react";
+import { Truck, ShieldCheck, MapPin, MessageSquare } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -41,7 +41,7 @@ export default function Footer() {
             <div>
               <h4 className="font-semibold text-foreground text-sm sm:text-base">Assistance WhatsApp Rapide</h4>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Une question ou une commande directe ? Nos agents à Goma vous répondent instantanément sur WhatsApp.
+                Les canaux officiels de support seront affichés ici dès leur configuration.
               </p>
             </div>
           </div>
@@ -57,7 +57,7 @@ export default function Footer() {
             DLX<span className="text-primary font-light">STORE</span>
           </Link>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Le marché en ligne de premier choix pour Goma. Shop Smart. Delivered Free.
+            Une fondation de marché numérique pensée pour la République démocratique du Congo.
           </p>
           <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground">
             <MapPin className="h-4.5 w-4.5 text-primary" />
@@ -88,25 +88,15 @@ export default function Footer() {
 
         {/* Contact info */}
         <div>
-          <h4 className="font-semibold text-foreground text-sm mb-4">Contact direct</h4>
+          <h4 className="font-semibold text-foreground text-sm mb-4">Contact</h4>
           <ul className="space-y-3 text-xs sm:text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <Phone className="h-4.5 w-4.5 text-primary" />
-              <span>+243 990 123 456</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <Mail className="h-4.5 w-4.5 text-primary" />
-              <span>contact@dlxstore.cd</span>
-            </li>
             <li className="pt-2">
-              <a
-                href="https://wa.me/243990123456?text=Bonjour%20DLXSTORE%2C%20je%20souhaite%20commander"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/contact"
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition-colors"
               >
-                Commander sur WhatsApp
-              </a>
+                Voir les canaux officiels
+              </Link>
             </li>
           </ul>
         </div>

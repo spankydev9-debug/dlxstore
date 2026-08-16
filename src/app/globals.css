@@ -23,8 +23,8 @@
   --color-gold: var(--gold);
   --color-gold-muted: var(--gold-muted);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);

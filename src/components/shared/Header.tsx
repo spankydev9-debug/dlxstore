@@ -25,6 +25,8 @@ import {
   Heart,
   ChevronRight
 } from "lucide-react";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function Header() {
   const { user, signOut } = useAuth();
@@ -32,6 +34,7 @@ export default function Header() {
   const { unreadCount, notifications, markAsRead } = useNotifications();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -109,8 +112,9 @@ export default function Header() {
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">Accueil</Link>
-            <Link href="/shop" className="hover:text-foreground transition-colors">Boutique</Link>
+            <Link href="/" className="hover:text-foreground transition-colors">{t.home}</Link>
+            <Link href="/shop" className="hover:text-foreground transition-colors">{t.shop}</Link>
+            <Link href="/partner" className="hover:text-foreground transition-colors">{t.partner}</Link>
             <Link href="/about" className="hover:text-foreground transition-colors">À Propos</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
           </nav>
@@ -163,6 +167,7 @@ export default function Header() {
 
         {/* CONTROLS */}
         <div className="flex items-center space-x-2 sm:space-x-4">
+          <LanguageSwitcher />
           
           {/* Theme Toggler */}
           <button

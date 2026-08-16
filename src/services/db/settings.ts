@@ -1,5 +1,6 @@
 import { StoreSettings } from "../../types";
 import { supabase, isSupabaseConfigured, initMockDb } from "./index";
+import { defaultStoreSettings, normalizeStoreSettings } from "../../lib/store-config";
 
 export async function getStoreSettings(): Promise<StoreSettings> {
   if (isSupabaseConfigured && supabase) {
@@ -10,20 +11,13 @@ export async function getStoreSettings(): Promise<StoreSettings> {
       .maybeSingle();
 
     if (error) throw error;
-    if (data && data.value) return data.value as StoreSettings;
+    if (data && data.value) return normalizeStoreSettings(data.value as Partial<StoreSettings>);
   }
 
   // Local Storage Fallback
   initMockDb();
   const raw = localStorage.getItem("dlxstore_settings");
-  return raw ? JSON.parse(raw) : {
-    name: "DLXSTORE",
-    tagline: "Shop Smart. Delivered Free.",
-    city: "Goma",
-    contact_phone: "+243 990 123 456",
-    contact_email: "contact@dlxstore.cd",
-    whatsapp_enabled: true
-  };
+  return raw ? normalizeStoreSettings(JSON.parse(raw) as Partial<StoreSettings>) : defaultStoreSettings;
 }
 
 export async function updateStoreSettings(newSettings: Partial<StoreSettings>): Promise<StoreSettings> {
