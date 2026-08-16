@@ -14,6 +14,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+/** Demo data is opt-in and must never silently appear in a production storefront. */
+export const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO_MODE === "true";
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!)
@@ -22,6 +24,7 @@ export const supabase = isSupabaseConfigured
 // Helper to initialize local storage data if empty
 export function initMockDb() {
   if (typeof window === "undefined") return;
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured. Add Supabase environment variables to connect the production data source.");
 
   if (!localStorage.getItem("dlxstore_categories")) {
     localStorage.setItem("dlxstore_categories", JSON.stringify(mockCategories));

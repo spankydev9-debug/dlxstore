@@ -9,6 +9,7 @@ import { getProducts, createProduct, updateProduct, deleteProduct, adjustInvento
 import { getOrders, updateOrderStatus } from "../../../services/db/orders";
 import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
+import { BusinessControls } from "../../../components/admin/BusinessControls";
 import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus } from "../../../types";
 import { 
   BarChart3, 
@@ -18,14 +19,13 @@ import {
   Truck, 
   AlertTriangle, 
   History, 
-  Settings, 
+  Settings,
   Plus, 
   Edit2, 
   Trash2, 
   FileSpreadsheet, 
   Printer, 
   ArrowLeft,
-  ChevronRight,
   TrendingUp,
   X
 } from "lucide-react";
@@ -317,7 +317,8 @@ function AdminDashboardContent() {
     { key: "orders", label: "Commandes", icon: ShoppingBag },
     { key: "products", label: "Articles & CRUD", icon: Package },
     { key: "deliveries", label: "Livraisons & Drivers", icon: Truck },
-    { key: "inventory", label: "Gestion Stock", icon: History }
+    { key: "inventory", label: "Gestion Stock", icon: History },
+    { key: "business", label: "Configuration", icon: Settings }
   ];
 
   return (
@@ -762,6 +763,8 @@ function AdminDashboardContent() {
                   </div>
                 </div>
               )}
+
+              {activeTab === "business" && <BusinessControls />}
 
             </div>
           )}

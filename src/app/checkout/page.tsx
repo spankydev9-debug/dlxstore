@@ -43,11 +43,15 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
+    if (!user) {
+      router.push("/auth?mode=login&next=/checkout");
+      return;
+    }
     
     setIsSubmitting(true);
     try {
       const orderFields = {
-        customer_id: user?.id,
+        customer_id: user.id,
         customer_name: customerName,
         phone_number: phoneNumber,
         municipality,
@@ -86,6 +90,10 @@ export default function CheckoutPage() {
         </Link>
       </div>
     );
+  }
+
+  if (!user) {
+    return <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">Connectez-vous pour finaliser votre commande</h1><p className="text-sm text-muted-foreground">Votre panier est conservé. Le paiement à la livraison reste le seul mode de paiement.</p><Link href="/auth?mode=login&next=/checkout" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Se connecter</Link></div>;
   }
 
   return (
