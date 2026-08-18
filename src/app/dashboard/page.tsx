@@ -10,6 +10,8 @@ import { getWishlist, removeFromWishlist } from "../../services/db/wishlist";
 import { getNotifications, markAsRead } from "../../services/db/notifications";
 import { updateProfile } from "../../services/auth";
 import { Order, Product, Notification } from "../../types";
+import { useLanguage } from "../../context/LanguageContext";
+import { languages } from "../../lib/i18n";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { 
   ShoppingBag, 
@@ -29,7 +31,8 @@ import {
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, signOut, isLoading: isAuthLoading } = useAuth();
+  const { user, signOut, isLoading: isAuthLoading, refreshUser } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
 
   const tabParam = searchParams.get("tab") || "orders";
   const [activeTab, setActiveTab] = useState(tabParam);
@@ -126,7 +129,7 @@ function DashboardContent() {
     const addr = { municipality, neighborhood, avenue, houseNumber };
     localStorage.setItem(`dlxstore_address_${user.id}`, JSON.stringify(addr));
     setIsSavedAddress(true);
-    alert("Adresse enregistrée avec succès !");
+    alert(t.addressSaved);
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -135,10 +138,11 @@ function DashboardContent() {
     setIsSavingProfile(true);
     try {
       await updateProfile(user.id, { full_name: fullName, phone });
-      alert("Profil mis à jour !");
+      await refreshUser();
+      alert(t.profileUpdated);
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la mise à jour.");
+      alert(t.profileUpdateError);
     } finally {
       setIsSavingProfile(false);
     }
@@ -169,18 +173,19 @@ function DashboardContent() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="text-sm text-muted-foreground">Authentification en cours...</p>
+        <p className="text-sm text-muted-foreground">{t.authenticating}</p>
       </div>
     );
   }
 
   // Nav Items
   const navItems = [
-    { key: "orders", label: "Mes commandes", icon: ShoppingBag },
-    { key: "wishlist", label: "Favoris", icon: Heart },
-    { key: "notifications", label: "Notifications", icon: Bell },
-    { key: "addresses", label: "Adresses sauvées", icon: MapPin },
-    { key: "settings", label: "Paramètres profil", icon: Settings }
+    { key: "orders", label: t.myOrders, icon: ShoppingBag },
+    { key: "wishlist", label: t.wishlist, icon: Heart },
+    { key: "notifications", label: t.notifications, icon: Bell },
+    { key: "addresses", label: t.savedAddresses, icon: MapPin },
+    { key: "language", label: t.languageSettings, icon: Settings },
+    { key: "settings", label: t.profileSettings, icon: User },
   ];
 
   return (
@@ -188,8 +193,8 @@ function DashboardContent() {
       {/* Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/40 pb-5 gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Mon Compte</h1>
-          <p className="text-sm text-muted-foreground">Gérez vos commandes, favoris et vos adresses de livraison à Goma.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{t.myAccount}</h1>
+          <p className="text-sm text-muted-foreground">{t.accountIntro}</p>
         </div>
         <button
           onClick={async () => {
@@ -199,7 +204,7 @@ function DashboardContent() {
           className="inline-flex items-center gap-1.5 rounded-full border border-destructive/20 bg-destructive/5 px-4 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-all"
         >
           <LogOut className="h-4 w-4" />
-          Se déconnecter
+          {t.signOut}
         </button>
       </div>
 
@@ -238,13 +243,11 @@ function DashboardContent() {
               {/* ORDERS TAB */}
               {activeTab === "orders" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Suivi des commandes</h3>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.orderTrackingTab}</h3>
                   {orders.length === 0 ? (
                     <div className="text-center py-12 space-y-4">
-                      <p className="text-xs sm:text-sm text-muted-foreground">Vous n'avez pas encore passé de commande.</p>
-                      <Link href="/shop" className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-5 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all">
-                        Visiter la boutique
-                      </Link>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{t.noOrdersYet}</p>
+                      <Link href="/shop" className="inline-flex h-9 items-center justify-center rounded-full bg-primary px-5 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all">{t.visitShop}</Link>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -261,24 +264,24 @@ function DashboardContent() {
 
                           <div className="flex justify-between items-center text-xs">
                             <div className="space-y-1">
-                              <p className="text-muted-foreground">Statut : 
+                              <p className="text-muted-foreground">{t.orderStatus} :
                                 <span className={`ml-1 font-bold ${order.status === 'delivered' ? 'text-emerald-600' : order.status === 'cancelled' ? 'text-destructive' : 'text-primary'}`}>
-                                  {order.status === 'pending' && 'En attente'}
-                                  {order.status === 'confirmed' && 'Confirmée'}
-                                  {order.status === 'preparing' && 'En préparation'}
-                                  {order.status === 'ready' && 'Prête'}
-                                  {order.status === 'out_for_delivery' && 'En livraison'}
-                                  {order.status === 'delivered' && 'Livrée'}
-                                  {order.status === 'cancelled' && 'Annulée'}
+                                  {order.status === 'pending' && t.pending}
+                                  {order.status === 'confirmed' && t.confirmed}
+                                  {order.status === 'preparing' && t.preparing}
+                                  {order.status === 'ready' && t.ready}
+                                  {order.status === 'out_for_delivery' && t.outForDelivery}
+                                  {order.status === 'delivered' && t.delivered}
+                                  {order.status === 'cancelled' && t.cancelled}
                                 </span>
                               </p>
-                              <p className="text-muted-foreground">Total : <span className="font-bold text-foreground">{order.total_amount} $ (COD)</span></p>
+                              <p className="text-muted-foreground">{t.total} : <span className="font-bold text-foreground">{order.total_amount} $ (COD)</span></p>
                             </div>
                             <Link
                               href={`/order-tracking?orderId=${order.id}`}
                               className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
                             >
-                              Suivre
+                              {t.trackOrder}
                               <ChevronRight className="h-3.5 w-3.5" />
                             </Link>
                           </div>
@@ -441,16 +444,35 @@ function DashboardContent() {
               )}
 
               {/* SETTINGS TAB */}
+              {activeTab === "language" && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.languageSettings}</h3>
+                  <p className="text-sm text-muted-foreground">{t.changeLanguageHint}</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {languages.map((item) => (
+                      <button
+                        key={item.code}
+                        type="button"
+                        onClick={() => setLanguage(item.code)}
+                        className={`rounded-xl border p-4 text-left text-sm font-semibold transition-all ${language === item.code ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted"}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {activeTab === "settings" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Informations personnelles</h3>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.personalInfo}</h3>
                   <form onSubmit={handleUpdateProfile} className="space-y-4">
                     
                     {/* Name */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <User className="h-4 w-4" />
-                        Nom Complet
+                        {t.fullName}
                       </label>
                       <input
                         type="text"
@@ -466,7 +488,7 @@ function DashboardContent() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <Lock className="h-4 w-4" />
-                        Adresse Email (Non modifiable)
+                        {t.emailReadonly}
                       </label>
                       <input
                         type="email"

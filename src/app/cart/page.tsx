@@ -4,10 +4,12 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "../../context/CartContext";
-import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck, Heart } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
+import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck } from "lucide-react";
 
 export default function CartPage() {
   const { items, subtotal, total, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { t } = useLanguage();
 
   if (items.length === 0) {
     return (
@@ -15,15 +17,15 @@ export default function CartPage() {
         <div className="rounded-full bg-muted p-6">
           <ShoppingCart className="h-12 w-12 text-muted-foreground" />
         </div>
-        <h1 className="text-2xl font-bold">Votre panier est vide</h1>
+        <h1 className="text-2xl font-bold">{t.cartEmpty}</h1>
         <p className="text-sm text-muted-foreground max-w-xs">
-          Explorez notre catalogue et ajoutez des articles de qualité avec livraison gratuite à Goma.
+          {t.cartEmptyBody}
         </p>
         <Link
           href="/shop"
           className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-all shadow-md"
         >
-          Découvrir nos produits
+          {t.discoverProducts}
         </Link>
       </div>
     );
@@ -33,8 +35,8 @@ export default function CartPage() {
     <div className="space-y-8 animate-fade-in">
       {/* Title */}
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Votre Panier</h1>
-        <p className="text-sm text-muted-foreground">Vérifiez vos articles avant de passer la commande.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{t.cart}</h1>
+        <p className="text-sm text-muted-foreground">{t.cartIntro}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
@@ -42,12 +44,12 @@ export default function CartPage() {
         {/* Cart Items List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
-            <span className="text-sm font-semibold text-muted-foreground">{items.length} articles</span>
+            <span className="text-sm font-semibold text-muted-foreground">{items.length} {t.items}</span>
             <button
               onClick={clearCart}
               className="text-xs text-muted-foreground hover:text-destructive hover:underline font-semibold"
             >
-              Vider le panier
+              {t.clearCart}
             </button>
           </div>
 
@@ -78,10 +80,10 @@ export default function CartPage() {
                       {/* Attributes */}
                       <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                         {item.selectedSize && (
-                          <span className="bg-muted px-2 py-0.5 rounded">Taille : {item.selectedSize}</span>
+                          <span className="bg-muted px-2 py-0.5 rounded">{t.size}: {item.selectedSize}</span>
                         )}
                         {item.selectedColor && (
-                          <span className="bg-muted px-2 py-0.5 rounded">Couleur : {item.selectedColor}</span>
+                          <span className="bg-muted px-2 py-0.5 rounded">{t.color}: {item.selectedColor}</span>
                         )}
                       </div>
                     </div>
@@ -121,7 +123,7 @@ export default function CartPage() {
                     <button
                       onClick={() => removeFromCart(item.id)}
                       className="text-muted-foreground hover:text-destructive p-2 hover:bg-destructive/10 rounded-full transition-colors"
-                      title="Retirer l'article"
+                      title={t.removeItem}
                     >
                       <Trash2 className="h-4.5 w-4.5" />
                     </button>
@@ -135,24 +137,24 @@ export default function CartPage() {
         {/* Cart Summary */}
         <div className="space-y-6">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
-            <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-3">Résumé du panier</h3>
+            <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-3">{t.cartSummary}</h3>
             
             <div className="space-y-3 text-xs sm:text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Sous-total</span>
+                <span>{t.subtotal}</span>
                 <span className="font-semibold text-foreground">{subtotal} $</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Livraison</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">GRATUITE (Goma)</span>
+                <span>{t.delivery}</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{t.freeGoma}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Moyen de paiement</span>
-                <span className="font-semibold text-foreground">À la livraison (COD)</span>
+                <span>{t.paymentMethod}</span>
+                <span className="font-semibold text-foreground">{t.cod}</span>
               </div>
               
               <div className="border-t border-border/45 pt-3 flex justify-between font-bold text-base sm:text-lg text-foreground">
-                <span>Total</span>
+                <span>{t.total}</span>
                 <span>{total} $</span>
               </div>
             </div>
@@ -162,7 +164,7 @@ export default function CartPage() {
                 href="/checkout"
                 className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md"
               >
-                Passer au paiement (COD)
+                {t.checkoutCta}
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
             </div>
@@ -170,19 +172,19 @@ export default function CartPage() {
 
           {/* Guarantees */}
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 space-y-4">
-            <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Nos garanties à Goma</h4>
+            <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">{t.guarantees}</h4>
             <div className="flex items-start gap-3">
               <Truck className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-bold text-foreground">Livraison 100% Gratuite</p>
-                <p className="text-muted-foreground">Partout dans la ville de Goma, sans frais cachés.</p>
+                <p className="font-bold text-foreground">{t.freeDelivery}</p>
+                <p className="text-muted-foreground">{t.freeDeliveryBody}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <ShieldCheck className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div className="text-xs">
-                <p className="font-bold text-foreground">Achat Sans Risque</p>
-                <p className="text-muted-foreground">Vérifiez l'article à l'arrivée. Payez en espèces uniquement si vous êtes satisfait.</p>
+                <p className="font-bold text-foreground">{t.safePurchase}</p>
+                <p className="text-muted-foreground">{t.safePurchaseBody}</p>
               </div>
             </div>
           </div>

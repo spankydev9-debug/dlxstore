@@ -7,7 +7,8 @@ import { useAuth } from "../../context/AuthContext";
 import { createOrder } from "../../services/db/orders";
 import { CouponValidation, validateCoupon } from "../../services/db/coupons";
 import { getStoreSettings } from "../../services/db/settings";
-import { buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../lib/whatsapp";
+import { buildWhatsAppUrl, buildOrderOperationalMessage, getWhatsAppBuyNumber } from "../../lib/whatsapp";
+import { useLanguage } from "../../context/LanguageContext";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +17,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, total, clearCart } = useCart();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   // Form Fields
   const [customerName, setCustomerName] = useState("");
@@ -50,8 +52,8 @@ export default function CheckoutPage() {
     try {
       const result = await validateCoupon(couponCode, total, false);
       setCoupon(result);
-      setCouponNotice(result ? "Réduction appliquée. Elle sera vérifiée à la création de la commande." : "Ce code est invalide, expiré, ou ne s’applique pas à ce panier.");
-    } catch { setCoupon(null); setCouponNotice("Impossible de vérifier ce code actuellement."); }
+      setCouponNotice(result ? t.couponApplied : t.couponInvalid);
+    } catch { setCoupon(null); setCouponNotice(t.couponUnavailable); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,14 +94,23 @@ export default function CheckoutPage() {
       try {
         const settings = await getStoreSettings();
         const number = getWhatsAppBuyNumber(settings);
-        const message = `Bonjour DLXSTORE, une commande a été créée sur le site.\n\n• Référence : ${newOrder.id}\n• Client : ${newOrder.customer_name}\n• Total COD : ${newOrder.total_amount} $\n\nMerci de poursuivre le suivi sur DLXSTORE.`;
+        const message = buildOrderOperationalMessage({
+          ...newOrder,
+          items: items.map((item) => ({
+            quantity: item.quantity,
+            price_at_sale: item.product.discount_price ?? item.product.price,
+            size: item.selectedSize,
+            color: item.selectedColor,
+            product: { name: item.product.name },
+          })),
+        });
         const url = number ? buildWhatsAppUrl(number, message) : null;
         if (url) { window.open(url, "_blank", "noopener,noreferrer"); whatsappStatus = "opened"; }
       } catch (whatsappError) { console.warn("WhatsApp handoff unavailable; order was created.", whatsappError); }
       router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
     } catch (err) {
       console.error("Error creating order:", err);
-      alert("Erreur lors de la validation de votre commande. Veuillez réessayer.");
+      alert(t.orderError);
     } finally {
       setIsSubmitting(false);
     }
@@ -108,16 +119,14 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center space-y-4 animate-fade-in">
-        <h1 className="text-2xl font-bold">Votre panier est vide</h1>
-        <Link href="/shop" className="text-primary hover:underline font-semibold text-sm">
-          Retourner à la boutique
-        </Link>
+        <h1 className="text-2xl font-bold">{t.cartEmpty}</h1>
+        <Link href="/shop" className="text-primary hover:underline font-semibold text-sm">{t.backToShop}</Link>
       </div>
     );
   }
 
   if (!user) {
-    return <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">Connectez-vous pour finaliser votre commande</h1><p className="text-sm text-muted-foreground">Votre panier est conservé. Le paiement à la livraison reste le seul mode de paiement.</p><Link href="/auth?mode=login&next=/checkout" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Se connecter</Link></div>;
+    return <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">{t.checkoutLoginTitle}</h1><p className="text-sm text-muted-foreground">{t.checkoutLoginBody}</p><Link href="/auth?mode=login&next=/checkout" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">{t.signIn}</Link></div>;
   }
 
   return (
@@ -125,7 +134,7 @@ export default function CheckoutPage() {
       {/* Back Button */}
       <Link href="/cart" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />
-        Retour au panier
+        {t.backToCart}
       </Link>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-5">
@@ -133,18 +142,18 @@ export default function CheckoutPage() {
         {/* Left Column: Checkout Form (Col span 3) */}
         <div className="lg:col-span-3 space-y-6">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Validation de commande</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{t.checkoutTitle}</h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Remplissez vos coordonnées pour la livraison gratuite à votre domicile à Goma.
+              {t.checkoutIntro}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="font-bold text-base text-foreground border-b border-border/40 pb-2">Informations de livraison</h3>
+            <h3 className="font-bold text-base text-foreground border-b border-border/40 pb-2">{t.deliveryInfo}</h3>
             
             {/* Customer Name */}
             <div className="space-y-1.5">
-              <label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nom Complet</label>
+              <label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.customerName}</label>
               <input
                 id="name"
                 type="text"
@@ -158,7 +167,7 @@ export default function CheckoutPage() {
 
             {/* Phone Number */}
             <div className="space-y-1.5">
-              <label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Numéro de Téléphone (WhatsApp de préférence)</label>
+              <label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.phone}</label>
               <input
                 id="phone"
                 type="tel"
@@ -173,7 +182,7 @@ export default function CheckoutPage() {
             {/* Municipality & Neighborhood Selectors */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label htmlFor="municipality" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Commune</label>
+                <label htmlFor="municipality" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.municipality}</label>
                 <select
                   id="municipality"
                   value={municipality}
@@ -186,7 +195,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="neighborhood" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quartier</label>
+                <label htmlFor="neighborhood" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.neighborhood}</label>
                 <select
                   id="neighborhood"
                   value={neighborhood}
@@ -203,7 +212,7 @@ export default function CheckoutPage() {
             {/* Avenue & House Number */}
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2 space-y-1.5">
-                <label htmlFor="avenue" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Avenue</label>
+                <label htmlFor="avenue" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.avenue}</label>
                 <input
                   id="avenue"
                   type="text"
@@ -216,7 +225,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="house" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">N° Maison</label>
+                <label htmlFor="house" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.houseNumber}</label>
                 <input
                   id="house"
                   type="text"
@@ -230,7 +239,7 @@ export default function CheckoutPage() {
 
             {/* Delivery Notes */}
             <div className="space-y-1.5">
-              <label htmlFor="notes" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Indications de livraison (Points de repère)</label>
+              <label htmlFor="notes" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.deliveryNotes}</label>
               <textarea
                 id="notes"
                 rows={3}
@@ -245,11 +254,9 @@ export default function CheckoutPage() {
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 space-y-2">
               <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-400 text-sm">
                 <ShieldCheck className="h-5 w-5" />
-                <span>Paiement à la Livraison Garanti</span>
+                <span>{t.codGuarantee}</span>
               </div>
-              <p className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
-                “Votre commande sera livrée gratuitement partout à Goma. Le paiement sera perçu uniquement à la livraison après inspection de votre colis.”
-              </p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">{t.codNotice}</p>
             </div>
 
             <button
@@ -257,7 +264,7 @@ export default function CheckoutPage() {
               disabled={isSubmitting}
               className="w-full inline-flex items-center justify-center h-12 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md disabled:opacity-50"
             >
-              {isSubmitting ? "Traitement de la commande..." : "Confirmer ma commande"}
+              {isSubmitting ? t.processingOrder : t.confirmOrder}
             </button>
           </form>
         </div>
@@ -267,7 +274,7 @@ export default function CheckoutPage() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
             <h3 className="font-bold text-base text-foreground border-b border-border/40 pb-2 flex items-center gap-2">
               <ShoppingBag className="h-4.5 w-4.5 text-muted-foreground" />
-              Vos articles
+              {t.orderItems}
             </h3>
 
             {/* Items Summary */}
@@ -279,7 +286,7 @@ export default function CheckoutPage() {
                     <div className="space-y-1">
                       <p className="font-bold text-foreground line-clamp-1">{item.product.name}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Qté : {item.quantity} 
+                        {t.quantity}: {item.quantity}
                         {item.selectedSize ? ` | ${item.selectedSize}` : ""} 
                         {item.selectedColor ? ` | ${item.selectedColor}` : ""}
                       </p>
@@ -292,18 +299,18 @@ export default function CheckoutPage() {
 
             {/* Totals */}
             <div className="border-t border-border/40 pt-4 space-y-2 text-xs sm:text-sm">
-              <div className="space-y-2 border-b border-border/40 pb-4"><label htmlFor="coupon" className="font-semibold text-foreground">Code promotionnel</label><div className="flex gap-2"><input id="coupon" value={couponCode} onChange={(e) => { setCouponCode(e.target.value); setCoupon(null); }} placeholder="Ex. DLX10" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2" /><button type="button" onClick={applyCoupon} className="rounded-lg border border-border px-3 py-2 font-semibold hover:bg-muted">Appliquer</button></div>{couponNotice && <p role="status" className={coupon ? "text-emerald-600" : "text-muted-foreground"}>{couponNotice}</p>}</div>
+              <div className="space-y-2 border-b border-border/40 pb-4"><label htmlFor="coupon" className="font-semibold text-foreground">{t.promoCode}</label><div className="flex gap-2"><input id="coupon" value={couponCode} onChange={(e) => { setCouponCode(e.target.value); setCoupon(null); }} placeholder="Ex. DLX10" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2" /><button type="button" onClick={applyCoupon} className="rounded-lg border border-border px-3 py-2 font-semibold hover:bg-muted">{t.apply}</button></div>{couponNotice && <p role="status" className={coupon ? "text-emerald-600" : "text-muted-foreground"}>{couponNotice}</p>}</div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Sous-total</span>
+                <span>{t.subtotal}</span>
                 <span className="font-semibold text-foreground">{total} $</span>
               </div>
-              {coupon && <div className="flex justify-between text-emerald-600"><span>Réduction ({coupon.coupon.code})</span><span>-{coupon.discount} $</span></div>}
+              {coupon && <div className="flex justify-between text-emerald-600"><span>{t.discount} ({coupon.coupon.code})</span><span>-{coupon.discount} $</span></div>}
               <div className="flex justify-between text-muted-foreground">
-                <span>Livraison</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">GRATUITE</span>
+                <span>{t.delivery}</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{t.free}</span>
               </div>
               <div className="border-t border-border/40 pt-3 flex justify-between font-bold text-sm sm:text-base text-foreground">
-                <span>Montant total à payer (COD)</span>
+                <span>{t.amountDueCod}</span>
                 <span>{Math.max(0, total - (coupon?.discount || 0))} $</span>
               </div>
             </div>
@@ -311,10 +318,8 @@ export default function CheckoutPage() {
 
           {/* Delivery Area assurances */}
           <div className="rounded-2xl border border-border/60 bg-muted/20 p-5 space-y-3">
-            <h4 className="font-bold text-xs uppercase text-foreground tracking-wider">Zones Desservies</h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Nous livrons gratuitement dans tous les quartiers de Goma : Lac Vert, Keshero, Himbi, Katindo, Virunga, Katoyi, Majengo, Mabanga, Ndosho, Bujovu, etc.
-            </p>
+            <h4 className="font-bold text-xs uppercase text-foreground tracking-wider">{t.deliveryAreas}</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t.deliveryAreasBody}</p>
           </div>
         </div>
 

@@ -44,3 +44,42 @@ export function buildProductWhatsAppMessage(
   );
   return lines.join("\n");
 }
+
+export function buildOrderOperationalMessage(order: {
+  id: string;
+  customer_name: string;
+  phone_number: string;
+  municipality: string;
+  neighborhood: string;
+  avenue: string;
+  house_number?: string;
+  delivery_notes?: string;
+  total_amount: number;
+  status?: string;
+  items: Array<{ product?: { name?: string }; quantity: number; price_at_sale: number; size?: string; color?: string }>;
+}): string {
+  const lines = [
+    "🔔 NOUVELLE COMMANDE DLXSTORE",
+    "",
+    `• Référence : ${order.id}`,
+    `• Statut : ${order.status || "pending"}`,
+    "",
+    "👤 Client",
+    `• Nom : ${order.customer_name}`,
+    `• Téléphone : ${order.phone_number}`,
+    "",
+    "📍 Livraison",
+    `• Commune : ${order.municipality}`,
+    `• Quartier : ${order.neighborhood}`,
+    `• Avenue : ${order.avenue}${order.house_number ? `, N° ${order.house_number}` : ""}`,
+  ];
+  if (order.delivery_notes) lines.push(`• Repère : ${order.delivery_notes}`);
+  lines.push("", "🛒 Articles");
+  for (const item of order.items) {
+    const name = item.product?.name || "Produit";
+    const variant = [item.size, item.color].filter(Boolean).join(" / ");
+    lines.push(`• ${name}${variant ? ` (${variant})` : ""} × ${item.quantity} — ${item.price_at_sale * item.quantity} $`);
+  }
+  lines.push("", `💵 Total COD : ${order.total_amount} $`, "", "Merci de traiter cette commande via le portail admin DLXSTORE.");
+  return lines.join("\n");
+}

@@ -127,7 +127,7 @@ export default function Header() {
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Rechercher un produit à Goma..."
+              placeholder={t.searchProducts}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -174,7 +174,7 @@ export default function Header() {
           <button
             onClick={toggleTheme}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            title="Changer de thème"
+            title={t.changeTheme}
           >
             {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </button>
@@ -340,7 +340,7 @@ export default function Header() {
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Rechercher à Goma..."
+              placeholder={t.searchGoma}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-10 rounded-full border border-border bg-background pl-10 pr-4 text-sm outline-none"

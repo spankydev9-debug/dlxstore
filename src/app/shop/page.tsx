@@ -7,10 +7,12 @@ import Image from "next/image";
 import { getProducts, getCategories } from "../../services/db/products";
 import { Product, Category } from "../../types";
 import { Star, Search, SlidersHorizontal, RotateCcw, PackageX } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext";
 
 function ShopContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -116,7 +118,7 @@ function ShopContent() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="text-sm text-muted-foreground">Chargement du catalogue...</p>
+        <p className="text-sm text-muted-foreground">{t.loadingCatalog}</p>
       </div>
     );
   }
@@ -125,8 +127,8 @@ function ShopContent() {
     <div className="space-y-8 animate-fade-in">
       {/* Title */}
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Tous nos articles</h1>
-        <p className="text-sm text-muted-foreground">Livraison gratuite partout à Goma. Paiement uniquement à la livraison.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{t.shopTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.shopIntro}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
@@ -136,25 +138,25 @@ function ShopContent() {
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
             <h3 className="font-bold text-base flex items-center gap-2">
               <SlidersHorizontal className="h-4.5 w-4.5" />
-              Filtres
+              {t.filters}
             </h3>
             <button
               onClick={handleClearFilters}
               className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
               <RotateCcw className="h-3 w-3" />
-              Réinitialiser
+              {t.reset}
             </button>
           </div>
 
           {/* Search Input */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recherche</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.search}</label>
             <div className="relative">
               <Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Nom, marque, SKU..."
+                placeholder={t.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full h-9 rounded-lg border border-border bg-background pl-9 pr-3 text-xs outline-none focus:border-foreground"
@@ -164,13 +166,13 @@ function ShopContent() {
 
           {/* Category Dropdown */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catégorie</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.category}</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-foreground"
             >
-              <option value="">Toutes les catégories</option>
+              <option value="">{t.allCategories}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>{c.name}</option>
               ))}
@@ -179,19 +181,19 @@ function ShopContent() {
 
           {/* Price Range inputs */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Prix ($)</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.price}</label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                placeholder="Min"
+                placeholder={t.min}
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)}
                 className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-foreground"
               />
-              <span className="text-muted-foreground text-xs">à</span>
+              <span className="text-muted-foreground text-xs">{t.to}</span>
               <input
                 type="number"
-                placeholder="Max"
+                placeholder={t.max}
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
                 className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-foreground"
@@ -201,7 +203,7 @@ function ShopContent() {
 
           {/* Availability Toggle */}
           <div className="flex items-center justify-between py-2 border-t border-b border-border/40">
-            <span className="text-xs font-semibold text-foreground">En stock uniquement</span>
+            <span className="text-xs font-semibold text-foreground">{t.inStockOnly}</span>
             <input
               type="checkbox"
               checked={inStockOnly}
@@ -212,16 +214,13 @@ function ShopContent() {
 
           {/* Sort selection */}
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Trier par</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.sortBy}</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-foreground"
             >
-              <option value="recent">Nouveautés</option>
-              <option value="price-asc">Prix : croissant</option>
-              <option value="price-desc">Prix : décroissant</option>
-              <option value="rating">Mieux notés</option>
+              <option value="recent">{t.recent}</option><option value="price-asc">{t.priceAsc}</option><option value="price-desc">{t.priceDesc}</option><option value="rating">{t.topRated}</option>
             </select>
           </div>
         </aside>
@@ -231,15 +230,15 @@ function ShopContent() {
           {filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 px-4 text-center space-y-4">
               <PackageX className="h-12 w-12 text-muted-foreground" />
-              <h3 className="text-lg font-bold">Aucun produit trouvé</h3>
+              <h3 className="text-lg font-bold">{t.noProducts}</h3>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-xs">
-                Nous n'avons trouvé aucun article correspondant à vos critères de recherche à Goma.
+                {t.noProductsBody}
               </p>
               <button
                 onClick={handleClearFilters}
                 className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-colors"
               >
-                Réinitialiser les filtres
+                {t.resetFilters}
               </button>
             </div>
           ) : (
@@ -263,12 +262,12 @@ function ShopContent() {
                       />
                       {hasDiscount && (
                         <span className="absolute top-3 left-3 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold text-destructive-foreground">
-                          Promo
+                          {t.promotion}
                         </span>
                       )}
                       {product.stock_quantity <= 3 && (
                         <span className="absolute top-3 right-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-white">
-                          Stock Bas
+                          {t.lowStock}
                         </span>
                       )}
                     </div>

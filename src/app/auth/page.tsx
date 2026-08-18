@@ -11,8 +11,7 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, signUp, user } = useAuth();
-  const { language, t } = useLanguage();
-  const en = language === "en";
+  const { t } = useLanguage();
 
   const modeParam = searchParams.get("mode") || "login";
   const next = searchParams.get("next");
@@ -54,7 +53,7 @@ function AuthContent() {
       }
     } catch (err: unknown) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Une erreur est survenue lors de l'authentification.");
+      setError(err instanceof Error ? err.message : t.authError);
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +71,7 @@ function AuthContent() {
         router.push("/dashboard");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur de connexion démo.");
+      setError(err instanceof Error ? err.message : t.demoLoginError);
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +84,7 @@ function AuthContent() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-extrabold tracking-tight">DLXSTORE</h1>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          {isLogin ? (en ? "Sign in to track your Goma orders" : "Connectez-vous pour suivre vos commandes à Goma") : (en ? "Create your DLXSTORE customer account" : "Créez votre compte client DLXSTORE")}
+          {isLogin ? t.authLoginBody : t.authRegisterBody}
         </p>
       </div>
 
@@ -103,7 +102,7 @@ function AuthContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <User className="h-4 w-4" />
-                {en ? "Full name" : "Nom Complet"}
+                {t.fullName}
               </label>
               <input
                 type="text"
@@ -120,7 +119,7 @@ function AuthContent() {
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Mail className="h-4 w-4" />
-              {en ? "Email address" : "Adresse Email"}
+              {t.emailAddress}
             </label>
             <input
               type="email"
@@ -137,7 +136,7 @@ function AuthContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Phone className="h-4 w-4" />
-                {en ? "Phone" : "Téléphone"}
+                {t.phone}
               </label>
               <input
                 type="tel"
@@ -153,14 +152,14 @@ function AuthContent() {
           <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Lock className="h-4 w-4" />
-                {en ? "Password" : "Mot de passe"}
+                {t.password}
               </label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={en ? "Secure password" : "Mot de passe de sécurité"}
+                placeholder={t.securePassword}
                 className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
               />
           </div>
@@ -185,7 +184,7 @@ function AuthContent() {
             }}
             className="text-xs font-semibold text-primary hover:underline"
           >
-            {isLogin ? (en ? "Create a customer account" : "Créer un compte client") : (en ? "Already registered? Sign in" : "Déjà inscrit ? Connectez-vous")}
+            {isLogin ? t.createCustomerAccount : t.alreadyRegistered}
           </button>
         </div>
       </div>
