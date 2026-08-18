@@ -9,8 +9,8 @@
 | Item | Value |
 |------|-------|
 | Branch | `main` (pushed to `origin/main`) |
-| Latest commit | `100ab2c` — feat: complete commerce control and food foundations |
-| Uncommitted | `Untitled/` is an unrelated nested Git repository and is deliberately untouched. |
+| Latest commit | Pending commit — final auth, checkout handoff, language and PWA QA fixes |
+| Uncommitted | Intentional QA milestone; `Untitled/` remains an unrelated nested Git repository and is deliberately untouched. |
 
 ## Phase 1 Audit Summary
 
@@ -40,7 +40,8 @@
   - `20260816_security_hardening.sql`
   - `20260818_coupons_food_foundation.sql` (new)
 - **RLS**: Hardened in migration — profiles not public; orders require auth; admin via profile role
-- **Not verified live** — no `.env` with credentials in repo (correct)
+- **Read-only connectivity verified** on 2026-08-18 using `.env.local`: the public `settings` query returned successfully. Credentials remain uncommitted.
+- **Live migration/auth flow not verified**: applying migrations and creating a real test account require Supabase Dashboard/CLI authorization and a controlled test account.
 
 ### Vercel Status
 - GitHub remote connected; deployment URL not verified in this session
@@ -96,6 +97,14 @@ NEXT_PUBLIC_ENABLE_DEMO_MODE=false      # never true in production
 - Founders/about ✓
 - Extended admin controls ✓
 
+### M3 — Final QA fixes (pending commit)
+- Production auth no longer silently creates local users when demo mode is disabled.
+- Supabase auth session changes refresh the in-app profile; signup waits for the database profile trigger and reports the exact email-confirmation blocker.
+- Auth redirects now safely honor an internal `next` checkout return URL.
+- Website order creation remains first; WhatsApp opens only after a successful order and its failure is communicated without affecting tracking.
+- Service worker now removes stale DLX caches and activates updates instead of leaving old shells indefinitely.
+- Persistent language control has expanded French/English navigation and auth coverage and updates the document language attribute.
+
 ## How to Resume
 
 ```bash
@@ -115,8 +124,8 @@ npm run build                  # verify production build
 
 ## Latest Verification
 
-- `npm run lint` passes with 59 pre-existing warnings and no errors.
+- `npm run lint` passes with 55 warnings and no errors.
 - `npm run build` passes; includes `/food`.
-- Local dev server was already running from this repository at `http://localhost:3001` (PID 4773).
-- Smoke-tested `/, /food, /about, /contact, /manifest.webmanifest, /robots.txt, /sitemap.xml` with HTTP 200.
-- No Supabase credentials or Vercel access are available in this workspace, so migrations and production deployment remain unverified.
+- Local development server is running at `http://localhost:3000`.
+- Smoke-tested `/, /auth, /checkout, /order-tracking, /manifest.webmanifest, /offline` with HTTP 200.
+- Public Supabase connectivity is verified; Vercel access and live migration/auth test remain unverified.

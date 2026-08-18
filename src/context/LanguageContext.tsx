@@ -14,6 +14,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (saved && ["fr", "en", "sw", "ln", "kg", "lu"].includes(saved)) setLanguageState(saved);
     setReady(true);
   }, []);
+  useEffect(() => { if (ready) document.documentElement.lang = language; }, [language, ready]);
   const setLanguage = (next: Language) => { window.localStorage.setItem("dlxstore_language", next); setLanguageState(next); };
   return <LanguageContext.Provider value={{ language, setLanguage, t: translate(language), ready }}>{children}</LanguageContext.Provider>;
 }

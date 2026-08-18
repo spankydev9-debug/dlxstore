@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Profile, UserRole } from "../types";
 import { getCurrentUser, signIn as authSignIn, signUp as authSignUp, signOut as authSignOut } from "../services/auth";
+import { isSupabaseConfigured, supabase } from "../services/db";
 
 type AuthContextType = {
   user: Profile | null;
@@ -32,16 +33,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    refreshUser();
+    void refreshUser();
 
     // Re-check auth state on localStorage changes (crucial for mock db fallback syncing)
     const handleStorageChange = () => {
-      refreshUser();
+      void refreshUser();
     };
 
     window.addEventListener("storage", handleStorageChange);
+    const subscription = isSupabaseConfigured && supabase
+      ? supabase.auth.onAuthStateChange(() => { void refreshUser(); }).data.subscription
+      : undefined;
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      subscription?.unsubscribe();
     };
   }, []);
 

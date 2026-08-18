@@ -21,6 +21,7 @@ import {
 function OrderTrackingContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
+  const whatsappStatus = searchParams.get("whatsapp");
 
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +96,7 @@ function OrderTrackingContent() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto pb-16">
+      {whatsappStatus && <p role="status" className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">{whatsappStatus === "opened" ? "Votre commande est confirmée. WhatsApp a aussi été ouvert pour faciliter le suivi opérationnel." : "Votre commande est confirmée. Vous pouvez la suivre ici même si WhatsApp n’est pas disponible."}</p>}
       
       {/* Header info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/40 pb-5 gap-4">

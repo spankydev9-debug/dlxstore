@@ -1,20 +1,28 @@
 import { Profile, UserRole } from "../types";
-import { supabase, isSupabaseConfigured, initMockDb } from "./db/index";
+import { supabase, isDemoMode, isSupabaseConfigured, initMockDb } from "./db/index";
+
+const productionConfigurationError = "DLXSTORE authentication is unavailable until the secure data connection is configured.";
+
+async function getProfileWithRetry(userId: string): Promise<Profile> {
+  if (!supabase) throw new Error(productionConfigurationError);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (data) return data as Profile;
+    if (error && error.code !== "PGRST116") throw error;
+    await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+  }
+  throw new Error("Your account was created, but its customer profile is still being prepared. Please sign in again in a moment.");
+}
 
 export async function getCurrentUser(): Promise<Profile | null> {
   if (isSupabaseConfigured && supabase) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return null;
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError) return null;
-    return profile;
+    try { return await getProfileWithRetry(user.id); } catch { return null; }
   }
+
+  if (!isDemoMode) return null;
 
   // Local Storage Fallback
   initMockDb();
@@ -34,15 +42,10 @@ export async function signIn(email: string, password?: string, role: UserRole = 
     if (error) throw error;
     if (!data.user) throw new Error("No user returned");
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError) throw profileError;
-    return profile;
+    return getProfileWithRetry(data.user.id);
   }
+
+  if (!isDemoMode) throw new Error(productionConfigurationError);
 
   // Local Storage Fallback
   initMockDb();
@@ -108,18 +111,13 @@ export async function signUp(email: string, fullName: string, phone: string, pas
     if (error) throw error;
     if (!data.user) throw new Error("SignUp failed");
 
-    // Profile is created by DB trigger, wait slightly and query it
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError) throw profileError;
-    return profile;
+    if (!data.session) throw new Error("Account created. Email confirmation is enabled in Supabase; disable it to allow immediate access.");
+    return getProfileWithRetry(data.user.id);
   }
 
-  // Local Storage Fallback
+  if (!isDemoMode) throw new Error(productionConfigurationError);
+
+  // Local Storage fallback for explicitly enabled demo mode only.
   initMockDb();
   const profilesRaw = localStorage.getItem("dlxstore_profiles");
   const profiles: Profile[] = profilesRaw ? JSON.parse(profilesRaw) : [];
@@ -153,6 +151,7 @@ export async function signOut(): Promise<void> {
     return;
   }
 
+  if (!isDemoMode) throw new Error(productionConfigurationError);
   // Local Storage Fallback
   localStorage.removeItem("dlxstore_current_user");
   window.dispatchEvent(new Event("storage"));
@@ -171,6 +170,7 @@ export async function updateProfile(id: string, fields: Partial<Omit<Profile, "i
     return data;
   }
 
+  if (!isDemoMode) throw new Error(productionConfigurationError);
   // Local Storage Fallback
   initMockDb();
   const profilesRaw = localStorage.getItem("dlxstore_profiles");
@@ -210,6 +210,7 @@ export async function getProfiles(): Promise<Profile[]> {
     return data || [];
   }
 
+  if (!isDemoMode) throw new Error(productionConfigurationError);
   // Local Storage Fallback
   initMockDb();
   const raw = localStorage.getItem("dlxstore_profiles");

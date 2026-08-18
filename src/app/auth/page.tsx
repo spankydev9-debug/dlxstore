@@ -3,15 +3,19 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { isSupabaseConfigured } from "../../services/db/index";
+import { isDemoMode, isSupabaseConfigured } from "../../services/db/index";
+import { useLanguage } from "../../context/LanguageContext";
 import { ShieldCheck, Mail, Lock, User, Phone, LogIn, UserPlus } from "lucide-react";
 
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, signUp, user } = useAuth();
+  const { language, t } = useLanguage();
+  const en = language === "en";
 
   const modeParam = searchParams.get("mode") || "login";
+  const next = searchParams.get("next");
   // Derive isLogin directly from URL — no need for useEffect sync
   const isLogin = modeParam === "login";
   const [email, setEmail] = useState("");
@@ -25,13 +29,15 @@ function AuthContent() {
   // If already logged in, redirect to dashboard
   useEffect(() => {
     if (user) {
-      if (user.role === "admin") {
+      if (next?.startsWith("/") && !next.startsWith("//")) {
+        router.replace(next);
+      } else if (user.role === "admin") {
         router.push("/admin/dashboard");
       } else {
         router.push("/dashboard");
       }
     }
-  }, [user, router]);
+  }, [user, router, next]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,17 +47,14 @@ function AuthContent() {
     try {
       if (isLogin) {
         // SignIn
-        // In mock mode, password is not strictly validated, so we pass a placeholder if empty
-        const pass = isSupabaseConfigured ? password : (password || "mockpass");
-        await signIn(email, pass);
+        await signIn(email, password);
       } else {
         // SignUp
-        const pass = isSupabaseConfigured ? password : (password || "mockpass");
-        await signUp(email, fullName, phone, pass);
+        await signUp(email, fullName, phone, password);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Une erreur est survenue lors de l'authentification.");
+      setError(err instanceof Error ? err.message : "Une erreur est survenue lors de l'authentification.");
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +71,8 @@ function AuthContent() {
         await signIn("jean.paul@gmail.com", "customer1234", "customer");
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      setError(err.message || "Erreur de connexion démo.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erreur de connexion démo.");
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +85,7 @@ function AuthContent() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-extrabold tracking-tight">DLXSTORE</h1>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          {isLogin ? "Connectez-vous pour suivre vos commandes à Goma" : "Créez votre compte client DLXSTORE"}
+          {isLogin ? (en ? "Sign in to track your Goma orders" : "Connectez-vous pour suivre vos commandes à Goma") : (en ? "Create your DLXSTORE customer account" : "Créez votre compte client DLXSTORE")}
         </p>
       </div>
 
@@ -100,7 +103,7 @@ function AuthContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <User className="h-4 w-4" />
-                Nom Complet
+                {en ? "Full name" : "Nom Complet"}
               </label>
               <input
                 type="text"
@@ -117,7 +120,7 @@ function AuthContent() {
           <div className="space-y-1.5">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Mail className="h-4 w-4" />
-              Adresse Email
+              {en ? "Email address" : "Adresse Email"}
             </label>
             <input
               type="email"
@@ -134,7 +137,7 @@ function AuthContent() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Phone className="h-4 w-4" />
-                Téléphone
+                {en ? "Phone" : "Téléphone"}
               </label>
               <input
                 type="tel"
@@ -147,23 +150,20 @@ function AuthContent() {
             </div>
           )}
 
-          {/* Password (only shown/required if Supabase is live, or optionally for mock) */}
-          {(isSupabaseConfigured || password) && (
-            <div className="space-y-1.5">
+          <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Lock className="h-4 w-4" />
-                Mot de passe
+                {en ? "Password" : "Mot de passe"}
               </label>
               <input
                 type="password"
-                required={isSupabaseConfigured}
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe de sécurité"
+                placeholder={en ? "Secure password" : "Mot de passe de sécurité"}
                 className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
               />
-            </div>
-          )}
+          </div>
 
           {/* Submit */}
           <button
@@ -172,7 +172,7 @@ function AuthContent() {
             className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all disabled:opacity-50"
           >
             {isLogin ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-            {isLoading ? "Chargement..." : isLogin ? "Se connecter" : "Créer mon compte"}
+            {isLoading ? t.loading : isLogin ? t.signIn : t.createAccount}
           </button>
         </form>
 
@@ -185,13 +185,13 @@ function AuthContent() {
             }}
             className="text-xs font-semibold text-primary hover:underline"
           >
-            {isLogin ? "Créer un compte client" : "Déjà inscrit ? Connectez-vous"}
+            {isLogin ? (en ? "Create a customer account" : "Créer un compte client") : (en ? "Already registered? Sign in" : "Déjà inscrit ? Connectez-vous")}
           </button>
         </div>
       </div>
 
       {/* Demo Fast Login (Especially useful for mock DB review) */}
-      {!isSupabaseConfigured && (
+      {isDemoMode && !isSupabaseConfigured && (
         <div className="rounded-2xl border border-dashed border-border p-5 bg-card space-y-4">
           <div className="text-center space-y-1">
             <h4 className="font-bold text-xs text-foreground uppercase tracking-wider">Comptes de Démonstration (Mock DB)</h4>

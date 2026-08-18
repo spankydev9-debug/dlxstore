@@ -114,9 +114,9 @@ export default function Header() {
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">{t.home}</Link>
             <Link href="/shop" className="hover:text-foreground transition-colors">{t.shop}</Link>
-            <Link href="/food" className="hover:text-foreground transition-colors">DLX Food</Link>
+            <Link href="/food" className="hover:text-foreground transition-colors">{t.food}</Link>
             <Link href="/partner" className="hover:text-foreground transition-colors">{t.partner}</Link>
-            <Link href="/about" className="hover:text-foreground transition-colors">À Propos</Link>
+            <Link href="/about" className="hover:text-foreground transition-colors">{t.about}</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
           </nav>
         </div>
@@ -367,9 +367,9 @@ export default function Header() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
-              À Propos
+              {t.about}
             </Link>
-            <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">DLX Food</Link>
+            <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
             <Link 
               href="/contact" 
               onClick={() => setIsMobileMenuOpen(false)}

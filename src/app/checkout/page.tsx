@@ -6,6 +6,8 @@ import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { createOrder } from "../../services/db/orders";
 import { CouponValidation, validateCoupon } from "../../services/db/coupons";
+import { getStoreSettings } from "../../services/db/settings";
+import { buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../lib/whatsapp";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
 import Link from "next/link";
@@ -86,7 +88,15 @@ export default function CheckoutPage() {
 
       const newOrder = await createOrder(orderFields, orderItems);
       clearCart();
-      router.push(`/order-tracking?orderId=${newOrder.id}`);
+      let whatsappStatus = "unavailable";
+      try {
+        const settings = await getStoreSettings();
+        const number = getWhatsAppBuyNumber(settings);
+        const message = `Bonjour DLXSTORE, une commande a été créée sur le site.\n\n• Référence : ${newOrder.id}\n• Client : ${newOrder.customer_name}\n• Total COD : ${newOrder.total_amount} $\n\nMerci de poursuivre le suivi sur DLXSTORE.`;
+        const url = number ? buildWhatsAppUrl(number, message) : null;
+        if (url) { window.open(url, "_blank", "noopener,noreferrer"); whatsappStatus = "opened"; }
+      } catch (whatsappError) { console.warn("WhatsApp handoff unavailable; order was created.", whatsappError); }
+      router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
     } catch (err) {
       console.error("Error creating order:", err);
       alert("Erreur lors de la validation de votre commande. Veuillez réessayer.");
