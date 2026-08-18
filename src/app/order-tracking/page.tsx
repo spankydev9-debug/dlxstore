@@ -93,12 +93,6 @@ function OrderTrackingContent() {
   const currentStepIdx = statusSteps.findIndex(s => s.key === order.status);
   const isCancelled = order.status === "cancelled";
 
-  const handleWhatsAppSupport = () => {
-    const message = `Bonjour DLXSTORE, je souhaite avoir des informations sur le suivi de ma commande #${order.id}. Pouvez-vous m'aider ?`;
-    const url = `https://wa.me/243990123456?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
-  };
-
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto pb-16">
       
@@ -109,13 +103,13 @@ function OrderTrackingContent() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Commande #{order.id}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Placée le {new Date(order.created_at).toLocaleString()}</p>
         </div>
-        <button
-          onClick={handleWhatsAppSupport}
+        <Link
+          href="/contact"
           className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-all"
         >
           <MessageSquare className="h-4 w-4" />
           Contacter le support
-        </button>
+        </Link>
       </div>
 
       {/* Cancelled Alert */}
@@ -175,20 +169,11 @@ function OrderTrackingContent() {
               </div>
               <div>
                 <h4 className="font-bold text-sm text-foreground">{order.delivery.driver_name}</h4>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                  <Phone className="h-3 w-3" />
-                  +243 990 876 543
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Les coordonnées du livreur sont communiquées par les canaux officiels lorsqu’elles sont disponibles.</p>
               </div>
             </div>
             
-            <a
-              href="tel:+243990876543"
-              className="inline-flex items-center justify-center gap-2 h-9 rounded-full bg-emerald-600 text-white text-xs font-semibold px-4 hover:bg-emerald-700 transition-colors shadow-sm"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              Appeler le livreur
-            </a>
+            <Link href="/contact" className="inline-flex items-center justify-center gap-2 h-9 rounded-full bg-emerald-600 text-white text-xs font-semibold px-4 hover:bg-emerald-700 transition-colors shadow-sm"><MessageSquare className="h-3.5 w-3.5" />Contacter le support</Link>
           </div>
         </div>
       )}

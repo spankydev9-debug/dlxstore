@@ -9,8 +9,11 @@ import { getProductReviews, addReview } from "../../../services/db/reviews";
 import { addToWishlist, removeFromWishlist, isInWishlist } from "../../../services/db/wishlist";
 import { useCart } from "../../../context/CartContext";
 import { useAuth } from "../../../context/AuthContext";
-import { Product, Review } from "../../../types";
-import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck, RefreshCw, StarHalf } from "lucide-react";
+import { Product, Review, StoreSettings } from "../../../types";
+import { defaultStoreSettings } from "../../../lib/store-config";
+import { getStoreSettings } from "../../../services/db/settings";
+import { buildProductWhatsAppMessage, buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../../lib/whatsapp";
+import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck } from "lucide-react";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -23,6 +26,8 @@ export default function ProductDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
 
   // User selections
   const [selectedSize, setSelectedSize] = useState("");
@@ -73,12 +78,15 @@ export default function ProductDetailPage() {
         if (prod.colors.length > 0) setSelectedColor(prod.colors[0]);
       } catch (err) {
         console.error("Error loading product details:", err);
+        setLoadError("Impossible de charger ce produit. Vérifiez votre connexion puis réessayez.");
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
   }, [slug, user, router]);
+
+  useEffect(() => { getStoreSettings().then(setStoreSettings).catch(console.error); }, []);
 
   const handleWishlistToggle = async () => {
     if (!user) {
@@ -104,21 +112,6 @@ export default function ProductDetailPage() {
     if (!product) return;
     addToCart(product, quantity, selectedSize, selectedColor);
     alert("Produit ajouté au panier !");
-  };
-
-  const handleWhatsAppOrder = () => {
-    if (!product) return;
-    const finalPrice = product.discount_price ?? product.price;
-    const message = `Bonjour DLXSTORE, je souhaite commander l'article suivant :\n\n` +
-      `- *Produit* : ${product.name}\n` +
-      (selectedSize ? `- *Taille* : ${selectedSize}\n` : "") +
-      (selectedColor ? `- *Couleur* : ${selectedColor}\n` : "") +
-      `- *Quantité* : ${quantity}\n` +
-      `- *Prix* : ${finalPrice} $\n\n` +
-      `Merci de me contacter pour la livraison gratuite à Goma.`;
-    
-    const url = `https://wa.me/243990123456?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -154,7 +147,7 @@ export default function ProductDetailPage() {
     setZoomStyle({});
   };
 
-  if (isLoading || !product) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
@@ -163,8 +156,12 @@ export default function ProductDetailPage() {
     );
   }
 
+  if (loadError || !product) return <div role="alert" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">Produit indisponible</h1><p className="text-sm text-muted-foreground">{loadError || "Ce produit n’est plus disponible."}</p><Link href="/shop" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Retour à la boutique</Link></div>;
+
   const finalPrice = product.discount_price ?? product.price;
   const hasDiscount = !!product.discount_price;
+  const whatsappNumber = getWhatsAppBuyNumber(storeSettings);
+  const whatsappUrl = whatsappNumber ? buildWhatsAppUrl(whatsappNumber, buildProductWhatsAppMessage(product.name, { size: selectedSize, color: selectedColor, quantity, price: finalPrice })) : null;
 
   return (
     <div className="space-y-16 pb-16 animate-fade-in">
@@ -331,13 +328,10 @@ export default function ProductDetailPage() {
                 <ShoppingCart className="h-5 w-5" />
                 Ajouter au panier
               </button>
-              <button
-                onClick={handleWhatsAppOrder}
-                className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md"
-              >
+              {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md">
                 <MessageSquare className="h-5 w-5" />
                 Commander via WhatsApp
-              </button>
+              </a> : <Link href="/contact" className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md"><MessageSquare className="h-5 w-5" />Contacter DLXSTORE</Link>}
             </div>
           ) : (
             <button

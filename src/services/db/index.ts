@@ -11,14 +11,16 @@ import {
 } from "../../lib/mock-data";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseClientKey = supabasePublishableKey || supabaseAnonKey;
 
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseClientKey);
 /** Demo data is opt-in and must never silently appear in a production storefront. */
 export const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO_MODE === "true";
 
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  ? createClient(supabaseUrl!, supabaseClientKey!)
   : null;
 
 // Helper to initialize local storage data if empty

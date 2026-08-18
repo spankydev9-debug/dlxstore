@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { createOrder } from "../../services/db/orders";
+import { CouponValidation, validateCoupon } from "../../services/db/coupons";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
-import { Truck, ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
+import { ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 
 export default function CheckoutPage() {
@@ -23,6 +24,9 @@ export default function CheckoutPage() {
   const [houseNumber, setHouseNumber] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState<CouponValidation | null>(null);
+  const [couponNotice, setCouponNotice] = useState("");
 
   // Sync with logged-in user details if available
   useEffect(() => {
@@ -39,6 +43,14 @@ export default function CheckoutPage() {
       setNeighborhood(list[0]);
     }
   }, [municipality]);
+
+  const applyCoupon = async () => {
+    try {
+      const result = await validateCoupon(couponCode, total, false);
+      setCoupon(result);
+      setCouponNotice(result ? "Réduction appliquée. Elle sera vérifiée à la création de la commande." : "Ce code est invalide, expiré, ou ne s’applique pas à ce panier.");
+    } catch { setCoupon(null); setCouponNotice("Impossible de vérifier ce code actuellement."); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +71,9 @@ export default function CheckoutPage() {
         avenue,
         house_number: houseNumber || undefined,
         delivery_notes: deliveryNotes || undefined,
-        total_amount: total
+        coupon_code: coupon?.coupon.code,
+        discount_amount: coupon?.discount || 0,
+        total_amount: Math.max(0, total - (coupon?.discount || 0))
       };
 
       const orderItems = items.map(item => ({
@@ -268,17 +282,19 @@ export default function CheckoutPage() {
 
             {/* Totals */}
             <div className="border-t border-border/40 pt-4 space-y-2 text-xs sm:text-sm">
+              <div className="space-y-2 border-b border-border/40 pb-4"><label htmlFor="coupon" className="font-semibold text-foreground">Code promotionnel</label><div className="flex gap-2"><input id="coupon" value={couponCode} onChange={(e) => { setCouponCode(e.target.value); setCoupon(null); }} placeholder="Ex. DLX10" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2" /><button type="button" onClick={applyCoupon} className="rounded-lg border border-border px-3 py-2 font-semibold hover:bg-muted">Appliquer</button></div>{couponNotice && <p role="status" className={coupon ? "text-emerald-600" : "text-muted-foreground"}>{couponNotice}</p>}</div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Sous-total</span>
                 <span className="font-semibold text-foreground">{total} $</span>
               </div>
+              {coupon && <div className="flex justify-between text-emerald-600"><span>Réduction ({coupon.coupon.code})</span><span>-{coupon.discount} $</span></div>}
               <div className="flex justify-between text-muted-foreground">
                 <span>Livraison</span>
                 <span className="font-semibold text-emerald-600 dark:text-emerald-400">GRATUITE</span>
               </div>
               <div className="border-t border-border/40 pt-3 flex justify-between font-bold text-sm sm:text-base text-foreground">
                 <span>Montant total à payer (COD)</span>
-                <span>{total} $</span>
+                <span>{Math.max(0, total - (coupon?.discount || 0))} $</span>
               </div>
             </div>
           </div>

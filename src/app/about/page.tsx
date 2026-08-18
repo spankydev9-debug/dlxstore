@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Truck, ShieldCheck, Smile, HelpCircle } from "lucide-react";
+import { Truck, ShieldCheck, Smile } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -14,6 +14,11 @@ export default function AboutPage() {
           DLXSTORE est la plateforme e-commerce de référence pour la ville de Goma. Nous simplifions vos achats quotidiens en combinant un catalogue premium, une livraison ultra-rapide et un paiement cash sécurisé à votre porte.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+        <h2 className="text-2xl font-bold tracking-tight">Les fondateurs</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">DLXSTORE est porté par Agassi David Akilimali et Kengamungu Benjamin. Ils développent une plateforme de marché pensée pour servir les clients, vendeurs et partenaires de Goma avec sérieux et transparence.</p>
+      </section>
 
       {/* Grid: Our Mission */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center border-t border-border/40 pt-12">

@@ -8,6 +8,7 @@ export const defaultStoreSettings: StoreSettings = {
   contact_phone: "",
   contact_email: "",
   whatsapp_enabled: false,
+  whatsapp_buy_number: "",
   launch: {
     mode: "active",
     starts_at: null,
@@ -15,6 +16,8 @@ export const defaultStoreSettings: StoreSettings = {
     announcement: "",
   },
   contacts: {},
+  homepage_banners: [],
+  homepage_promotions: [],
   delivery_zones: [
     { country: "CD", province: "Nord-Kivu", city: "Goma", active: true, fee: 0, currency: "USD" },
   ],
@@ -26,6 +29,8 @@ export function normalizeStoreSettings(value: Partial<StoreSettings> | null | un
     ...value,
     launch: { ...defaultStoreSettings.launch, ...value?.launch },
     contacts: { ...defaultStoreSettings.contacts, ...value?.contacts },
+    homepage_banners: value?.homepage_banners ?? defaultStoreSettings.homepage_banners,
+    homepage_promotions: value?.homepage_promotions ?? defaultStoreSettings.homepage_promotions,
     delivery_zones: value?.delivery_zones ?? defaultStoreSettings.delivery_zones,
   };
 }

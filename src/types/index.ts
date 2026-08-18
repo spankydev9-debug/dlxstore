@@ -19,6 +19,8 @@ export interface Category {
   created_at: string;
 }
 
+export type ProductType = "standard" | "food";
+
 export interface Product {
   id: string;
   name: string;
@@ -36,6 +38,9 @@ export interface Product {
   is_featured: boolean;
   is_best_seller: boolean;
   is_new_arrival: boolean;
+  product_type?: ProductType;
+  food_vendor_id?: string;
+  food_category?: string;
   created_at: string;
   images: string[];
   reviews?: Review[];
@@ -61,6 +66,8 @@ export interface Order {
   avenue: string;
   house_number?: string;
   delivery_notes?: string;
+  coupon_code?: string;
+  discount_amount?: number;
   total_amount: number;
   created_at: string;
   updated_at: string;
@@ -111,6 +118,61 @@ export interface Review {
   created_at: string;
 }
 
+export interface HomepageBanner {
+  id: string;
+  title: string;
+  subtitle?: string;
+  link?: string;
+  active: boolean;
+}
+
+export interface HomepagePromotion {
+  id: string;
+  label: string;
+  description?: string;
+  link?: string;
+  active: boolean;
+}
+
+export interface BusinessHours {
+  day: number;
+  open: string;
+  close: string;
+  closed?: boolean;
+}
+
+export interface FoodVendor {
+  id: string;
+  name: string;
+  slug: string;
+  province: string;
+  city: string;
+  description?: string;
+  is_24_7: boolean;
+  hours: BusinessHours[];
+  food_categories: string[];
+  active: boolean;
+  created_at?: string;
+}
+
+export type CouponType = "percentage" | "fixed";
+export type CouponAudience = "all" | "returning" | "referral" | "campaign";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  type: CouponType;
+  value: number;
+  min_order: number;
+  max_uses?: number;
+  used_count: number;
+  audience: CouponAudience;
+  campaign_id?: string;
+  expires_at?: string;
+  active: boolean;
+  created_at: string;
+}
+
 export interface StoreSettings {
   name: string;
   tagline: string;
@@ -118,9 +180,12 @@ export interface StoreSettings {
   contact_phone: string;
   contact_email: string;
   whatsapp_enabled: boolean;
+  whatsapp_buy_number?: string;
   launch: { mode: "active" | "coming_soon"; starts_at: string | null; timezone: string; announcement: string };
   contacts: Partial<Record<"general" | "support" | "orders" | "delivery" | "partnerships", { phone?: string; email?: string; whatsapp?: string }>>;
   delivery_zones: DeliveryZone[];
+  homepage_banners?: HomepageBanner[];
+  homepage_promotions?: HomepagePromotion[];
 }
 
 export interface DeliveryZone { country: "CD"; province: string; city?: string; territory?: string; commune?: string; active: boolean; fee: number; currency: "USD" | "CDF"; }

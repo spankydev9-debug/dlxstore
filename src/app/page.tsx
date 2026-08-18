@@ -73,12 +73,12 @@ export default function HomePage() {
       a: "Chez DLXSTORE, nous utilisons exclusivement le paiement à la livraison (Cash on Delivery). Vous payez en dollars américains (USD) ou en francs congolais (CDF) directement au livreur, après avoir vérifié et essayé vos produits."
     },
     {
-      q: "Puis-je commander directement sur WhatsApp ?",
-      a: "Oui, absolument ! Sur chaque fiche produit, vous trouverez un bouton vert 'Commander sur WhatsApp'. En cliquant dessus, un message pré-écrit contenant les détails du produit sera envoyé à notre équipe commerciale pour finaliser votre commande."
+      q: "Comment contacter DLXSTORE ?",
+      a: "Les canaux officiels de DLXSTORE sont publiés dans la page Contact dès qu’ils sont configurés par l’équipe."
     },
     {
       q: "Que faire si un article ne me convient pas ?",
-      a: "Vous pouvez refuser l'article directement auprès du livreur lors de la présentation, sans aucun frais. Si vous constatez un problème plus tard, notre support client est disponible au +243 990 123 456 pour trouver une solution."
+      a: "Vous pouvez refuser l'article directement auprès du livreur lors de la présentation. Consultez la page Contact pour les canaux de support officiels."
     }
   ];
 
