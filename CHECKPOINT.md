@@ -8,9 +8,9 @@
 
 | Item | Value |
 |------|-------|
-| Branch | `main` (1 commit ahead of `origin/main`) |
-| Latest commit | Pending commit — coupon, food, WhatsApp, and founder milestone |
-| Uncommitted | Intentional production milestone; `Untitled/` is an unrelated nested Git repository and is deliberately untouched. |
+| Branch | `main` (pushed to `origin/main`) |
+| Latest commit | `100ab2c` — feat: complete commerce control and food foundations |
+| Uncommitted | `Untitled/` is an unrelated nested Git repository and is deliberately untouched. |
 
 ## Phase 1 Audit Summary
 
