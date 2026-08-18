@@ -9,8 +9,8 @@
 | Item | Value |
 |------|-------|
 | Branch | `main` (pushed to `origin/main`) |
-| Latest commit | Pending commit — final auth, checkout handoff, language and PWA QA fixes |
-| Uncommitted | Intentional QA milestone; `Untitled/` remains an unrelated nested Git repository and is deliberately untouched. |
+| Latest commit | `3800081` — fix: harden production auth and order handoff |
+| Uncommitted | `Untitled/` remains an unrelated nested Git repository and is deliberately untouched. |
 
 ## Phase 1 Audit Summary
 
