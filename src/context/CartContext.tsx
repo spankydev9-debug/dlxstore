@@ -44,6 +44,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, mounted]);
 
   const addToCart = (product: Product, quantity = 1, size?: string, color?: string) => {
+    if (product.stock_quantity <= 0) return;
     setItems(prevItems => {
       const cartItemId = `${product.id}-${size || ""}-${color || ""}`;
       const existing = prevItems.find(item => item.id === cartItemId);
@@ -61,7 +62,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         {
           id: cartItemId,
           product,
-          quantity,
+          quantity: Math.min(product.stock_quantity, Math.max(1, quantity)),
           selectedSize: size,
           selectedColor: color
         }

@@ -105,6 +105,8 @@ export interface Delivery {
   delivered_at?: string;
   created_at: string;
   updated_at: string;
+  /** Safe order summary provided to authenticated staff delivery screens. */
+  order?: Pick<Order, "customer_name" | "phone_number" | "municipality" | "neighborhood" | "avenue" | "house_number" | "total_amount">;
 }
 
 export interface Notification {

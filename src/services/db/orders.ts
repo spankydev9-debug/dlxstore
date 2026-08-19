@@ -117,7 +117,8 @@ export async function getOrders(userId?: string): Promise<Order[]> {
         order_items (
           *,
           products (
-            *
+            *,
+            product_images (image_url, is_primary, display_order)
           )
         ),
         deliveries (
@@ -139,7 +140,9 @@ export async function getOrders(userId?: string): Promise<Order[]> {
         ...i,
         product: i.products ? {
           ...i.products,
-          images: i.products.product_images ? i.products.product_images.map((img: any) => img.image_url) : []
+          images: i.products.product_images
+            ? [...i.products.product_images].sort((left: { display_order: number }, right: { display_order: number }) => left.display_order - right.display_order).map((img: { image_url: string }) => img.image_url)
+            : []
         } : undefined
       })),
       delivery: o.deliveries ? o.deliveries[0] : undefined
@@ -167,7 +170,8 @@ export async function getOrderById(id: string): Promise<Order | null> {
         order_items (
           *,
           products (
-            *
+            *,
+            product_images (image_url, is_primary, display_order)
           )
         ),
         deliveries (
@@ -189,7 +193,9 @@ export async function getOrderById(id: string): Promise<Order | null> {
         ...i,
         product: i.products ? {
           ...i.products,
-          images: i.products.product_images ? i.products.product_images.map((img: any) => img.image_url) : []
+          images: i.products.product_images
+            ? [...i.products.product_images].sort((left: { display_order: number }, right: { display_order: number }) => left.display_order - right.display_order).map((img: { image_url: string }) => img.image_url)
+            : []
         } : undefined
       })),
       delivery: data.deliveries ? data.deliveries[0] : undefined
@@ -212,12 +218,10 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 
     if (error) throw error;
 
-    // Check if live deliveries table needs update
-    if (status === "confirmed") {
-      await supabase.from("deliveries").upsert({ order_id: id, status: "confirmed" }, { onConflict: "order_id", ignoreDuplicates: true });
-    } else {
-      await supabase.from("deliveries").update({ status }).eq("order_id", id);
-    }
+    const deliveryUpdate: { order_id: string; status: OrderStatus; updated_at: string; delivered_at?: string } = { order_id: id, status, updated_at: new Date().toISOString() };
+    if (status === "delivered") deliveryUpdate.delivered_at = new Date().toISOString();
+    const { error: deliveryError } = await supabase.from("deliveries").upsert(deliveryUpdate, { onConflict: "order_id" });
+    if (deliveryError) throw deliveryError;
 
     return data;
   }

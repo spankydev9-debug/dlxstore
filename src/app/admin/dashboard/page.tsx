@@ -10,8 +10,10 @@ import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
 import { BusinessControls } from "../../../components/admin/BusinessControls";
 import { ProductImage } from "../../../components/shared/ProductImage";
-import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category } from "../../../types";
+import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category, StoreSettings } from "../../../types";
 import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
+import { getStoreSettings } from "../../../services/db/settings";
+import { defaultStoreSettings } from "../../../lib/store-config";
 import { 
   BarChart3, 
   ShoppingBag, 
@@ -46,6 +48,7 @@ function AdminDashboardContent() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [inventoryHistory, setInventoryHistory] = useState<InventoryHistoryEntry[]>([]);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal / Form States
@@ -54,6 +57,7 @@ function AdminDashboardContent() {
   
   // Product Form Fields
   const [prodName, setProdName] = useState("");
+  const [prodSlug, setProdSlug] = useState("");
   const [prodDescription, setProdDescription] = useState("");
   const [prodPrice, setProdPrice] = useState("");
   const [prodDiscountPrice, setProdDiscountPrice] = useState("");
@@ -78,6 +82,8 @@ function AdminDashboardContent() {
 
   // Invoice view State
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<Order | null>(null);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
 
   // Auth Guard: Only Admin allowed
   useEffect(() => {
@@ -99,13 +105,14 @@ function AdminDashboardContent() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [prods, cats, ords, dels, profs, invHist] = await Promise.all([
+      const [prods, cats, ords, dels, profs, invHist, settings] = await Promise.all([
         getProducts({ includeInactive: true }),
         getCategories({ includeInactive: true }),
         getOrders(),
         getDeliveries(),
         getProfiles(),
-        getInventoryHistory()
+        getInventoryHistory(),
+        getStoreSettings()
       ]);
       setProducts(prods);
       setCategories(cats);
@@ -113,6 +120,7 @@ function AdminDashboardContent() {
       setDeliveries(dels);
       setProfiles(profs);
       setInventoryHistory(invHist);
+      setStoreSettings(settings);
     } catch (err) {
       console.error("Error loading admin data:", err);
     } finally {
@@ -130,6 +138,7 @@ function AdminDashboardContent() {
     if (prod) {
       setEditingProduct(prod);
       setProdName(prod.name);
+      setProdSlug(prod.slug);
       setProdDescription(prod.description);
       setProdPrice(prod.price.toString());
       setProdDiscountPrice(prod.discount_price?.toString() || "");
@@ -148,6 +157,7 @@ function AdminDashboardContent() {
     } else {
       setEditingProduct(null);
       setProdName("");
+      setProdSlug("");
       setProdDescription("");
       setProdPrice("");
       setProdDiscountPrice("");
@@ -179,7 +189,7 @@ function AdminDashboardContent() {
     }
     const pData = {
       name: prodName,
-      slug: prodName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      slug: prodSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || prodName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
       description: prodDescription,
       price,
       discount_price: discountPrice,
@@ -269,9 +279,12 @@ function AdminDashboardContent() {
     if (!confirm("Voulez-vous vraiment supprimer ce produit ?")) return;
     try {
       await deleteProduct(id);
+      const deletedProduct = products.find((product) => product.id === id);
+      if (deletedProduct) await Promise.allSettled(deletedProduct.images.map((url) => removeProductImage(url)));
       loadAllData();
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : "Impossible de supprimer ce produit.");
     }
   };
 
@@ -382,6 +395,11 @@ function AdminDashboardContent() {
   });
 
   const maxSales = Math.max(...salesTrendData, 100);
+  const visibleOrders = orders.filter((order) => {
+    if (orderStatusFilter !== "all" && order.status !== orderStatusFilter) return false;
+    const query = orderSearch.trim().toLowerCase();
+    return !query || [order.id, order.customer_name, order.phone_number, order.municipality, order.neighborhood, order.avenue].some((value) => value.toLowerCase().includes(query));
+  });
 
   if (isAuthLoading || !user || user.role !== "admin") {
     return (
@@ -637,7 +655,7 @@ function AdminDashboardContent() {
               {activeTab === "orders" && (
                 <div className="space-y-6">
                   <div className="flex justify-between items-center border-b border-border/40 pb-3">
-                    <h3 className="font-bold text-lg text-foreground">Fichier Commandes ({orders.length})</h3>
+                    <h3 className="font-bold text-lg text-foreground">Fichier Commandes ({visibleOrders.length}/{orders.length})</h3>
                     <button
                       onClick={exportOrdersToCSV}
                       className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-muted transition-all"
@@ -647,9 +665,14 @@ function AdminDashboardContent() {
                     </button>
                   </div>
 
+                  <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-[1fr_12rem]">
+                    <label className="text-xs font-semibold text-muted-foreground">Rechercher<input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Référence, client, téléphone…" className="mt-1 block h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+                    <label className="text-xs font-semibold text-muted-foreground">Statut<select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)} className="mt-1 block h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"><option value="all">Tous les statuts</option><option value="pending">En attente</option><option value="confirmed">Confirmée</option><option value="preparing">En préparation</option><option value="ready">Prête</option><option value="out_for_delivery">En livraison</option><option value="delivered">Livrée</option><option value="cancelled">Annulée</option></select></label>
+                  </div>
+
                   {/* Orders List */}
                   <div className="space-y-4">
-                    {orders.map(order => (
+                    {visibleOrders.length === 0 ? <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Aucune commande ne correspond à ces filtres.</div> : visibleOrders.map(order => (
                       <div key={order.id} className="rounded-xl border border-border p-5 space-y-4 bg-card shadow-sm">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/40 pb-3 gap-2">
                           <div>
@@ -661,6 +684,8 @@ function AdminDashboardContent() {
                             <p className="text-[9px] text-muted-foreground mt-0.5">{new Date(order.created_at).toLocaleString()}</p>
                           </div>
                         </div>
+
+                        <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs"><p className="mb-2 font-bold text-foreground">Articles commandés</p><ul className="divide-y divide-border/70">{order.items.map((item) => <li key={item.id} className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"><span><span className="font-semibold text-foreground">{item.product?.name ?? "Produit retiré du catalogue"}</span>{(item.size || item.color) && <span className="block text-muted-foreground">{[item.size, item.color].filter(Boolean).join(" · ")}</span>}</span><span className="shrink-0 text-right text-muted-foreground">× {item.quantity}<br /><span className="font-semibold text-foreground">{item.price_at_sale * item.quantity} $</span></span></li>)}</ul></div>
 
                         {/* Order Details & Drivers */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -750,8 +775,8 @@ function AdminDashboardContent() {
                           {deliveries.map(d => (
                             <tr key={d.id} className="hover:bg-muted/30">
                               <td className="px-4 py-3 font-semibold text-primary">#{d.order_id}</td>
-                              <td className="px-4 py-3 text-foreground font-medium">{(d as any).customer_name}</td>
-                              <td className="px-4 py-3 text-muted-foreground">{(d as any).neighborhood}</td>
+                              <td className="px-4 py-3 text-foreground font-medium">{d.order?.customer_name ?? "Client indisponible"}</td>
+                              <td className="px-4 py-3 text-muted-foreground">{d.order?.neighborhood ?? "—"}</td>
                               <td className="px-4 py-3 font-semibold text-foreground">
                                 {d.driver_name || <span className="text-amber-500 font-bold">Non assigné</span>}
                               </td>
@@ -902,6 +927,12 @@ function AdminDashboardContent() {
                     className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Slug public</label>
+                <input type="text" value={prodSlug} onChange={(event) => setProdSlug(event.target.value)} placeholder={prodName ? prodName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : "ex. iphone-15-pro-max"} className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground" />
+                <p className="text-[11px] text-muted-foreground">Leave empty to generate the public URL from the product name.</p>
               </div>
 
               {/* SKU & Stock */}
@@ -1060,10 +1091,10 @@ function AdminDashboardContent() {
             {/* Header info */}
             <div className="flex justify-between items-start border-b border-gray-300 pb-4">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">DLXSTORE</h1>
-                <p className="text-gray-500 font-semibold">Shop Smart. Delivered Free.</p>
-                <p>Goma, Nord-Kivu, RDC</p>
-                <p>contact@dlxstore.cd | +243 990 123 456</p>
+                <h1 className="text-2xl font-bold tracking-tight">{storeSettings.name}</h1>
+                <p className="text-gray-500 font-semibold">{storeSettings.tagline}</p>
+                <p>{storeSettings.city}, RDC</p>
+                {(storeSettings.contact_email || storeSettings.contact_phone) && <p>{[storeSettings.contact_email, storeSettings.contact_phone].filter(Boolean).join(" | ")}</p>}
               </div>
               <div className="text-right">
                 <h2 className="text-lg font-bold">FACTURE COMMANDE</h2>

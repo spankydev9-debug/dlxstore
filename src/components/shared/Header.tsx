@@ -8,7 +8,9 @@ import { useCart } from "../../context/CartContext";
 import { useNotifications } from "../../context/NotificationContext";
 import { useTheme } from "./ThemeProvider";
 import { getProducts } from "../../services/db/products";
-import { Product } from "../../types";
+import { Product, StoreSettings } from "../../types";
+import { defaultStoreSettings } from "../../lib/store-config";
+import { getStoreSettings } from "../../services/db/settings";
 import { 
   ShoppingBag, 
   Search, 
@@ -43,6 +45,7 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -51,6 +54,10 @@ export default function Header() {
   // Load products for client-side search autocomplete
   useEffect(() => {
     getProducts().then(setAllProducts).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    getStoreSettings().then(setStoreSettings).catch(console.error);
   }, []);
 
   // Filter products for autocomplete
@@ -105,9 +112,7 @@ export default function Header() {
         {/* LOGO */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold tracking-widest text-foreground sm:text-2xl uppercase">
-              DLX<span className="text-primary font-light">STORE</span>
-            </span>
+            <span className="text-xl font-bold tracking-widest text-foreground sm:text-2xl uppercase">{storeSettings.name}</span>
           </Link>
 
           {/* Desktop Navigation Links */}

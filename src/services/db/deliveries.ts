@@ -29,10 +29,11 @@ export async function getDeliveries(driverId?: string): Promise<Delivery[]> {
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data || []).map((d: Record<string, unknown> & { driver?: { full_name?: string } }) => ({
-      ...(d as unknown as Delivery),
-      driver_name: d.driver ? d.driver.full_name : undefined,
-    }));
+    return (data || []).map((row) => {
+      const delivery = row as Delivery & { orders?: Delivery["order"] | null; driver?: { full_name?: string } | null };
+      const { orders, driver, ...fields } = delivery;
+      return { ...fields, driver_name: driver?.full_name, order: orders ?? undefined };
+    });
   }
 
   // Local Storage Fallback: Pull deliveries from orders array
@@ -41,20 +42,21 @@ export async function getDeliveries(driverId?: string): Promise<Delivery[]> {
 
   for (const order of orders) {
     if (order.delivery) {
-      const del = {
+      const del: Delivery = {
         ...order.delivery,
-        // copy details for easy display
-        customer_name: order.customer_name,
-        phone_number: order.phone_number,
-        municipality: order.municipality,
-        neighborhood: order.neighborhood,
-        avenue: order.avenue,
-        house_number: order.house_number,
-        total_amount: order.total_amount,
+        order: {
+          customer_name: order.customer_name,
+          phone_number: order.phone_number,
+          municipality: order.municipality,
+          neighborhood: order.neighborhood,
+          avenue: order.avenue,
+          house_number: order.house_number,
+          total_amount: order.total_amount,
+        },
       };
 
       if (!driverId || order.delivery.driver_id === driverId) {
-        deliveries.push(del as Delivery);
+        deliveries.push(del);
       }
     }
   }
@@ -66,12 +68,13 @@ export async function assignDriver(orderId: string, driverId: string, driverName
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase
       .from("deliveries")
-      .update({
+      .upsert({
+        order_id: orderId,
         driver_id: driverId,
         assigned_at: new Date().toISOString(),
         status: "confirmed",
-      })
-      .eq("order_id", orderId);
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "order_id" });
 
     if (error) throw error;
     return;
