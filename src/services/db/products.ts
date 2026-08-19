@@ -8,6 +8,21 @@ type ProductFields = Omit<Product, "id" | "created_at" | "images" | "reviews">;
 type ProductUpdate = Partial<ProductFields> & { images?: string[] };
 type CategoryFields = Pick<Category, "name" | "slug"> & Partial<Pick<Category, "description" | "image_url" | "is_active" | "display_order">>;
 
+/** Supports the already-live catalogue while its additive launch migration is pending. */
+function isMissingLaunchColumn(error: { code?: string; message?: string } | null) {
+  return error?.code === "42703" && /\b(is_active|is_archived|display_order|tags|low_stock_threshold)\b/.test(error.message ?? "");
+}
+
+function withoutProductLaunchFields(fields: Partial<ProductFields>) {
+  const { tags: _tags, is_active: _isActive, is_archived: _isArchived, low_stock_threshold: _lowStockThreshold, ...legacyFields } = fields;
+  return legacyFields;
+}
+
+function withoutCategoryLaunchFields(fields: Partial<CategoryFields>) {
+  const { is_active: _isActive, display_order: _displayOrder, ...legacyFields } = fields;
+  return legacyFields;
+}
+
 function mapProduct(row: ProductWithImageRows): Product {
   const { product_images, ...product } = row;
   return {
@@ -27,7 +42,12 @@ export async function getCategories(options: { includeInactive?: boolean } = {})
     let query = supabase.from("categories").select("*").order("display_order", { ascending: true }).order("name", { ascending: true });
     if (!options.includeInactive) query = query.eq("is_active", true);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error && !isMissingLaunchColumn(error)) throw error;
+    if (error) {
+      const { data: legacyData, error: legacyError } = await supabase.from("categories").select("*").order("name", { ascending: true });
+      if (legacyError) throw legacyError;
+      return (legacyData ?? []).map((category) => ({ ...category, is_active: true })) as Category[];
+    }
     return (data ?? []) as Category[];
   }
 
@@ -39,11 +59,15 @@ export async function getCategories(options: { includeInactive?: boolean } = {})
 
 export async function createCategory(fields: CategoryFields): Promise<Category> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase.from("categories").insert({
+    const categoryFields = {
       ...fields,
       is_active: fields.is_active ?? true,
       display_order: fields.display_order ?? 0,
-    }).select().single();
+    };
+    let { data, error } = await supabase.from("categories").insert(categoryFields).select().single();
+    if (error && isMissingLaunchColumn(error)) {
+      ({ data, error } = await supabase.from("categories").insert(withoutCategoryLaunchFields(categoryFields)).select().single());
+    }
     if (error) throw error;
     return data as Category;
   }
@@ -66,7 +90,12 @@ export async function createCategory(fields: CategoryFields): Promise<Category> 
 
 export async function updateCategory(id: string, fields: Partial<CategoryFields>): Promise<Category> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase.from("categories").update(fields).eq("id", id).select().single();
+    let { data, error } = await supabase.from("categories").update(fields).eq("id", id).select().single();
+    if (error && isMissingLaunchColumn(error)) {
+      const legacyFields = withoutCategoryLaunchFields(fields);
+      if (!Object.keys(legacyFields).length) throw new Error("Category visibility and ordering require the pending database migration.");
+      ({ data, error } = await supabase.from("categories").update(legacyFields).eq("id", id).select().single());
+    }
     if (error) throw error;
     return data as Category;
   }
@@ -82,12 +111,17 @@ export async function updateCategory(id: string, fields: Partial<CategoryFields>
 
 export async function deleteCategory(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
+    const { count, error: referenceError } = await supabase.from("products").select("id", { count: "exact", head: true }).eq("category_id", id);
+    if (referenceError) throw referenceError;
+    if ((count ?? 0) > 0) throw new Error("This category still contains products. Hide it or move its products before deleting it.");
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) throw error;
     return;
   }
 
   initMockDb();
+  const products = await getProducts({ includeInactive: true });
+  if (products.some((product) => product.category_id === id)) throw new Error("This category still contains products. Hide it or move its products before deleting it.");
   const categories = await getCategories({ includeInactive: true });
   localStorage.setItem("dlxstore_categories", JSON.stringify(categories.filter((category) => category.id !== id)));
 }
@@ -116,7 +150,15 @@ export async function getProducts(options: { includeInactive?: boolean } = {}): 
     `).order("created_at", { ascending: false });
     if (!options.includeInactive) query = query.eq("is_active", true).eq("is_archived", false);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error && !isMissingLaunchColumn(error)) throw error;
+    if (error) {
+      const { data: legacyData, error: legacyError } = await supabase.from("products").select(`
+        *,
+        product_images (image_url, is_primary, display_order)
+      `).order("created_at", { ascending: false });
+      if (legacyError) throw legacyError;
+      return ((legacyData ?? []) as ProductWithImageRows[]).map((product) => ({ ...mapProduct(product), is_active: true, is_archived: false }));
+    }
     return ((data ?? []) as ProductWithImageRows[]).map(mapProduct);
   }
 
@@ -151,7 +193,10 @@ export async function createProduct(productData: ProductFields & { images: strin
   const images = normalizeImageUrls(productData.images);
   if (isSupabaseConfigured && supabase) {
     const { images: _images, ...fields } = productData;
-    const { data, error } = await supabase.from("products").insert(fields).select().single();
+    let { data, error } = await supabase.from("products").insert(fields).select().single();
+    if (error && isMissingLaunchColumn(error)) {
+      ({ data, error } = await supabase.from("products").insert(withoutProductLaunchFields(fields)).select().single());
+    }
     if (error) throw error;
     if (images.length) {
       const { error: imageError } = await supabase.from("product_images").insert(images.map((imageUrl, index) => ({
@@ -179,7 +224,12 @@ export async function updateProduct(id: string, productFields: ProductUpdate): P
   if (isSupabaseConfigured && supabase) {
     const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", id).single();
     if (currentError) throw currentError;
-    const { data, error } = await supabase.from("products").update(fields).eq("id", id).select().single();
+    let { data, error } = await supabase.from("products").update(fields).eq("id", id).select().single();
+    if (error && isMissingLaunchColumn(error)) {
+      const legacyFields = withoutProductLaunchFields(fields);
+      if (!Object.keys(legacyFields).length) throw new Error("Product visibility and archiving require the pending database migration.");
+      ({ data, error } = await supabase.from("products").update(legacyFields).eq("id", id).select().single());
+    }
     if (error) throw error;
 
     if (normalizedImages) {
@@ -225,6 +275,9 @@ export function setProductVisibility(id: string, isActive: boolean) {
 
 export async function deleteProduct(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
+    const { count, error: referenceError } = await supabase.from("order_items").select("id", { count: "exact", head: true }).eq("product_id", id);
+    if (referenceError) throw referenceError;
+    if ((count ?? 0) > 0) throw new Error("This product is part of an order history. Archive it instead of deleting it.");
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (error) throw error;
     return;
@@ -232,6 +285,9 @@ export async function deleteProduct(id: string): Promise<void> {
 
   initMockDb();
   const products = await getProducts({ includeInactive: true });
+  const ordersRaw = localStorage.getItem("dlxstore_orders");
+  const orders = ordersRaw ? JSON.parse(ordersRaw) as Array<{ items?: Array<{ product_id: string }> }> : [];
+  if (orders.some((order) => order.items?.some((item) => item.product_id === id))) throw new Error("This product is part of an order history. Archive it instead of deleting it.");
   localStorage.setItem("dlxstore_products", JSON.stringify(products.filter((product) => product.id !== id)));
 }
 
