@@ -100,7 +100,7 @@ function OrderTrackingContent() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto pb-16">
-      {whatsappStatus && <p role="status" className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">{whatsappStatus === "opened" ? t.whatsappOpened : t.whatsappUnavailable}</p>}
+      {whatsappStatus && <p role="status" className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">{whatsappStatus === "link_opened" ? t.whatsappOpened : t.whatsappUnavailable}</p>}
       
       {/* Header info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/40 pb-5 gap-4">

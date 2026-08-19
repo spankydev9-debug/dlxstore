@@ -2,15 +2,16 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
-import { getProducts, createProduct, updateProduct, deleteProduct, adjustInventory, getInventoryHistory } from "../../../services/db/products";
+import { archiveProduct, createProduct, deleteProduct, getCategories, getInventoryHistory, getProducts, setProductVisibility, updateProduct, adjustInventory } from "../../../services/db/products";
 import { getOrders, updateOrderStatus } from "../../../services/db/orders";
 import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
 import { BusinessControls } from "../../../components/admin/BusinessControls";
-import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus } from "../../../types";
+import { ProductImage } from "../../../components/shared/ProductImage";
+import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category } from "../../../types";
+import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
 import { 
   BarChart3, 
   ShoppingBag, 
@@ -40,6 +41,7 @@ function AdminDashboardContent() {
 
   // DB States
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -56,12 +58,18 @@ function AdminDashboardContent() {
   const [prodPrice, setProdPrice] = useState("");
   const [prodDiscountPrice, setProdDiscountPrice] = useState("");
   const [prodBrand, setProdBrand] = useState("");
-  const [prodCategory, setProdCategory] = useState("c1111111-1111-1111-1111-111111111111");
+  const [prodCategory, setProdCategory] = useState("");
   const [prodSizes, setProdSizes] = useState("");
   const [prodColors, setProdColors] = useState("");
   const [prodSku, setProdSku] = useState("");
   const [prodStock, setProdStock] = useState("");
-  const [prodImages, setProdImages] = useState("");
+  const [prodImages, setProdImages] = useState<string[]>([]);
+  const [prodTags, setProdTags] = useState("");
+  const [prodLowStockThreshold, setProdLowStockThreshold] = useState("3");
+  const [prodIsFeatured, setProdIsFeatured] = useState(false);
+  const [prodIsActive, setProdIsActive] = useState(true);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [pendingImageDeletion, setPendingImageDeletion] = useState<string[]>([]);
 
   // Inventory Adjustment Fields
   const [selectedAdjustProduct, setSelectedAdjustProduct] = useState("");
@@ -91,14 +99,16 @@ function AdminDashboardContent() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [prods, ords, dels, profs, invHist] = await Promise.all([
-        getProducts(),
+      const [prods, cats, ords, dels, profs, invHist] = await Promise.all([
+        getProducts({ includeInactive: true }),
+        getCategories({ includeInactive: true }),
         getOrders(),
         getDeliveries(),
         getProfiles(),
         getInventoryHistory()
       ]);
       setProducts(prods);
+      setCategories(cats);
       setOrders(ords);
       setDeliveries(dels);
       setProfiles(profs);
@@ -129,7 +139,12 @@ function AdminDashboardContent() {
       setProdColors(prod.colors.join(", "));
       setProdSku(prod.sku);
       setProdStock(prod.stock_quantity.toString());
-      setProdImages(prod.images.join(", "));
+      setProdImages(prod.images);
+      setProdTags((prod.tags ?? []).join(", "));
+      setProdLowStockThreshold((prod.low_stock_threshold ?? 3).toString());
+      setProdIsFeatured(prod.is_featured);
+      setProdIsActive(prod.is_active !== false);
+      setPendingImageDeletion([]);
     } else {
       setEditingProduct(null);
       setProdName("");
@@ -137,43 +152,61 @@ function AdminDashboardContent() {
       setProdPrice("");
       setProdDiscountPrice("");
       setProdBrand("");
-      setProdCategory("c1111111-1111-1111-1111-111111111111");
+      setProdCategory(categories.find((category) => category.is_active !== false)?.id ?? "");
       setProdSizes("");
       setProdColors("");
       setProdSku(`SKU-${Math.floor(100000 + Math.random() * 900000)}`);
       setProdStock("");
-      setProdImages("");
+      setProdImages([]);
+      setProdTags("");
+      setProdLowStockThreshold("3");
+      setProdIsFeatured(false);
+      setProdIsActive(true);
+      setPendingImageDeletion([]);
     }
     setIsProductModalOpen(true);
   };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const price = Number(prodPrice);
+    const discountPrice = prodDiscountPrice ? Number(prodDiscountPrice) : undefined;
+    const stock = Number(prodStock);
+    const lowStockThreshold = Number(prodLowStockThreshold);
+    if (!prodCategory || !Number.isFinite(price) || price < 0 || !Number.isFinite(stock) || stock < 0 || !Number.isFinite(lowStockThreshold) || lowStockThreshold < 0 || (discountPrice !== undefined && (discountPrice < 0 || discountPrice > price))) {
+      alert("Vérifiez la catégorie, les prix et les quantités avant de sauvegarder.");
+      return;
+    }
     const pData = {
       name: prodName,
       slug: prodName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
       description: prodDescription,
-      price: parseFloat(prodPrice),
-      discount_price: prodDiscountPrice ? parseFloat(prodDiscountPrice) : undefined,
+      price,
+      discount_price: discountPrice,
       category_id: prodCategory,
       brand: prodBrand,
       sizes: prodSizes ? prodSizes.split(",").map(s => s.trim()) : [],
       colors: prodColors ? prodColors.split(",").map(c => c.trim()) : [],
       sku: prodSku,
-      stock_quantity: parseInt(prodStock),
-      images: prodImages ? prodImages.split(",").map(img => img.trim()) : ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500"],
+      stock_quantity: stock,
+      images: prodImages,
+      tags: prodTags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      low_stock_threshold: lowStockThreshold,
       rating: editingProduct ? editingProduct.rating : 5,
-      is_featured: editingProduct ? editingProduct.is_featured : true,
+      is_featured: prodIsFeatured,
       is_best_seller: editingProduct ? editingProduct.is_best_seller : false,
-      is_new_arrival: editingProduct ? editingProduct.is_new_arrival : true
+      is_new_arrival: editingProduct ? editingProduct.is_new_arrival : true,
+      is_active: prodIsActive,
+      is_archived: editingProduct?.is_archived ?? false,
     };
 
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, pData as any);
+        await updateProduct(editingProduct.id, pData);
+        await Promise.allSettled(pendingImageDeletion.map((url) => removeProductImage(url)));
         alert("Produit mis à jour avec succès !");
       } else {
-        await createProduct(pData as any);
+        await createProduct(pData);
         alert("Produit créé avec succès !");
       }
       setIsProductModalOpen(false);
@@ -181,6 +214,54 @@ function AdminDashboardContent() {
     } catch (err) {
       console.error(err);
       alert("Erreur lors de l'enregistrement du produit.");
+    }
+  };
+
+  const handleProductImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!files.length) return;
+    setIsUploadingImages(true);
+    try {
+      const uploaded = await Promise.all(files.map((file) => uploadProductImage(file)));
+      setProdImages((current) => [...current, ...uploaded]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Le téléversement des images a échoué.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const removeImageFromDraft = (url: string) => {
+    setProdImages((current) => current.filter((image) => image !== url));
+    if (editingProduct?.images.includes(url)) setPendingImageDeletion((current) => [...new Set([...current, url])]);
+  };
+
+  const moveDraftImage = (index: number, direction: -1 | 1) => {
+    setProdImages((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  };
+
+  const handleArchiveProduct = async (product: Product) => {
+    try {
+      await archiveProduct(product.id, !product.is_archived);
+      await loadAllData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Impossible de modifier l'archivage.");
+    }
+  };
+
+  const handleVisibilityChange = async (product: Product) => {
+    try {
+      await setProductVisibility(product.id, product.is_active === false);
+      await loadAllData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Impossible de modifier la visibilité.");
     }
   };
 
@@ -505,7 +586,7 @@ function AdminDashboardContent() {
                           <tr key={p.id} className="hover:bg-muted/30">
                             <td className="px-4 py-3 flex items-center gap-3">
                               <div className="relative h-8 w-8 rounded overflow-hidden border flex-shrink-0">
-                                <Image src={p.images[0]} alt="" fill sizes="32px" className="object-cover" />
+                                <ProductImage src={p.images[0]} alt="" fill sizes="32px" className="object-cover" />
                               </div>
                               <div>
                                 <div className="font-bold text-foreground">{p.name}</div>
@@ -519,6 +600,8 @@ function AdminDashboardContent() {
                             </td>
                             <td className={`px-4 py-3 font-bold ${p.stock_quantity <= 3 ? 'text-destructive' : 'text-foreground'}`}>
                               {p.stock_quantity}
+                              {p.is_archived && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground">Archivé</span>}
+                              {p.is_active === false && <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] text-amber-700">Masqué</span>}
                             </td>
                             <td className="px-4 py-3 text-right space-x-2">
                               <button
@@ -534,6 +617,12 @@ function AdminDashboardContent() {
                                 title="Supprimer"
                               >
                                 <Trash2 className="h-4 w-4" />
+                              </button>
+                              <button onClick={() => handleVisibilityChange(p)} className="text-xs font-semibold text-muted-foreground hover:text-foreground" title={p.is_active === false ? "Afficher" : "Masquer"}>
+                                {p.is_active === false ? "Afficher" : "Masquer"}
+                              </button>
+                              <button onClick={() => handleArchiveProduct(p)} className="text-xs font-semibold text-muted-foreground hover:text-foreground" title={p.is_archived ? "Désarchiver" : "Archiver"}>
+                                {p.is_archived ? "Désarchiver" : "Archiver"}
                               </button>
                             </td>
                           </tr>
@@ -896,27 +985,40 @@ function AdminDashboardContent() {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catégorie</label>
                 <select
+                  required
                   value={prodCategory}
                   onChange={(e) => setProdCategory(e.target.value)}
                   className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
                 >
-                  <option value="c1111111-1111-1111-1111-111111111111">Électronique & High-Tech</option>
-                  <option value="c2222222-2222-2222-2222-222222222222">Mode & Vêtements</option>
-                  <option value="c3333333-3333-3333-3333-333333333333">Maison & Énergie</option>
+                  <option value="">Choisissez une catégorie</option>
+                  {categories.filter((category) => category.is_active !== false).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                 </select>
+                {categories.length === 0 && <p className="text-xs text-destructive">Créez d&apos;abord une catégorie dans Configuration.</p>}
               </div>
 
-              {/* Images URLs (comma separated lists) */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Images URLs (Séparées par virgules)</label>
+              <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Photos du produit</label>
+                  <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG ou WebP, 5 Mo maximum par image. La première photo est l&apos;image principale.</p>
+                </div>
                 <input
-                  type="text"
-                  value={prodImages}
-                  onChange={(e) => setProdImages(e.target.value)}
-                  placeholder="Ex. http://url1.com, http://url2.com"
-                  className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handleProductImageUpload}
+                  disabled={isUploadingImages}
+                  className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-background file:px-3 file:py-2 file:text-xs file:font-semibold hover:file:bg-muted disabled:opacity-50"
                 />
+                {isUploadingImages && <p role="status" className="text-xs text-muted-foreground">Téléversement des images…</p>}
+                {prodImages.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{prodImages.map((image, index) => <div key={image} className="rounded-lg border border-border bg-card p-2"><div className="relative aspect-square overflow-hidden rounded"><ProductImage src={image} alt={`Aperçu ${index + 1}`} fill sizes="160px" className="object-cover" /></div><div className="mt-2 flex items-center justify-between gap-1"><button type="button" onClick={() => moveDraftImage(index, -1)} disabled={index === 0} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">←</button><button type="button" onClick={() => moveDraftImage(index, 1)} disabled={index === prodImages.length - 1} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">→</button><button type="button" onClick={() => removeImageFromDraft(image)} className="rounded border border-destructive/30 px-2 py-1 text-xs text-destructive">×</button></div></div>)}</div>}
               </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5"><label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tags (séparés par virgules)</label><input type="text" value={prodTags} onChange={(e) => setProdTags(e.target.value)} placeholder="Ex. téléphone, Android, promotion" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground" /></div>
+                <div className="space-y-1.5"><label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Seuil stock bas</label><input type="number" min="0" value={prodLowStockThreshold} onChange={(e) => setProdLowStockThreshold(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground" /></div>
+              </div>
+
+              <div className="flex flex-wrap gap-5 text-sm"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={prodIsFeatured} onChange={(e) => setProdIsFeatured(e.target.checked)} />Mettre en vedette</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={prodIsActive} onChange={(e) => setProdIsActive(e.target.checked)} />Visible dans la boutique</label></div>
 
               {/* Description */}
               <div className="space-y-1.5">

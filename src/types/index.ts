@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "admin";
+export type UserRole = "customer" | "staff" | "admin";
 
 export interface Profile {
   id: string;
@@ -6,6 +6,7 @@ export interface Profile {
   full_name: string;
   phone?: string;
   role: UserRole;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +17,8 @@ export interface Category {
   slug: string;
   description?: string;
   image_url?: string;
+  is_active?: boolean;
+  display_order?: number;
   created_at: string;
 }
 
@@ -38,6 +41,10 @@ export interface Product {
   is_featured: boolean;
   is_best_seller: boolean;
   is_new_arrival: boolean;
+  tags?: string[];
+  is_active?: boolean;
+  is_archived?: boolean;
+  low_stock_threshold?: number;
   product_type?: ProductType;
   food_vendor_id?: string;
   food_category?: string;
@@ -68,6 +75,8 @@ export interface Order {
   delivery_notes?: string;
   coupon_code?: string;
   discount_amount?: number;
+  whatsapp_handoff_status?: "not_attempted" | "link_opened" | "unavailable" | "not_configured";
+  whatsapp_handoff_at?: string;
   total_amount: number;
   created_at: string;
   updated_at: string;

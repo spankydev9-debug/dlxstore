@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
-import { createOrder } from "../../services/db/orders";
+import { createOrder, recordOrderWhatsAppHandoff } from "../../services/db/orders";
 import { CouponValidation, validateCoupon } from "../../services/db/coupons";
 import { getStoreSettings } from "../../services/db/settings";
 import { buildWhatsAppUrl, buildOrderOperationalMessage, getWhatsAppBuyNumber } from "../../lib/whatsapp";
@@ -90,7 +90,7 @@ export default function CheckoutPage() {
 
       const newOrder = await createOrder(orderFields, orderItems);
       clearCart();
-      let whatsappStatus = "unavailable";
+      let whatsappStatus: "link_opened" | "unavailable" | "not_configured" = "not_configured";
       try {
         const settings = await getStoreSettings();
         const number = getWhatsAppBuyNumber(settings);
@@ -105,8 +105,12 @@ export default function CheckoutPage() {
           })),
         });
         const url = number ? buildWhatsAppUrl(number, message) : null;
-        if (url) { window.open(url, "_blank", "noopener,noreferrer"); whatsappStatus = "opened"; }
+        if (url) {
+          const handoffWindow = window.open(url, "_blank", "noopener,noreferrer");
+          whatsappStatus = handoffWindow ? "link_opened" : "unavailable";
+        }
       } catch (whatsappError) { console.warn("WhatsApp handoff unavailable; order was created.", whatsappError); }
+      try { await recordOrderWhatsAppHandoff(newOrder.id, whatsappStatus); } catch (handoffError) { console.warn("Order handoff state was not recorded.", handoffError); }
       router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
     } catch (err) {
       console.error("Error creating order:", err);

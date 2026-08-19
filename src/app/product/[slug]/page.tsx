@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { getProductBySlug, getProducts } from "../../../services/db/products";
 import { getProductReviews, addReview } from "../../../services/db/reviews";
 import { addToWishlist, removeFromWishlist, isInWishlist } from "../../../services/db/wishlist";
@@ -14,6 +13,7 @@ import { defaultStoreSettings } from "../../../lib/store-config";
 import { getStoreSettings } from "../../../services/db/settings";
 import { buildProductWhatsAppMessage, buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../../lib/whatsapp";
 import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck } from "lucide-react";
+import { ProductImage } from "../../../components/shared/ProductImage";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -176,7 +176,7 @@ export default function ProductDetailPage() {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
-            <Image
+            <ProductImage
               src={activeImage}
               alt={product.name}
               fill
@@ -195,7 +195,7 @@ export default function ProductDetailPage() {
                   onClick={() => setActiveImage(img)}
                   className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border transition-all ${activeImage === img ? 'border-primary ring-2 ring-ring' : 'border-border hover:border-muted-foreground'}`}
                 >
-                  <Image src={img} alt="" fill sizes="80px" className="object-cover" />
+                  <ProductImage src={img} alt="" fill sizes="80px" className="object-cover" />
                 </button>
               ))}
             </div>
@@ -479,7 +479,7 @@ export default function ProductDetailPage() {
                   className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
                 >
                   <div className="relative aspect-square overflow-hidden bg-muted">
-                    <Image
+                    <ProductImage
                       src={product.images[0]}
                       alt={product.name}
                       fill

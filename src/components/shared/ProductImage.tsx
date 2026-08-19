@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { getProductImageFallback, resolveProductImageUrl } from "../../lib/product-image";
 
 type ProductImageProps = {
@@ -13,9 +13,10 @@ type ProductImageProps = {
   sizes?: string;
   className?: string;
   priority?: boolean;
+  style?: CSSProperties;
 };
 
-export function ProductImage({ src, alt, fill, width, height, sizes, className, priority }: ProductImageProps) {
+export function ProductImage({ src, alt, fill, width, height, sizes, className, priority, style }: ProductImageProps) {
   const resolvedSrc = resolveProductImageUrl(src);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const currentSrc = failedSrc === resolvedSrc ? getProductImageFallback() : resolvedSrc;
@@ -24,6 +25,7 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     alt,
     className,
     priority,
+    style,
     onError: () => setFailedSrc(resolvedSrc),
   };
 

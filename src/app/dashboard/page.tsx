@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "../../components/shared/ProductImage";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { getOrders } from "../../services/db/orders";
@@ -305,7 +305,7 @@ function DashboardContent() {
                         return (
                           <div key={p.id} className="group relative flex flex-col rounded-xl border border-border overflow-hidden bg-card transition-all hover:shadow-sm">
                             <div className="relative aspect-square overflow-hidden bg-muted">
-                              <Image 
+                              <ProductImage
                                 src={p.images[0]} 
                                 alt={p.name} 
                                 fill 

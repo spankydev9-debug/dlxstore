@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
@@ -26,6 +25,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ProductImage } from "./ProductImage";
 import { useLanguage } from "../../context/LanguageContext";
 
 export default function Header() {
@@ -145,8 +145,8 @@ export default function Header() {
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <Image 
-                      src={product.images[0]} 
+                    <ProductImage
+                      src={product.images[0]}
                       alt={product.name} 
                       width={32}
                       height={32}

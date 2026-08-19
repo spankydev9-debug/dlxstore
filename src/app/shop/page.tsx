@@ -3,11 +3,11 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { getProducts, getCategories } from "../../services/db/products";
 import { Product, Category } from "../../types";
 import { Star, Search, SlidersHorizontal, RotateCcw, PackageX } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
+import { ProductImage } from "../../components/shared/ProductImage";
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -253,7 +253,7 @@ function ShopContent() {
                     className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
                   >
                     <div className="relative aspect-square overflow-hidden bg-muted">
-                      <Image
+                      <ProductImage
                         src={product.images[0]}
                         alt={product.name}
                         fill

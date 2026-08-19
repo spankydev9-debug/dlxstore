@@ -8,31 +8,30 @@ export async function createOrder(
   items: Array<{ product_id: string; quantity: number; price_at_sale: number; size?: string; color?: string }>
 ): Promise<Order> {
   if (isSupabaseConfigured && supabase) {
-    // 1. Insert order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert([{ ...orderData, status: "pending" }])
-      .select()
-      .single();
-
-    if (orderError) throw orderError;
-
-    // 2. Insert order items
-    const itemsWithOrderId = items.map(item => ({
-      ...item,
-      order_id: order.id
-    }));
-    
-    const { error: itemsError } = await supabase
-      .from("order_items")
-      .insert(itemsWithOrderId);
-
-    if (itemsError) throw itemsError;
-
-    // 3. Return full order object (stock is adjusted by DB triggers in live schema)
+    const { customer_id: _customerId, ...fields } = orderData;
+    const { data, error } = await supabase.rpc("create_customer_order", {
+      p_customer_name: fields.customer_name,
+      p_phone_number: fields.phone_number,
+      p_municipality: fields.municipality,
+      p_neighborhood: fields.neighborhood,
+      p_avenue: fields.avenue,
+      p_house_number: fields.house_number ?? "",
+      p_delivery_notes: fields.delivery_notes ?? "",
+      p_coupon_code: fields.coupon_code ?? "",
+      p_discount_amount: fields.discount_amount ?? 0,
+      p_total_amount: fields.total_amount,
+      p_items: items.map(({ product_id, quantity, size, color }) => ({ product_id, quantity, size, color })),
+    });
+    if (error) throw error;
+    if (!data) throw new Error("The order could not be created.");
+    const order = data as Omit<Order, "items" | "delivery">;
     return {
       ...order,
-      items: itemsWithOrderId as any
+      items: items.map((item, index) => ({
+        ...item,
+        id: `pending-${index}`,
+        order_id: order.id,
+      })),
     };
   }
 
@@ -82,6 +81,31 @@ export async function createOrder(
   );
 
   return newOrder;
+}
+
+export async function recordOrderWhatsAppHandoff(
+  orderId: string,
+  status: "link_opened" | "unavailable" | "not_configured",
+): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.rpc("record_order_whatsapp_handoff", {
+      p_order_id: orderId,
+      p_status: status,
+    });
+    if (error) throw error;
+    return;
+  }
+
+  initMockDb();
+  const orders = await getOrders();
+  const index = orders.findIndex((order) => order.id === orderId);
+  if (index === -1) return;
+  orders[index] = {
+    ...orders[index],
+    whatsapp_handoff_status: status,
+    whatsapp_handoff_at: new Date().toISOString(),
+  };
+  localStorage.setItem("dlxstore_orders", JSON.stringify(orders));
 }
 
 export async function getOrders(userId?: string): Promise<Order[]> {

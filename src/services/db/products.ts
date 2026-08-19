@@ -1,221 +1,226 @@
-import { Category, Product, InventoryHistoryEntry } from "../../types";
-import { supabase, isSupabaseConfigured, initMockDb } from "./index";
+import { Category, InventoryHistoryEntry, Product } from "../../types";
 import { createNotification } from "./notifications";
+import { initMockDb, isSupabaseConfigured, supabase } from "./index";
 
-export async function getCategories(): Promise<Category[]> {
+type ProductImageRow = { image_url: string; is_primary: boolean; display_order: number };
+type ProductWithImageRows = Omit<Product, "images"> & { product_images?: ProductImageRow[] | null };
+type ProductFields = Omit<Product, "id" | "created_at" | "images" | "reviews">;
+type ProductUpdate = Partial<ProductFields> & { images?: string[] };
+type CategoryFields = Pick<Category, "name" | "slug"> & Partial<Pick<Category, "description" | "image_url" | "is_active" | "display_order">>;
+
+function mapProduct(row: ProductWithImageRows): Product {
+  const { product_images, ...product } = row;
+  return {
+    ...product,
+    images: [...(product_images ?? [])]
+      .sort((left, right) => left.display_order - right.display_order)
+      .map((image) => image.image_url),
+  };
+}
+
+function normalizeImageUrls(images: string[]) {
+  return images.map((url) => url.trim()).filter(Boolean);
+}
+
+export async function getCategories(options: { includeInactive?: boolean } = {}): Promise<Category[]> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name", { ascending: true });
-    
+    let query = supabase.from("categories").select("*").order("display_order", { ascending: true }).order("name", { ascending: true });
+    if (!options.includeInactive) query = query.eq("is_active", true);
+    const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return (data ?? []) as Category[];
   }
 
-  // Local Storage Fallback
   initMockDb();
   const raw = localStorage.getItem("dlxstore_categories");
-  return raw ? JSON.parse(raw) : [];
+  const categories = raw ? JSON.parse(raw) as Category[] : [];
+  return options.includeInactive ? categories : categories.filter((category) => category.is_active !== false);
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function createCategory(fields: CategoryFields): Promise<Category> {
   if (isSupabaseConfigured && supabase) {
-    // Select products and join images
-    const { data: productsData, error: productsError } = await supabase
-      .from("products")
-      .select(`
-        *,
-        product_images (
-          image_url,
-          is_primary,
-          display_order
-        )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (productsError) throw productsError;
-
-    return (productsData || []).map((p: any) => ({
-      ...p,
-      images: p.product_images
-        ? p.product_images
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url)
-        : []
-    }));
+    const { data, error } = await supabase.from("categories").insert({
+      ...fields,
+      is_active: fields.is_active ?? true,
+      display_order: fields.display_order ?? 0,
+    }).select().single();
+    if (error) throw error;
+    return data as Category;
   }
 
-  // Local Storage Fallback
+  initMockDb();
+  const categories = await getCategories({ includeInactive: true });
+  const category: Category = {
+    id: `category-${crypto.randomUUID()}`,
+    name: fields.name,
+    slug: fields.slug,
+    description: fields.description,
+    image_url: fields.image_url,
+    is_active: fields.is_active ?? true,
+    display_order: fields.display_order ?? categories.length,
+    created_at: new Date().toISOString(),
+  };
+  localStorage.setItem("dlxstore_categories", JSON.stringify([...categories, category]));
+  return category;
+}
+
+export async function updateCategory(id: string, fields: Partial<CategoryFields>): Promise<Category> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.from("categories").update(fields).eq("id", id).select().single();
+    if (error) throw error;
+    return data as Category;
+  }
+
+  initMockDb();
+  const categories = await getCategories({ includeInactive: true });
+  const index = categories.findIndex((category) => category.id === id);
+  if (index === -1) throw new Error("Category not found.");
+  categories[index] = { ...categories[index], ...fields };
+  localStorage.setItem("dlxstore_categories", JSON.stringify(categories));
+  return categories[index];
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) throw error;
+    return;
+  }
+
+  initMockDb();
+  const categories = await getCategories({ includeInactive: true });
+  localStorage.setItem("dlxstore_categories", JSON.stringify(categories.filter((category) => category.id !== id)));
+}
+
+export async function reorderCategories(categoryIds: string[]): Promise<void> {
+  const client = supabase;
+  if (isSupabaseConfigured && client) {
+    const results = await Promise.all(categoryIds.map((id, index) => client.from("categories").update({ display_order: index }).eq("id", id)));
+    const failure = results.find((result) => result.error)?.error;
+    if (failure) throw failure;
+    return;
+  }
+
+  initMockDb();
+  const categories = await getCategories({ includeInactive: true });
+  const order = new Map(categoryIds.map((id, index) => [id, index]));
+  const updated = categories.map((category) => ({ ...category, display_order: order.get(category.id) ?? category.display_order ?? categories.length }));
+  localStorage.setItem("dlxstore_categories", JSON.stringify(updated));
+}
+
+export async function getProducts(options: { includeInactive?: boolean } = {}): Promise<Product[]> {
+  if (isSupabaseConfigured && supabase) {
+    let query = supabase.from("products").select(`
+      *,
+      product_images (image_url, is_primary, display_order)
+    `).order("created_at", { ascending: false });
+    if (!options.includeInactive) query = query.eq("is_active", true).eq("is_archived", false);
+    const { data, error } = await query;
+    if (error) throw error;
+    return ((data ?? []) as ProductWithImageRows[]).map(mapProduct);
+  }
+
   initMockDb();
   const raw = localStorage.getItem("dlxstore_products");
-  return raw ? JSON.parse(raw) : [];
+  const products = raw ? JSON.parse(raw) as Product[] : [];
+  return options.includeInactive ? products : products.filter((product) => product.is_active !== false && product.is_archived !== true);
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
+async function getProductWithImagesByField(field: "id" | "slug", value: string): Promise<Product | null> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("products")
-      .select(`
-        *,
-        product_images (
-          image_url,
-          is_primary,
-          display_order
-        )
-      `)
-      .eq("slug", slug)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") return null; // Not found
-      throw error;
-    }
-
-    if (!data) return null;
-
-    return {
-      ...data,
-      images: data.product_images
-        ? data.product_images
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url)
-        : []
-    };
-  }
-
-  // Local Storage Fallback
-  const products = await getProducts();
-  return products.find(p => p.slug === slug) || null;
-}
-
-export async function getProductById(id: string): Promise<Product | null> {
-  if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("products")
-      .select(`
-        *,
-        product_images (
-          image_url,
-          is_primary,
-          display_order
-        )
-      `)
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
-    if (!data) return null;
-
-    return {
-      ...data,
-      images: data.product_images
-        ? data.product_images
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url)
-        : []
-    };
-  }
-
-  const products = await getProducts();
-  return products.find(p => p.id === id) || null;
-}
-
-export async function createProduct(productData: Omit<Product, "id" | "created_at">): Promise<Product> {
-  if (isSupabaseConfigured && supabase) {
-    // 1. Insert product
-    const { images, ...productFields } = productData as any;
-    const { data, error } = await supabase
-      .from("products")
-      .insert([productFields])
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from("products").select(`
+      *,
+      product_images (image_url, is_primary, display_order)
+    `).eq(field, value).maybeSingle();
     if (error) throw error;
+    return data ? mapProduct(data as ProductWithImageRows) : null;
+  }
+  const products = await getProducts({ includeInactive: true });
+  return products.find((product) => product[field] === value) ?? null;
+}
 
-    // 2. Insert product images
-    if (images && images.length > 0) {
-      const imgInserts = images.map((url: string, index: number) => ({
+export function getProductBySlug(slug: string) {
+  return getProductWithImagesByField("slug", slug);
+}
+
+export function getProductById(id: string) {
+  return getProductWithImagesByField("id", id);
+}
+
+export async function createProduct(productData: ProductFields & { images: string[] }): Promise<Product> {
+  const images = normalizeImageUrls(productData.images);
+  if (isSupabaseConfigured && supabase) {
+    const { images: _images, ...fields } = productData;
+    const { data, error } = await supabase.from("products").insert(fields).select().single();
+    if (error) throw error;
+    if (images.length) {
+      const { error: imageError } = await supabase.from("product_images").insert(images.map((imageUrl, index) => ({
         product_id: data.id,
-        image_url: url,
+        image_url: imageUrl,
         is_primary: index === 0,
-        display_order: index
-      }));
-      const { error: imgError } = await supabase.from("product_images").insert(imgInserts);
-      if (imgError) throw imgError;
+        display_order: index,
+      })));
+      if (imageError) throw imageError;
     }
-
-    return { ...data, images: images || [] };
+    return { ...(data as Omit<Product, "images">), images };
   }
 
-  // Local Storage Fallback
   initMockDb();
-  const products = await getProducts();
-  const newProduct: Product = {
-    ...productData,
-    id: `prod-${Math.random().toString(36).substr(2, 9)}`,
-    created_at: new Date().toISOString()
-  };
-  products.unshift(newProduct);
-  localStorage.setItem("dlxstore_products", JSON.stringify(products));
-
-  // Log inventory adjustment
-  await adjustInventory(newProduct.id, newProduct.stock_quantity, "restock", "Création initiale du produit");
-
-  return newProduct;
+  const products = await getProducts({ includeInactive: true });
+  const product: Product = { ...productData, images, id: `prod-${crypto.randomUUID()}`, created_at: new Date().toISOString() };
+  localStorage.setItem("dlxstore_products", JSON.stringify([product, ...products]));
+  return product;
 }
 
-export async function updateProduct(id: string, productFields: Partial<Product>): Promise<Product> {
-  if (isSupabaseConfigured && supabase) {
-    const { images, ...fields } = productFields as any;
-    const { data, error } = await supabase
-      .from("products")
-      .update(fields)
-      .eq("id", id)
-      .select()
-      .single();
+export async function updateProduct(id: string, productFields: ProductUpdate): Promise<Product> {
+  const { images, stock_quantity: targetStock, ...fields } = productFields;
+  const normalizedImages = images ? normalizeImageUrls(images) : undefined;
 
+  if (isSupabaseConfigured && supabase) {
+    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", id).single();
+    if (currentError) throw currentError;
+    const { data, error } = await supabase.from("products").update(fields).eq("id", id).select().single();
     if (error) throw error;
 
-    // If images are provided, update them (for simplicity, delete and recreate)
-    if (images) {
-      await supabase.from("product_images").delete().eq("product_id", id);
-      const imgInserts = images.map((url: string, index: number) => ({
-        product_id: id,
-        image_url: url,
-        is_primary: index === 0,
-        display_order: index
-      }));
-      await supabase.from("product_images").insert(imgInserts);
+    if (normalizedImages) {
+      const { error: deleteError } = await supabase.from("product_images").delete().eq("product_id", id);
+      if (deleteError) throw deleteError;
+      if (normalizedImages.length) {
+        const { error: imageError } = await supabase.from("product_images").insert(normalizedImages.map((imageUrl, index) => ({
+          product_id: id,
+          image_url: imageUrl,
+          is_primary: index === 0,
+          display_order: index,
+        })));
+        if (imageError) throw imageError;
+      }
     }
 
-    return { ...data, images: images || productFields.images || [] };
+    if (targetStock !== undefined && targetStock !== current.stock_quantity) {
+      await adjustInventory(id, targetStock - current.stock_quantity, "manual_adjustment", "Stock set from product editor.");
+    }
+    return { ...(data as Omit<Product, "images">), stock_quantity: targetStock ?? current.stock_quantity, images: normalizedImages ?? [] };
   }
 
-  // Local Storage Fallback
-  const products = await getProducts();
-  const index = products.findIndex(p => p.id === id);
-  if (index === -1) throw new Error("Product not found");
-
-  const originalStock = products[index].stock_quantity;
-  const updatedProduct = {
-    ...products[index],
-    ...productFields
-  };
-
-  products[index] = updatedProduct;
+  initMockDb();
+  const products = await getProducts({ includeInactive: true });
+  const index = products.findIndex((product) => product.id === id);
+  if (index === -1) throw new Error("Product not found.");
+  const current = products[index];
+  products[index] = { ...current, ...fields, ...(normalizedImages ? { images: normalizedImages } : {}) };
   localStorage.setItem("dlxstore_products", JSON.stringify(products));
-
-  // Log stock adjustments if modified
-  if (productFields.stock_quantity !== undefined && productFields.stock_quantity !== originalStock) {
-    const diff = productFields.stock_quantity - originalStock;
-    await adjustInventory(id, diff, "manual_adjustment", `Ajustement manuel du stock (ancien: ${originalStock}, nouveau: ${productFields.stock_quantity})`);
+  if (targetStock !== undefined && targetStock !== current.stock_quantity) {
+    await adjustInventory(id, targetStock - current.stock_quantity, "manual_adjustment", "Stock set from product editor.");
   }
+  return { ...products[index], stock_quantity: targetStock ?? current.stock_quantity };
+}
 
-  return updatedProduct;
+export function archiveProduct(id: string, archived: boolean) {
+  return updateProduct(id, { is_archived: archived });
+}
+
+export function setProductVisibility(id: string, isActive: boolean) {
+  return updateProduct(id, { is_active: isActive });
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -225,104 +230,51 @@ export async function deleteProduct(id: string): Promise<void> {
     return;
   }
 
-  // Local Storage Fallback
-  const products = await getProducts();
-  const filtered = products.filter(p => p.id !== id);
-  localStorage.setItem("dlxstore_products", JSON.stringify(filtered));
+  initMockDb();
+  const products = await getProducts({ includeInactive: true });
+  localStorage.setItem("dlxstore_products", JSON.stringify(products.filter((product) => product.id !== id)));
 }
 
-export async function adjustInventory(
-  productId: string,
-  quantityChanged: number,
-  type: "sale" | "restock" | "manual_adjustment",
-  notes?: string
-): Promise<void> {
+export async function adjustInventory(productId: string, quantityChanged: number, type: InventoryHistoryEntry["type"], notes?: string): Promise<void> {
+  if (quantityChanged === 0) return;
   if (isSupabaseConfigured && supabase) {
-    // This is handled by a PostgreSQL database trigger in live schema (schema.sql), 
-    // but we can log history entries explicitly if desired or update stock.
-    const { error: updateError } = await supabase.rpc("adjust_stock", {
-      p_id: productId,
-      qty: quantityChanged
+    const { error } = await supabase.rpc("adjust_inventory", {
+      p_product_id: productId,
+      p_quantity_changed: quantityChanged,
+      p_type: type,
+      p_notes: notes ?? null,
     });
-
-    // Or do manual updates if rpc not setup yet
-    const { data: prod } = await supabase.from("products").select("stock_quantity").eq("id", productId).single();
-    if (prod) {
-      await supabase.from("products").update({ stock_quantity: prod.stock_quantity + quantityChanged }).eq("id", productId);
-    }
-
-    await supabase.from("inventory_history").insert({
-      product_id: productId,
-      quantity_changed: quantityChanged,
-      type,
-      notes
-    });
+    if (error) throw error;
     return;
   }
 
-  // Local Storage Fallback
   initMockDb();
-  
-  // 1. Update product stock
-  const products = await getProducts();
-  const prodIdx = products.findIndex(p => p.id === productId);
-  if (prodIdx !== -1) {
-    products[prodIdx].stock_quantity = Math.max(0, products[prodIdx].stock_quantity + quantityChanged);
-    localStorage.setItem("dlxstore_products", JSON.stringify(products));
-    
-    // Check for low stock alerts
-    if (products[prodIdx].stock_quantity <= 3 && quantityChanged < 0) {
-      await createNotification(
-        "usr-admin",
-        "Alerte de Stock Bas ⚠️",
-        `Le produit '${products[prodIdx].name}' n'a plus que ${products[prodIdx].stock_quantity} unités en stock. Réapprovisionnez au plus vite.`,
-        "low_stock"
-      );
-    }
+  const products = await getProducts({ includeInactive: true });
+  const index = products.findIndex((product) => product.id === productId);
+  if (index === -1) throw new Error("Product not found.");
+  const nextStock = products[index].stock_quantity + quantityChanged;
+  if (nextStock < 0) throw new Error("Stock cannot be negative.");
+  products[index] = { ...products[index], stock_quantity: nextStock };
+  localStorage.setItem("dlxstore_products", JSON.stringify(products));
+
+  if (nextStock <= (products[index].low_stock_threshold ?? 3) && quantityChanged < 0) {
+    await createNotification("usr-admin", "Alerte de stock bas", `${products[index].name} has only ${nextStock} units left.`, "low_stock");
   }
 
-  // 2. Add history entry
   const historyRaw = localStorage.getItem("dlxstore_inventory_history");
-  const history: InventoryHistoryEntry[] = historyRaw ? JSON.parse(historyRaw) : [];
-  
-  const product = products.find(p => p.id === productId);
-  
-  const newEntry: InventoryHistoryEntry = {
-    id: `inv-${Math.random().toString(36).substr(2, 9)}`,
-    product_id: productId,
-    product_name: product ? product.name : "Produit Inconnu",
-    quantity_changed: quantityChanged,
-    type,
-    notes,
-    created_at: new Date().toISOString()
-  };
-  
-  history.unshift(newEntry);
+  const history = historyRaw ? JSON.parse(historyRaw) as InventoryHistoryEntry[] : [];
+  history.unshift({ id: `inv-${crypto.randomUUID()}`, product_id: productId, product_name: products[index].name, quantity_changed: quantityChanged, type, notes, created_at: new Date().toISOString() });
   localStorage.setItem("dlxstore_inventory_history", JSON.stringify(history));
 }
 
 export async function getInventoryHistory(): Promise<InventoryHistoryEntry[]> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("inventory_history")
-      .select(`
-        *,
-        products (
-          name
-        )
-      `)
-      .order("created_at", { ascending: false });
-
+    const { data, error } = await supabase.from("inventory_history").select("*, products(name)").order("created_at", { ascending: false });
     if (error) throw error;
-
-    return (data || []).map((h: any) => ({
-      ...h,
-      product_name: h.products ? h.products.name : "Produit Inconnu"
-    }));
+    return ((data ?? []) as Array<InventoryHistoryEntry & { products?: { name?: string } | null }>).map((entry) => ({ ...entry, product_name: entry.products?.name ?? "Unknown product" }));
   }
 
-  // Local Storage Fallback
   initMockDb();
   const raw = localStorage.getItem("dlxstore_inventory_history");
-  return raw ? JSON.parse(raw) : [];
+  return raw ? JSON.parse(raw) as InventoryHistoryEntry[] : [];
 }

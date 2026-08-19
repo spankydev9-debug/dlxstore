@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { ProductImage } from "../../components/shared/ProductImage";
 import { useCart } from "../../context/CartContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck } from "lucide-react";
@@ -62,7 +62,7 @@ export default function CartPage() {
                   {/* Image & Details */}
                   <div className="flex gap-4">
                     <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-muted">
-                      <Image
+                      <ProductImage
                         src={item.product.images[0]}
                         alt={item.product.name}
                         fill

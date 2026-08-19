@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { getProducts, getCategories } from "../services/db/products";
 import { Product, Category } from "../types";
 import { 
@@ -17,6 +16,7 @@ import {
   Zap,
   Package
 } from "lucide-react";
+import { ProductImage } from "../components/shared/ProductImage";
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -176,7 +176,7 @@ export default function HomePage() {
               href={`/shop?category=${cat.slug}`}
               className="group relative h-64 overflow-hidden rounded-2xl border border-border/60 shadow-sm transition-all hover:shadow-md"
             >
-              {cat.image_url ? <Image src={cat.image_url} alt={cat.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />}
+              {cat.image_url ? <ProductImage src={cat.image_url} alt={cat.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-700 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent"></div>
               <div className="absolute bottom-6 left-6 text-white space-y-1">
                 <h3 className="text-xl font-bold">{cat.name}</h3>
@@ -239,7 +239,7 @@ export default function HomePage() {
                 className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all hover:shadow-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-muted">
-                  {product.images[0] ? <Image src={product.images[0]} alt={product.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-muted" />}
+                  {product.images[0] ? <ProductImage src={product.images[0]} alt={product.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw" className="object-cover transition-transform duration-500 group-hover:scale-105" /> : <div aria-hidden className="absolute inset-0 bg-muted" />}
                   {hasDiscount && (
                     <span className="absolute top-3 left-3 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold text-destructive-foreground">
                       Promo
