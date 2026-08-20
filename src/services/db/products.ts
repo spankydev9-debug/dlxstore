@@ -1,4 +1,5 @@
 import { Category, InventoryHistoryEntry, Product } from "../../types";
+import { isPublicProduct } from "../../lib/seo";
 import { createNotification } from "./notifications";
 import { initMockDb, isSupabaseConfigured, supabase } from "./index";
 
@@ -181,8 +182,13 @@ async function getProductWithImagesByField(field: "id" | "slug", value: string):
   return products.find((product) => product[field] === value) ?? null;
 }
 
-export function getProductBySlug(slug: string) {
-  return getProductWithImagesByField("slug", slug);
+export { isPublicProduct };
+
+export async function getProductBySlug(slug: string, options: { includeInactive?: boolean } = {}): Promise<Product | null> {
+  const product = await getProductWithImagesByField("slug", slug);
+  if (!product) return null;
+  if (!options.includeInactive && !isPublicProduct(product)) return null;
+  return product;
 }
 
 export function getProductById(id: string) {
