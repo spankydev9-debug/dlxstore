@@ -179,7 +179,7 @@ npm run build                  # verify production build
 
 | # | Task | Status | Scope / completion condition |
 |---|---|---|---|
-| 1 | Recover and validate interrupted launch work | PENDING | Inspect, complete, and checkpoint the existing uncommitted PWA/SEO/layout/icon/product-data work without losing user changes. |
+| 1 | Recover and validate interrupted launch work | BLOCKED | Code recovery is committed and GitHub/Vercel deployment succeeded, but production verification and the custom-domain correction require Vercel project access. See the deployment investigation below. |
 | 2 | Make public product pages crawlable and canonical | PENDING | Complete the product-detail route correction; add dynamic metadata, JSON-LD, valid not-found handling, and product/category discoverability QA. |
 | 3 | Complete visible PWA installation and offline UX | PENDING | Add storefront install control with Android/desktop prompt, iOS guidance, installed/unsupported states; verify manifest, worker, icons, and offline behavior. |
 | 4 | Repair transactional checkout and inventory | PENDING | Correct the SQL RPC so order persistence, authoritative prices, coupon use, inventory decrement/history, and WhatsApp handoff are consistent; perform a controlled authenticated end-to-end test. |
@@ -224,3 +224,33 @@ binding safely.
 link this repository to the correct Vercel project/domain or provide access to
 that project. Once resolved, resume Task 1 by verifying the deployed commit;
 only then continue to Task 2.
+
+### Deployment-access investigation — 2026-08-21
+
+The requested access audit was performed without changing any Vercel project
+or domain configuration.
+
+| Check | Result |
+|---|---|
+| Git remote | `origin` is `https://github.com/spankydev9-debug/dlxstore.git` for fetch and push. |
+| Vercel CLI authentication/status | No installed CLI, `.vercel` link, `VERCEL_*` environment variable, token, or usable non-interactive session exists in this workspace. The non-interactive CLI status command could not return an account identity. |
+| Accessible project / correct project | GitHub's public deployment records prove that Vercel bot deploys this repository to the project `dlx2/dlxstore`; the current main commit `e7a9270` has a successful Production deployment. This identifies the correct project but does not grant project access. |
+| Current deployment URL | GitHub reports `https://dlxstore-gtxpitzu6-dlx2.vercel.app` for deployment `6012818180`. It returns a Vercel SSO redirect rather than application content, so anonymous route/PWA verification is intentionally blocked by deployment protection. |
+| `dlxstore.vercel.app` | Still serves the unrelated Vietnamese DLX Foods application; it is not this project's deployment alias. |
+| `dlxstore.cd` | DNS is NXDOMAIN (Google DNS status 3). It is not currently resolvable; Vercel domain ownership/attachment cannot be checked or changed without a Vercel token. |
+| Vercel project/domains/domain ownership APIs | All read-only requests to `/v2/user`, `dlx2/dlxstore`, that project's domains endpoint, and the `dlxstore.cd` domain endpoint return HTTP 403: `missing authentication token`. |
+| Safe automatic link/deploy/domain action | Not available. Although Git integration already deploys the repository, linking this workspace, changing protection, listing domains, or attaching `dlxstore.cd` would require authenticated access to the actual `dlx2` team. No ownership is assumed. |
+
+**Exact manual action required:** sign in to Vercel as an account with access to
+the `dlx2` team and `dlxstore` project, then either provide this workspace a
+Vercel token scoped to that team/project or connect the Vercel CLI here. In
+Vercel, add `dlxstore.cd` to **`dlx2/dlxstore` only after confirming domain
+ownership**, configure its required DNS records at the `.cd` registrar, and
+make the production deployment publicly reachable for the requested route/PWA
+verification (or grant this agent an approved authenticated test session). Do
+not modify the unrelated project currently answering at `dlxstore.vercel.app`.
+
+**Task status:** Task 1 remains BLOCKED. No application functionality,
+deployment binding, domain, checkout, PWA behavior, Food, or Partner flow was
+modified during this investigation. Do not start Task 2 until the protected
+correct deployment and intended custom domain can be verified.
