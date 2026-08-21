@@ -179,7 +179,7 @@ npm run build                  # verify production build
 
 | # | Task | Status | Scope / completion condition |
 |---|---|---|---|
-| 1 | Recover and validate interrupted launch work | BLOCKED | Code recovery is committed and GitHub/Vercel deployment succeeded, but production verification and the custom-domain correction require Vercel project access. See the deployment investigation below. |
+| 1 | Recover and validate interrupted launch work | COMPLETE (local/code) | Recovery work is committed, checks pass, and `origin/main` is current. The Vercel/domain constraint is carried forward to Task 8; it does not block Tasks 2–7. |
 | 2 | Make public product pages crawlable and canonical | PENDING | Complete the product-detail route correction; add dynamic metadata, JSON-LD, valid not-found handling, and product/category discoverability QA. |
 | 3 | Complete visible PWA installation and offline UX | PENDING | Add storefront install control with Android/desktop prompt, iOS guidance, installed/unsupported states; verify manifest, worker, icons, and offline behavior. |
 | 4 | Repair transactional checkout and inventory | PENDING | Correct the SQL RPC so order persistence, authoritative prices, coupon use, inventory decrement/history, and WhatsApp handoff are consistent; perform a controlled authenticated end-to-end test. |
@@ -192,7 +192,7 @@ npm run build                  # verify production build
 
 **TASK 1 — Recover and validate interrupted launch work**
 
-**STATUS: BLOCKED — production deployment is not DLXSTORE**
+**STATUS: COMPLETE (local/code); Vercel verification deferred to Task 8**
 
 **What changed:** recovered and committed the pending SEO/PWA metadata work:
 canonical/Open Graph defaults, public-only product lookup, dynamic sitemap,
@@ -220,10 +220,9 @@ link, Vercel project metadata, or non-interactive Vercel credentials are present
 in this workspace, so this agent cannot identify or correct the deployment
 binding safely.
 
-**Required external action:** provide the intended production domain and either
-link this repository to the correct Vercel project/domain or provide access to
-that project. Once resolved, resume Task 1 by verifying the deployed commit;
-only then continue to Task 2.
+**Deferred blocker:** production verification/custom-domain configuration still
+requires Vercel access, but the current launch instruction explicitly assigns
+that external work to Task 8. It does not block the remaining repository tasks.
 
 ### Deployment-access investigation — 2026-08-21
 
@@ -250,7 +249,19 @@ make the production deployment publicly reachable for the requested route/PWA
 verification (or grant this agent an approved authenticated test session). Do
 not modify the unrelated project currently answering at `dlxstore.vercel.app`.
 
-**Task status:** Task 1 remains BLOCKED. No application functionality,
-deployment binding, domain, checkout, PWA behavior, Food, or Partner flow was
-modified during this investigation. Do not start Task 2 until the protected
-correct deployment and intended custom domain can be verified.
+**Task 1 final checkpoint — 2026-08-21**
+
+- **Status:** COMPLETE for repository recovery; production domain verification
+  is explicitly deferred to Task 8.
+- **Recovery commit:** `ab72974` — `feat: harden SEO and PWA metadata`.
+- **Checkpoint commits:** `e7a9270`, `1a95dfe`.
+- **What changed:** recovered the pending SEO/PWA metadata and private-route
+  crawl controls without altering unrelated untracked work.
+- **Tests passed:** `git diff --check`, `npx tsc --noEmit`, and `npm run build`;
+  local manifest/icon/robots/storefront smoke checks passed.
+- **Blocked/deferred:** the correct Git-integrated Vercel deployment is
+  SSO-protected, `dlxstore.cd` is NXDOMAIN, and this workspace has no Vercel
+  credential. This remains recorded for Task 8 only.
+- **Repository state before this checkpoint:** local `main` and `origin/main`
+  both resolve to `1a95dfecdaa32e5cfbe724d84ebe9f3e36f62d96`.
+- **Next task:** **TASK 2 — Product SEO/canonical/JSON-LD**.
