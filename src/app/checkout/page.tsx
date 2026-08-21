@@ -10,8 +10,9 @@ import { getStoreSettings } from "../../services/db/settings";
 import { buildWhatsAppUrl, buildOrderOperationalMessage, getWhatsAppBuyNumber } from "../../lib/whatsapp";
 import { useLanguage } from "../../context/LanguageContext";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
-import { ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
+import { ShieldCheck, ArrowLeft, ShoppingBag, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { Order } from "../../types";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -31,6 +32,12 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState<CouponValidation | null>(null);
   const [couponNotice, setCouponNotice] = useState("");
+  
+  // Error and success states
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState<Order | null>(null);
+  const [whatsappManualUrl, setWhatsappManualUrl] = useState<string | null>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<"link_opened" | "unavailable" | "not_configured">("not_configured");
 
   // Sync with logged-in user details if available
   useEffect(() => {
@@ -64,7 +71,14 @@ export default function CheckoutPage() {
       return;
     }
     
+    // Reset states
+    setOrderError(null);
+    setOrderSuccess(null);
+    setWhatsappManualUrl(null);
     setIsSubmitting(true);
+    
+    console.log("[CHECKOUT] Submit started", { user: user.id, itemCount: items.length });
+    
     try {
       const orderFields = {
         customer_id: user.id,
@@ -88,10 +102,24 @@ export default function CheckoutPage() {
         color: item.selectedColor
       }));
 
+      console.log("[CHECKOUT] Order validation passed", { orderFields, itemCount: orderItems.length });
+
+      // Phase 1: Order Creation (critical - if this fails, everything fails)
+      console.log("[CHECKOUT] Creating order...");
       const newOrder = await createOrder(orderFields, orderItems);
+      console.log("[CHECKOUT] Order created successfully", { orderId: newOrder.id });
+      setOrderSuccess(newOrder);
+      
+      // Phase 2: Clear cart IMMEDIATELY after successful order creation to prevent duplicate orders
+      console.log("[CHECKOUT] Clearing cart immediately after successful order creation");
       clearCart();
-      let whatsappStatus: "link_opened" | "unavailable" | "not_configured" = "not_configured";
+      
+      // Phase 3: WhatsApp Handoff (non-critical - order already exists and cart is cleared)
+      let currentWhatsappStatus: "link_opened" | "unavailable" | "not_configured" = "not_configured";
+      let manualUrl: string | null = null;
+      
       try {
+        console.log("[CHECKOUT] Attempting WhatsApp handoff");
         const settings = await getStoreSettings();
         const number = getWhatsAppBuyNumber(settings);
         const message = buildOrderOperationalMessage({
@@ -106,17 +134,54 @@ export default function CheckoutPage() {
         });
         const url = number ? buildWhatsAppUrl(number, message) : null;
         if (url) {
+          console.log("[CHECKOUT] Opening WhatsApp popup");
           const handoffWindow = window.open(url, "_blank", "noopener,noreferrer");
-          whatsappStatus = handoffWindow ? "link_opened" : "unavailable";
+          if (handoffWindow) {
+            console.log("[CHECKOUT] WhatsApp popup opened successfully");
+            currentWhatsappStatus = "link_opened";
+          } else {
+            console.log("[CHECKOUT] WhatsApp popup blocked by browser");
+            currentWhatsappStatus = "unavailable";
+            manualUrl = url;
+          }
+        } else {
+          console.log("[CHECKOUT] WhatsApp number not configured");
         }
-      } catch (whatsappError) { console.warn("WhatsApp handoff unavailable; order was created.", whatsappError); }
-      try { await recordOrderWhatsAppHandoff(newOrder.id, whatsappStatus); } catch (handoffError) { console.warn("Order handoff state was not recorded.", handoffError); }
-      router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
+      } catch (whatsappError) {
+        console.warn("[CHECKOUT] WhatsApp handoff unavailable; order was created.", whatsappError);
+        currentWhatsappStatus = "unavailable";
+      }
+      
+      setWhatsappStatus(currentWhatsappStatus);
+      setWhatsappManualUrl(manualUrl);
+      console.log("[CHECKOUT] Final WhatsApp status", { status: currentWhatsappStatus, hasManualUrl: !!manualUrl });
+      
+      // Phase 4: Record handoff status (non-critical - order already exists)
+      try {
+        console.log("[CHECKOUT] Recording WhatsApp handoff status", { status: currentWhatsappStatus });
+        await recordOrderWhatsAppHandoff(newOrder.id, currentWhatsappStatus);
+        console.log("[CHECKOUT] WhatsApp handoff status recorded");
+      } catch (handoffError) {
+        console.warn("[CHECKOUT] Order handoff state was not recorded.", handoffError);
+      }
+      
+      // Phase 5: Navigate to tracking
+      console.log("[CHECKOUT] Navigating to order tracking", { orderId: newOrder.id, whatsappStatus: currentWhatsappStatus });
+      router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${currentWhatsappStatus}`);
+      
     } catch (err) {
-      console.error("Error creating order:", err);
-      alert(t.orderError);
+      console.error("[CHECKOUT] Error creating order:", err);
+      console.error("[CHECKOUT] Error details:", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        user: user?.id,
+        itemCount: items.length
+      });
+      setOrderError(err instanceof Error ? err.message : String(err));
+      // Don't clear cart on order creation failure - user can retry
     } finally {
       setIsSubmitting(false);
+      console.log("[CHECKOUT] Submit process completed");
     }
   };
 
@@ -270,6 +335,65 @@ export default function CheckoutPage() {
             >
               {isSubmitting ? t.processingOrder : t.confirmOrder}
             </button>
+            
+            {/* Error Message */}
+            {orderError && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 mt-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-destructive">
+                      {t.orderError}
+                    </p>
+                    <p className="text-xs text-destructive/80 mt-1">
+                      {orderError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Success Message with WhatsApp Fallback */}
+            {orderSuccess && !isSubmitting && (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mt-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-emerald-800">
+                      Commande confirmée !
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-1">
+                      Votre commande #{orderSuccess.id} a été créée avec succès.
+                    </p>
+                    
+                    {whatsappManualUrl && (
+                      <div className="mt-3 pt-3 border-t border-emerald-200">
+                        <p className="text-xs text-emerald-700 mb-2">
+                          WhatsApp n'a pas pu s'ouvrir automatiquement.
+                        </p>
+                        <a 
+                          href={whatsappManualUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+                        >
+                          Ouvrir WhatsApp manuellement
+                        </a>
+                      </div>
+                    )}
+                    
+                    <div className="mt-3 pt-3 border-t border-emerald-200">
+                      <Link 
+                        href={`/order-tracking?orderId=${orderSuccess.id}&whatsapp=${whatsappStatus}`}
+                        className="text-xs font-semibold text-emerald-700 hover:underline"
+                      >
+                        Suivre ma commande →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
 

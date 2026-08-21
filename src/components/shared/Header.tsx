@@ -374,7 +374,20 @@ export default function Header() {
             >
               {t.about}
             </Link>
-            <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
+            <Link 
+              href="/food" 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="hover:text-foreground py-1 transition-colors border-b border-border/40"
+            >
+              {t.food}
+            </Link>
+            <Link 
+              href="/partner" 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="hover:text-foreground py-1 transition-colors border-b border-border/40"
+            >
+              {t.partner}
+            </Link>
             <Link 
               href="/contact" 
               onClick={() => setIsMobileMenuOpen(false)}
