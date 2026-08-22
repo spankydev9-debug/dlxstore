@@ -32,7 +32,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const raw = localStorage.getItem("dlxstore_cart");
     if (raw) {
-      setItems(JSON.parse(raw));
+      try {
+        const parsedItems = JSON.parse(raw);
+        // Validate product IDs are valid UUIDs
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const validItems = parsedItems.filter((item: CartItem) => 
+          uuidRegex.test(item.product.id)
+        );
+        
+        if (validItems.length !== parsedItems.length) {
+          console.log(`[CART] Filtered out ${parsedItems.length - validItems.length} invalid items from cart`);
+          localStorage.setItem("dlxstore_cart", JSON.stringify(validItems));
+        }
+        
+        setItems(validItems);
+      } catch (e) {
+        console.error("[CART] Failed to parse cart data, clearing cart:", e);
+        localStorage.removeItem("dlxstore_cart");
+        setItems([]);
+      }
     }
     setMounted(true);
   }, []);

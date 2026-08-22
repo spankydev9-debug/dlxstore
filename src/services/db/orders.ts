@@ -8,6 +8,15 @@ export async function createOrder(
   items: Array<{ product_id: string; quantity: number; price_at_sale: number; size?: string; color?: string }>
 ): Promise<Order> {
   if (isSupabaseConfigured && supabase) {
+    // Validate product IDs are valid UUIDs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const item of items) {
+      if (!uuidRegex.test(item.product_id)) {
+        console.error("[ORDER RPC] Invalid product ID format:", item.product_id);
+        throw new Error(`Invalid product ID format: ${item.product_id}. Please clear your cart and try again.`);
+      }
+    }
+
     const { customer_id: _customerId, ...fields } = orderData;
     const rpcPayload = {
       p_customer_name: fields.customer_name,
@@ -33,7 +42,6 @@ export async function createOrder(
         details: error.details,
         hint: error.hint,
         code: error.code,
-        error: error,
         fullError: JSON.stringify(error, null, 2)
       });
       throw error;
