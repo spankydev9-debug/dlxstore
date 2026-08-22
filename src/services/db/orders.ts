@@ -9,7 +9,7 @@ export async function createOrder(
 ): Promise<Order> {
   if (isSupabaseConfigured && supabase) {
     const { customer_id: _customerId, ...fields } = orderData;
-    const { data, error } = await supabase.rpc("create_customer_order", {
+    const rpcPayload = {
       p_customer_name: fields.customer_name,
       p_phone_number: fields.phone_number,
       p_municipality: fields.municipality,
@@ -21,9 +21,31 @@ export async function createOrder(
       p_discount_amount: fields.discount_amount ?? 0,
       p_total_amount: fields.total_amount,
       p_items: items.map(({ product_id, quantity, size, color }) => ({ product_id, quantity, size, color })),
-    });
-    if (error) throw error;
-    if (!data) throw new Error("The order could not be created.");
+    };
+    
+    console.log("[ORDER RPC] Calling create_customer_order with payload:", rpcPayload);
+    
+    const { data, error } = await supabase.rpc("create_customer_order", rpcPayload);
+    
+    if (error) {
+      console.error("[ORDER RPC] create_customer_order RPC failed:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        error: error,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      throw error;
+    }
+    
+    if (!data) {
+      console.error("[ORDER RPC] No data returned from create_customer_order");
+      throw new Error("The order could not be created.");
+    }
+    
+    console.log("[ORDER RPC] Order created successfully:", data);
+    
     const order = data as Omit<Order, "items" | "delivery">;
     return {
       ...order,
