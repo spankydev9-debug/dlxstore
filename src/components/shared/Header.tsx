@@ -32,7 +32,7 @@ import { useLanguage } from "../../context/LanguageContext";
 export default function Header() {
   const { user, signOut } = useAuth();
   const { cartCount } = useCart();
-  const { unreadCount, notifications, markAsRead } = useNotifications();
+  const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotifications();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const { t } = useLanguage();
@@ -213,7 +213,13 @@ export default function Header() {
                   <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-2">
                     <span className="font-semibold text-sm text-foreground">Notifications</span>
                     {unreadCount > 0 && (
-                      <span className="text-xs text-muted-foreground">{unreadCount} non lues</span>
+                      <button
+                        type="button"
+                        onClick={() => markAllAsRead()}
+                        className="text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        Tout marquer comme lu
+                      </button>
                     )}
                   </div>
 

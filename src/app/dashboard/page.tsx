@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProductImage } from "../../components/shared/ProductImage";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { getOrders } from "../../services/db/orders";
 import { getWishlist, removeFromWishlist } from "../../services/db/wishlist";
 import { getNotifications, markAsRead } from "../../services/db/notifications";
@@ -40,7 +41,7 @@ function DashboardContent() {
   // States
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, markAsRead: handleMarkNotificationRead, markAllAsRead: handleMarkAllNotificationsRead } = useNotifications();
   const [isLoading, setIsLoading] = useState(true);
 
   // Address Form States (Persist to localStorage as convenience)
@@ -158,16 +159,7 @@ function DashboardContent() {
     }
   };
 
-  const handleMarkNotificationRead = async (id: string) => {
-    try {
-      await markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
+
 
   if (isAuthLoading || !user) {
     return (
@@ -338,7 +330,18 @@ function DashboardContent() {
               {/* NOTIFICATIONS TAB */}
               {activeTab === "notifications" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Notifications de commande</h3>
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                    <h3 className="font-bold text-lg text-foreground">Notifications</h3>
+                    {notifications.some(n => !n.is_read) && (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAllNotificationsRead()}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Tout marquer comme lu
+                      </button>
+                    )}
+                  </div>
                   {notifications.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic text-center py-12">Aucune notification disponible.</p>
                   ) : (

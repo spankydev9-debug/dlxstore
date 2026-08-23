@@ -113,7 +113,7 @@ export interface Notification {
   title: string;
   message: string;
   is_read: boolean;
-  type: "order_status" | "low_stock" | "new_order";
+  type: "order_status" | "low_stock" | "new_order" | "partner_application" | "system";
   created_at: string;
 }
 

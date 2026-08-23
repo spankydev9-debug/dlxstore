@@ -10,7 +10,7 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message || "An error occurred.");
-    return data || [];
+    return (data || []) as Notification[];
   }
 
   // Local Storage Fallback
@@ -44,11 +44,54 @@ export async function markAsRead(id: string): Promise<void> {
   }
 }
 
+export async function markAllAsRead(userId: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+
+    if (error) throw new Error(error.message || "An error occurred.");
+    return;
+  }
+
+  // Local Storage Fallback
+  initMockDb();
+  const raw = localStorage.getItem("dlxstore_notifications");
+  if (raw) {
+    const notifications: Notification[] = JSON.parse(raw);
+    const updated = notifications.map(n => n.user_id === userId ? { ...n, is_read: true } : n);
+    localStorage.setItem("dlxstore_notifications", JSON.stringify(updated));
+  }
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw new Error(error.message || "An error occurred.");
+    return;
+  }
+
+  // Local Storage Fallback
+  initMockDb();
+  const raw = localStorage.getItem("dlxstore_notifications");
+  if (raw) {
+    const notifications: Notification[] = JSON.parse(raw);
+    const filtered = notifications.filter(n => n.id !== id);
+    localStorage.setItem("dlxstore_notifications", JSON.stringify(filtered));
+  }
+}
+
 export async function createNotification(
   userId: string,
   title: string,
   message: string,
-  type: "order_status" | "low_stock" | "new_order"
+  type: Notification["type"]
 ): Promise<Notification> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
@@ -58,7 +101,7 @@ export async function createNotification(
       .single();
 
     if (error) throw new Error(error.message || "An error occurred.");
-    return data;
+    return data as Notification;
   }
 
   // Local Storage Fallback
@@ -67,7 +110,7 @@ export async function createNotification(
   const notifications: Notification[] = raw ? JSON.parse(raw) : [];
 
   const newNotification: Notification = {
-    id: `not-${Math.random().toString(36).substr(2, 9)}`,
+    id: "not-" + Math.random().toString(36).substring(2, 11),
     user_id: userId,
     title,
     message,

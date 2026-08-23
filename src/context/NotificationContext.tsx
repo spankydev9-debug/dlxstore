@@ -1,15 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { Notification } from "../types";
 import { useAuth } from "./AuthContext";
-import { getNotifications, markAsRead as dbMarkAsRead } from "../services/db/notifications";
+import { getNotifications, markAsRead as dbMarkAsRead, markAllAsRead as dbMarkAllAsRead, deleteNotification as dbDeleteNotification } from "../services/db/notifications";
+import { isSupabaseConfigured, supabase } from "../services/db";
 
 type NotificationContextType = {
   notifications: Notification[];
   unreadCount: number;
   isLoading: boolean;
   markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
   refreshNotifications: () => Promise<void>;
 };
 
@@ -20,7 +23,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
       return;
@@ -34,23 +37,80 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     refreshNotifications();
 
-    // Check notifications periodically (mocking realtime triggers)
-    const interval = setInterval(() => {
-      if (user) {
-        // Fetch new ones
-        getNotifications(user.id).then(list => {
-          setNotifications(list);
-        }).catch(err => console.error("Error background loading notifications:", err));
-      }
-    }, 8000);
+    if (!user || !isSupabaseConfigured || !supabase) {
+      const interval = setInterval(() => {
+        if (user) {
+          getNotifications(user.id).then(list => setNotifications(list)).catch(() => undefined);
+        }
+      }, 10000);
+      return () => clearInterval(interval);
+    }
 
-    return () => clearInterval(interval);
-  }, [user]);
+    const channelName = "notifications:user:" + user.id;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: "user_id=eq." + user.id
+        },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev];
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: "user_id=eq." + user.id
+        },
+        (payload) => {
+          const updatedNotif = payload.new as Notification;
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === updatedNotif.id ? updatedNotif : n))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: "user_id=eq." + user.id
+        },
+        (payload) => {
+          const deletedId = (payload.old as { id?: string })?.id;
+          if (deletedId) {
+            setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          getNotifications(user.id).then(list => setNotifications(list)).catch(() => undefined);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, refreshNotifications]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -63,6 +123,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      await dbMarkAllAsRead(user.id);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+    }
+  };
+
+  const deleteNotif = async (id: string) => {
+    try {
+      await dbDeleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -72,6 +151,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         unreadCount,
         isLoading,
         markAsRead,
+        markAllAsRead,
+        deleteNotification: deleteNotif,
         refreshNotifications
       }}
     >
