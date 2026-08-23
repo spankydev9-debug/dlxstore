@@ -58,6 +58,14 @@ const fr = {
   updateProfile: "Mettre à jour le profil", saving: "Sauvegarde…", profileUpdated: "Profil mis à jour !", profileUpdateError: "Erreur lors de la mise à jour.",
   authenticating: "Authentification en cours…", loadingAccount: "Chargement de votre compte…", changeLanguageHint: "Choisissez la langue de l'interface DLXSTORE.",
   removeFromWishlist: "Retirer des favoris",
+  downloadApp: "Télécharger DLXSTORE",
+  installTitle: "Installer DLXSTORE",
+  installBody: "Ajoutez DLXSTORE à l'écran d'accueil de votre téléphone pour l'ouvrir en un geste, même hors connexion.",
+  iosStep1: "Appuyez sur le bouton Partager en bas de l'écran.",
+  iosStep2: "Faites défiler puis touchez « Ajouter à l'écran d'accueil ».",
+  iosStep3: "Confirmez en touchant « Ajouter » en haut à droite.",
+  installFallback: "Votre navigateur ne propose pas d'installation automatique ici. Ouvrez le menu du navigateur (icône Partager ou menu ⋮) puis choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+  installClose: "Fermer",
 };
 
 const en: typeof fr = {
@@ -113,6 +121,14 @@ const en: typeof fr = {
   updateProfile: "Update profile", saving: "Saving…", profileUpdated: "Profile updated!", profileUpdateError: "Could not update profile.",
   authenticating: "Signing in…", loadingAccount: "Loading your account…", changeLanguageHint: "Choose your DLXSTORE interface language.",
   removeFromWishlist: "Remove from wishlist",
+  downloadApp: "Download DLXSTORE",
+  installTitle: "Install DLXSTORE",
+  installBody: "Add DLXSTORE to your phone's home screen so you can launch it in one tap, even offline.",
+  iosStep1: "Tap the Share button at the bottom of the screen.",
+  iosStep2: "Scroll down and tap “Add to Home Screen”.",
+  iosStep3: "Confirm by tapping “Add” in the top-right corner.",
+  installFallback: "Your browser does not offer automatic installation here. Open the browser menu (Share icon or ⋮ menu) and choose “Install app” or “Add to Home Screen”.",
+  installClose: "Close",
 };
 
 export function translate(language: Language) {

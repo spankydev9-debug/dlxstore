@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Truck, ShieldCheck, MapPin, MessageSquare } from "lucide-react";
+import { DownloadApp } from "./DownloadApp";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -100,6 +101,15 @@ export default function Footer() {
             </li>
           </ul>
         </div>
+      </div>
+
+      {/* Download DLXSTORE (PWA install helper) */}
+      <div className="border-t border-border/40 py-10 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl flex flex-col items-center gap-4 text-center">
+        <div className="space-y-1.5">
+          <p className="text-sm font-semibold text-foreground">Installation sur mobile & ordinateur</p>
+          <p className="text-xs text-muted-foreground">Ajoutez DLXSTORE à votre écran d'accueil pour un accès en un geste.</p>
+        </div>
+        <DownloadApp />
       </div>
 
       {/* Copyright */}

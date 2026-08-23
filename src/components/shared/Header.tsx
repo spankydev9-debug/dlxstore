@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ProductImage } from "./ProductImage";
+import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
 
 export default function Header() {
@@ -334,7 +335,7 @@ export default function Header() {
 
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (
-        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom">
+        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain">
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit} className="relative mb-4">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
@@ -379,6 +380,11 @@ export default function Header() {
               Contact
             </Link>
           </nav>
+
+          {/* Download DLXSTORE (PWA install helper) */}
+          <div className="pt-5">
+            <DownloadApp variant="drawer" />
+          </div>
         </div>
       )}
     </header>
