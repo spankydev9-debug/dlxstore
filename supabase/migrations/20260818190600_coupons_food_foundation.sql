@@ -17,9 +17,11 @@ CREATE TABLE IF NOT EXISTS public.coupons (
 
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read active coupons for validation" ON public.coupons;
 CREATE POLICY "Anyone can read active coupons for validation"
   ON public.coupons FOR SELECT USING (active = true);
 
+DROP POLICY IF EXISTS "Admins can manage coupons" ON public.coupons;
 CREATE POLICY "Admins can manage coupons"
   ON public.coupons FOR ALL USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
@@ -44,9 +46,11 @@ CREATE TABLE IF NOT EXISTS public.food_vendors (
 
 ALTER TABLE public.food_vendors ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public can read active food vendors" ON public.food_vendors;
 CREATE POLICY "Public can read active food vendors"
   ON public.food_vendors FOR SELECT USING (active = true);
 
+DROP POLICY IF EXISTS "Admins can manage food vendors" ON public.food_vendors;
 CREATE POLICY "Admins can manage food vendors"
   ON public.food_vendors FOR ALL USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')

@@ -114,7 +114,9 @@ export default function CheckoutPage() {
       router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
     } catch (err) {
       console.error("Error creating order:", err);
-      alert(t.orderError);
+      const errorMessage = err instanceof Error ? err.message : (typeof err === "object" && err !== null && "message" in err) ? String((err as { message: unknown }).message) : typeof err === "string" ? err : JSON.stringify(err);
+      console.error("Detailed error:", errorMessage);
+      alert(`${t.orderError} (${errorMessage})`);
     } finally {
       setIsSubmitting(false);
     }

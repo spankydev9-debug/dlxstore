@@ -14,7 +14,7 @@ export async function getProductReviews(productId: string): Promise<Review[]> {
       .eq("product_id", productId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     
     return (data || []).map((r: any) => ({
       ...r,
@@ -43,7 +43,7 @@ export async function addReview(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     
     // update rating on product in live database
     const { data: reviews } = await supabase.from("reviews").select("rating").eq("product_id", productId);

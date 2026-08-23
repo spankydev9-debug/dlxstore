@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS public.partner_applications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );
 ALTER TABLE public.partner_applications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can submit partner applications" ON public.partner_applications;
 CREATE POLICY "Anyone can submit partner applications" ON public.partner_applications FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage partner applications" ON public.partner_applications;
 CREATE POLICY "Admins can manage partner applications" ON public.partner_applications FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
 CREATE TABLE IF NOT EXISTS public.delivery_zones (
@@ -16,7 +18,9 @@ CREATE TABLE IF NOT EXISTS public.delivery_zones (
   city TEXT, territory TEXT, commune TEXT, active BOOLEAN NOT NULL DEFAULT false, fee NUMERIC NOT NULL DEFAULT 0 CHECK (fee >= 0), currency TEXT NOT NULL DEFAULT 'USD' CHECK (currency IN ('USD','CDF')), created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );
 ALTER TABLE public.delivery_zones ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public can read active delivery zones" ON public.delivery_zones;
 CREATE POLICY "Public can read active delivery zones" ON public.delivery_zones FOR SELECT USING (active = true);
+DROP POLICY IF EXISTS "Admins can manage delivery zones" ON public.delivery_zones;
 CREATE POLICY "Admins can manage delivery zones" ON public.delivery_zones FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;

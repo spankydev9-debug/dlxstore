@@ -27,7 +27,7 @@ export async function getCategories(options: { includeInactive?: boolean } = {})
     let query = supabase.from("categories").select("*").order("display_order", { ascending: true }).order("name", { ascending: true });
     if (!options.includeInactive) query = query.eq("is_active", true);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return (data ?? []) as Category[];
   }
 
@@ -44,7 +44,7 @@ export async function createCategory(fields: CategoryFields): Promise<Category> 
       is_active: fields.is_active ?? true,
       display_order: fields.display_order ?? 0,
     }).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data as Category;
   }
 
@@ -67,7 +67,7 @@ export async function createCategory(fields: CategoryFields): Promise<Category> 
 export async function updateCategory(id: string, fields: Partial<CategoryFields>): Promise<Category> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.from("categories").update(fields).eq("id", id).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data as Category;
   }
 
@@ -83,7 +83,7 @@ export async function updateCategory(id: string, fields: Partial<CategoryFields>
 export async function deleteCategory(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.from("categories").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -116,7 +116,7 @@ export async function getProducts(options: { includeInactive?: boolean } = {}): 
     `).order("created_at", { ascending: false });
     if (!options.includeInactive) query = query.eq("is_active", true).eq("is_archived", false);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return ((data ?? []) as ProductWithImageRows[]).map(mapProduct);
   }
 
@@ -132,7 +132,7 @@ async function getProductWithImagesByField(field: "id" | "slug", value: string):
       *,
       product_images (image_url, is_primary, display_order)
     `).eq(field, value).maybeSingle();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data ? mapProduct(data as ProductWithImageRows) : null;
   }
   const products = await getProducts({ includeInactive: true });
@@ -152,7 +152,7 @@ export async function createProduct(productData: ProductFields & { images: strin
   if (isSupabaseConfigured && supabase) {
     const { images: _images, ...fields } = productData;
     const { data, error } = await supabase.from("products").insert(fields).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     if (images.length) {
       const { error: imageError } = await supabase.from("product_images").insert(images.map((imageUrl, index) => ({
         product_id: data.id,
@@ -180,7 +180,7 @@ export async function updateProduct(id: string, productFields: ProductUpdate): P
     const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", id).single();
     if (currentError) throw currentError;
     const { data, error } = await supabase.from("products").update(fields).eq("id", id).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
 
     if (normalizedImages) {
       const { error: deleteError } = await supabase.from("product_images").delete().eq("product_id", id);
@@ -226,7 +226,7 @@ export function setProductVisibility(id: string, isActive: boolean) {
 export async function deleteProduct(id: string): Promise<void> {
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -244,7 +244,7 @@ export async function adjustInventory(productId: string, quantityChanged: number
       p_type: type,
       p_notes: notes ?? null,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -270,7 +270,7 @@ export async function adjustInventory(productId: string, quantityChanged: number
 export async function getInventoryHistory(): Promise<InventoryHistoryEntry[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.from("inventory_history").select("*, products(name)").order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return ((data ?? []) as Array<InventoryHistoryEntry & { products?: { name?: string } | null }>).map((entry) => ({ ...entry, product_name: entry.products?.name ?? "Unknown product" }));
   }
 

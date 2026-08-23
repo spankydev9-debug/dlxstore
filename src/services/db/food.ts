@@ -22,7 +22,7 @@ export async function getFoodVendors(includeInactive = false): Promise<FoodVendo
     let query = supabase.from("food_vendors").select("*").order("name");
     if (!includeInactive) query = query.eq("active", true);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return (data || []) as FoodVendor[];
   }
   if (!isDemoMode) throw new Error("No production data source configured.");
@@ -38,7 +38,7 @@ export async function getFoodProducts(): Promise<Product[]> {
       .select(`*, product_images (image_url, is_primary, display_order)`)
       .eq("product_type", "food")
       .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return (data || []).map((p: Record<string, unknown>) => ({
       ...p,
       images: Array.isArray(p.product_images)

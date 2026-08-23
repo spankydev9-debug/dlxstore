@@ -66,6 +66,10 @@ const fr = {
   iosStep3: "Confirmez en touchant « Ajouter » en haut à droite.",
   installFallback: "Votre navigateur ne propose pas d'installation automatique ici. Ouvrez le menu du navigateur (icône Partager ou menu ⋮) puis choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
   installClose: "Fermer",
+  watchTutorial: "Voir le tutoriel",
+  tutorialTitle: "Tutoriel d'installation DLXSTORE",
+  tutorialBody: "Suivez ce guide étape par étape pour installer et utiliser DLXSTORE sur votre appareil.",
+  videoNotSupported: "Votre navigateur ne prend pas en charge la lecture vidéo.",
 };
 
 const en: typeof fr = {
@@ -129,6 +133,10 @@ const en: typeof fr = {
   iosStep3: "Confirm by tapping “Add” in the top-right corner.",
   installFallback: "Your browser does not offer automatic installation here. Open the browser menu (Share icon or ⋮ menu) and choose “Install app” or “Add to Home Screen”.",
   installClose: "Close",
+  watchTutorial: "Watch tutorial",
+  tutorialTitle: "DLXSTORE Installation Tutorial",
+  tutorialBody: "Follow this step-by-step guide to install and use DLXSTORE on your device.",
+  videoNotSupported: "Your browser does not support video playback.",
 };
 
 export function translate(language: Language) {

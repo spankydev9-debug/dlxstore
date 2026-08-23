@@ -11,7 +11,7 @@ export async function getCoupons(includeInactive = false): Promise<Coupon[]> {
     let query = supabase.from("coupons").select("*").order("created_at", { ascending: false });
     if (!includeInactive) query = query.eq("active", true);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return (data || []) as Coupon[];
   }
   if (!isDemoMode) throw new Error("No production data source configured.");
@@ -24,7 +24,7 @@ export async function saveCoupon(coupon: Omit<Coupon, "id" | "used_count" | "cre
   const payload = { ...coupon, code: coupon.code.toUpperCase().trim() };
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.from("coupons").insert([payload]).select().single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data as Coupon;
   }
   if (!isDemoMode) throw new Error("No production data source configured.");
@@ -42,7 +42,7 @@ export async function saveCoupon(coupon: Omit<Coupon, "id" | "used_count" | "cre
 export async function updateCoupon(id: string, fields: Partial<Coupon>): Promise<void> {
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.from("coupons").update(fields).eq("id", id);
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
   if (!isDemoMode) throw new Error("No production data source configured.");

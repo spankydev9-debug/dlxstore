@@ -11,6 +11,38 @@ async function getProfileWithRetry(userId: string): Promise<Profile> {
     if (error && error.code !== "PGRST116") throw error;
     await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
   }
+  
+  // If profile doesn't exist after retries, try to create it
+  console.log("[AUTH] Profile not found for user:", userId, "- attempting to create profile");
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) {
+      const { data: newProfile, error: createError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          email: userData.user.email || '',
+          full_name: userData.user.user_metadata?.full_name || 'DLXSTORE Customer',
+          phone: userData.user.user_metadata?.phone || null,
+          role: userData.user.user_metadata?.role || 'customer'
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error("[AUTH] Failed to create profile:", createError);
+        throw new Error("Your account was created, but its customer profile could not be created. Please contact support.");
+      }
+      
+      if (newProfile) {
+        console.log("[AUTH] Successfully created profile for user:", userId);
+        return newProfile as Profile;
+      }
+    }
+  } catch (profileError) {
+    console.error("[AUTH] Error creating profile:", profileError);
+  }
+  
   throw new Error("Your account was created, but its customer profile is still being prepared. Please sign in again in a moment.");
 }
 
@@ -39,7 +71,7 @@ export async function signIn(email: string, password?: string, role: UserRole = 
       password
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     if (!data.user) throw new Error("No user returned");
 
     return getProfileWithRetry(data.user.id);
@@ -108,7 +140,7 @@ export async function signUp(email: string, fullName: string, phone: string, pas
       }
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     if (!data.user) throw new Error("SignUp failed");
 
     if (!data.session) throw new Error("Account created. Email confirmation is enabled in Supabase; disable it to allow immediate access.");
@@ -147,7 +179,7 @@ export async function signUp(email: string, fullName: string, phone: string, pas
 export async function signOut(): Promise<void> {
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -166,7 +198,7 @@ export async function updateProfile(id: string, fields: Partial<Omit<Profile, "i
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data;
   }
 
@@ -206,7 +238,7 @@ export async function getProfiles(): Promise<Profile[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data || [];
   }
 

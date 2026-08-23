@@ -9,7 +9,7 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data || [];
   }
 
@@ -27,7 +27,7 @@ export async function markAsRead(id: string): Promise<void> {
       .update({ is_read: true })
       .eq("id", id);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -57,7 +57,7 @@ export async function createNotification(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return data;
   }
 

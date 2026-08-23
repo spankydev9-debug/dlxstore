@@ -13,7 +13,11 @@ CREATE TABLE IF NOT EXISTS public.brands (
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES public.brands(id) ON DELETE SET NULL;
 ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public can read active vendors" ON public.vendors;
 CREATE POLICY "Public can read active vendors" ON public.vendors FOR SELECT USING (status = 'active');
+DROP POLICY IF EXISTS "Public can read brands" ON public.brands;
 CREATE POLICY "Public can read brands" ON public.brands FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins can manage vendors" ON public.vendors;
 CREATE POLICY "Admins can manage vendors" ON public.vendors FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+DROP POLICY IF EXISTS "Admins can manage brands" ON public.brands;
 CREATE POLICY "Admins can manage brands" ON public.brands FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));

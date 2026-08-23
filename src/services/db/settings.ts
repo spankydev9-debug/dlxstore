@@ -10,7 +10,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
       .eq("key", "store_info")
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     if (data && data.value) return normalizeStoreSettings(data.value as Partial<StoreSettings>);
   }
 
@@ -29,7 +29,7 @@ export async function updateStoreSettings(newSettings: Partial<StoreSettings>): 
       .from("settings")
       .upsert({ key: "store_info", value: updated, updated_at: new Date().toISOString() });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return updated;
   }
 

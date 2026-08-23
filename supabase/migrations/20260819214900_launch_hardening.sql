@@ -14,10 +14,13 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS whatsapp_handoff_at TIMESTAMP
 
 -- Only active catalogue content is public. Administrators retain access through the existing admin policies.
 DROP POLICY IF EXISTS "Categories are readable by everyone" ON public.categories;
+DROP POLICY IF EXISTS "Public can read active categories" ON public.categories;
 CREATE POLICY "Public can read active categories" ON public.categories FOR SELECT USING (is_active = true);
 DROP POLICY IF EXISTS "Products are readable by everyone" ON public.products;
+DROP POLICY IF EXISTS "Public can read visible products" ON public.products;
 CREATE POLICY "Public can read visible products" ON public.products FOR SELECT USING (is_active = true AND is_archived = false);
 DROP POLICY IF EXISTS "Product images are readable by everyone" ON public.product_images;
+DROP POLICY IF EXISTS "Public can read images for visible products" ON public.product_images;
 CREATE POLICY "Public can read images for visible products" ON public.product_images FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.products WHERE products.id = product_images.product_id AND products.is_active = true AND products.is_archived = false)
 );

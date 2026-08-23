@@ -27,7 +27,7 @@ export async function getDeliveries(driverId?: string): Promise<Delivery[]> {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
 
     return (data || []).map((d: Record<string, unknown> & { driver?: { full_name?: string } }) => ({
       ...(d as unknown as Delivery),
@@ -73,7 +73,7 @@ export async function assignDriver(orderId: string, driverId: string, driverName
       })
       .eq("order_id", orderId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 

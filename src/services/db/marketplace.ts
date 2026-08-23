@@ -6,7 +6,7 @@ export async function getDeliveryZones(includeInactive = false): Promise<Deliver
     let query = supabase.from("delivery_zones").select("country_code, province, city, territory, commune, active, fee, currency").order("province");
     if (!includeInactive) query = query.eq("active", true);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return (data || []).map(({ country_code, ...zone }) => ({ ...zone, country: country_code as "CD" })) as DeliveryZone[];
   }
   if (!isDemoMode) throw new Error("No production data source configured.");
@@ -16,7 +16,7 @@ export async function getDeliveryZones(includeInactive = false): Promise<Deliver
 export async function saveDeliveryZone(zone: DeliveryZone): Promise<void> {
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.from("delivery_zones").insert({ country_code: zone.country, province: zone.province, city: zone.city || null, territory: zone.territory || null, commune: zone.commune || null, active: zone.active, fee: zone.fee, currency: zone.currency });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
   if (!isDemoMode) throw new Error("No production data source configured.");
@@ -24,7 +24,7 @@ export async function saveDeliveryZone(zone: DeliveryZone): Promise<void> {
 }
 
 export async function updatePartnerApplicationStatus(id: string, status: PartnerApplication["status"]): Promise<void> {
-  if (isSupabaseConfigured && supabase) { const { error } = await supabase.from("partner_applications").update({ status }).eq("id", id); if (error) throw error; return; }
+  if (isSupabaseConfigured && supabase) { const { error } = await supabase.from("partner_applications").update({ status }).eq("id", id); if (error) throw new Error(error.message || "An error occurred."); return; }
   if (!isDemoMode) throw new Error("No production data source configured.");
   const applications = JSON.parse(localStorage.getItem("dlxstore_partner_applications") || "[]") as PartnerApplication[];
   localStorage.setItem("dlxstore_partner_applications", JSON.stringify(applications.map((application) => application.id === id ? { ...application, status } : application)));

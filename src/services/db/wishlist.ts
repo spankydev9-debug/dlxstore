@@ -19,7 +19,7 @@ export async function getWishlist(userId: string): Promise<Product[]> {
       `)
       .eq("user_id", userId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     
     return (data || []).map((w: any) => {
       const p = w.products;
@@ -49,7 +49,7 @@ export async function addToWishlist(userId: string, productId: string): Promise<
       .from("wishlist")
       .upsert([{ user_id: userId, product_id: productId }], { onConflict: "user_id, product_id", ignoreDuplicates: true });
     
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -72,7 +72,7 @@ export async function removeFromWishlist(userId: string, productId: string): Pro
       .eq("user_id", userId)
       .eq("product_id", productId);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -95,7 +95,7 @@ export async function isInWishlist(userId: string, productId: string): Promise<b
       .eq("product_id", productId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return !!data;
   }
 

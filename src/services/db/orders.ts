@@ -33,6 +33,26 @@ export async function createOrder(
     };
     
     console.log("[ORDER RPC] Calling create_customer_order with payload:", rpcPayload);
+    console.log("[ORDER RPC] Auth user ID check:", orderData.customer_id);
+    
+    // Verify profile exists before attempting order creation
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, role, email")
+      .eq("id", orderData.customer_id)
+      .maybeSingle();
+    
+    if (profileError) {
+      console.error("[ORDER RPC] Profile check failed:", profileError);
+      throw new Error("Unable to verify your customer profile. Please try logging out and back in.");
+    }
+    
+    if (!profile) {
+      console.error("[ORDER RPC] Profile not found for user ID:", orderData.customer_id);
+      throw new Error("Your customer profile was not found. Please try logging out and back in, or contact support.");
+    }
+    
+    console.log("[ORDER RPC] Profile verified:", { id: profile.id, role: profile.role, email: profile.email });
     
     const { data, error } = await supabase.rpc("create_customer_order", rpcPayload);
     
@@ -44,7 +64,18 @@ export async function createOrder(
         code: error.code,
         fullError: JSON.stringify(error, null, 2)
       });
-      throw error;
+      
+      // Provide user-friendly error messages based on common error codes
+      if (error.code === "42501") {
+        throw new Error("Permission denied. Your account may not have the necessary permissions to place orders.");
+      }
+      if (error.message.includes("Authentication is required")) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+      if (error.message.includes("profile")) {
+        throw new Error("There is an issue with your customer profile. Please contact support.");
+      }
+      throw new Error(error.message || "An unexpected error occurred while placing your order.");
     }
     
     if (!data) {
@@ -122,7 +153,7 @@ export async function recordOrderWhatsAppHandoff(
       p_order_id: orderId,
       p_status: status,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
     return;
   }
 
@@ -161,7 +192,7 @@ export async function getOrders(userId?: string): Promise<Order[]> {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
 
     return (data || []).map((o: any) => ({
       ...o,
@@ -240,7 +271,7 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message || "An error occurred.");
 
     // Check if live deliveries table needs update
     if (status === "confirmed") {
