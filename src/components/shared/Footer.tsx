@@ -6,7 +6,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full border-t border-border/40 bg-card mt-auto">
+    <footer className="w-full border-t border-border/40 bg-card mt-auto pb-safe-area-inset-bottom">
       {/* Citywide Promises grid */}
       <div className="border-b border-border/40 py-8 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
