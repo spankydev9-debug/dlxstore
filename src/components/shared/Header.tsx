@@ -334,7 +334,7 @@ export default function Header() {
 
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (
-        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in">
+        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom">
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit} className="relative mb-4">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
@@ -370,6 +370,7 @@ export default function Header() {
               {t.about}
             </Link>
             <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
+            <Link href="/partner" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.partner}</Link>
             <Link 
               href="/contact" 
               onClick={() => setIsMobileMenuOpen(false)}
