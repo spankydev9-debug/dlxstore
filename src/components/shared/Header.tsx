@@ -116,6 +116,7 @@ export default function Header() {
             <Link href="/" className="hover:text-foreground transition-colors">{t.home}</Link>
             <Link href="/shop" className="hover:text-foreground transition-colors">{t.shop}</Link>
             <Link href="/food" className="hover:text-foreground transition-colors">{t.food}</Link>
+            <Link href="/partners" className="hover:text-foreground transition-colors">{t.shops}</Link>
             <Link href="/partner" className="hover:text-foreground transition-colors">{t.partner}</Link>
             <Link href="/about" className="hover:text-foreground transition-colors">{t.about}</Link>
             <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
@@ -371,6 +372,7 @@ export default function Header() {
               {t.about}
             </Link>
             <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
+            <Link href="/partners" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.shops}</Link>
             <Link href="/partner" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.partner}</Link>
             <Link 
               href="/contact" 

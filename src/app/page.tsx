@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { getProducts, getCategories } from "../services/db/products";
-import { Product, Category } from "../types";
+import { getSessions } from "../services/db/sessions";
+import { Product, Category, StoreSession } from "../types";
 import { 
   Truck, 
   Banknote, 
@@ -20,6 +21,7 @@ import { ProductImage } from "../components/shared/ProductImage";
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [sessions, setSessions] = useState<StoreSession[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,8 +30,9 @@ export default function HomePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [cats, prods] = await Promise.all([getCategories(), getProducts()]);
+        const [cats, sess, prods] = await Promise.all([getCategories(), getSessions(), getProducts()]);
         setCategories(cats);
+        setSessions(sess);
         setFeaturedProducts(prods.filter(p => p.is_featured).slice(0, 4));
         setBestSellers(prods.filter(p => p.is_best_seller).slice(0, 4));
       } catch (err) {
@@ -190,6 +193,34 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* 2b. COLLECTIONS / SESSIONS RAIL */}
+      {sessions.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Collections</h2>
+              <p className="text-sm text-muted-foreground">Des sélections curées pour chaque envie.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {sessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/shop?session=${session.slug}`}
+                className="group flex flex-col justify-center rounded-2xl border border-border/60 bg-card p-6 text-left shadow-sm transition-all hover:shadow-md hover:border-primary/40"
+              >
+                <span className="text-sm font-bold text-foreground line-clamp-1 group-hover:underline">{session.name}</span>
+                {session.description && <span className="mt-1 text-xs text-muted-foreground line-clamp-2">{session.description}</span>}
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                  Voir la collection
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 3. PROMOTIONAL SOLAR BANNER */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-800 text-white p-8 sm:p-12 shadow-xl">

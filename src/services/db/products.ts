@@ -1,6 +1,7 @@
-import { Category, InventoryHistoryEntry, Product } from "../../types";
+import { Category, InventoryHistoryEntry, Product, ProductMediaAsset } from "../../types";
 import { createNotification } from "./notifications";
-import { initMockDb, isSupabaseConfigured, supabase } from "./index";
+import { getStorageObjectPathFromUrl, removeProductImage } from "./storage";
+import { initMockDb, isDemoMode, isSupabaseConfigured, supabase } from "./index";
 
 type ProductImageRow = { image_url: string; is_primary: boolean; display_order: number };
 type ProductWithImageRows = Omit<Product, "images"> & { product_images?: ProductImageRow[] | null };
@@ -277,4 +278,158 @@ export async function getInventoryHistory(): Promise<InventoryHistoryEntry[]> {
   initMockDb();
   const raw = localStorage.getItem("dlxstore_inventory_history");
   return raw ? JSON.parse(raw) as InventoryHistoryEntry[] : [];
+}
+// ---------------------------------------------------------------------------
+// Reusable product-media API (Phase 1)
+// Preserves the existing `images: string[]` shape and adds a richer row-level
+// surface for future partners, avatar and try-on asset workflows.
+// ---------------------------------------------------------------------------
+
+export interface ProductMediaInput {
+  imageUrl: string;
+  isPrimary?: boolean;
+  displayOrder?: number;
+  altText?: string;
+  storageObjectPath?: string;
+  ownerType?: string;
+  ownerId?: string;
+}
+
+export type ProductMediaUpdate = Partial<{
+  image_url: string;
+  alt_text: string;
+  storage_object_path: string;
+  display_order: number;
+  is_primary: boolean;
+  owner_type: string;
+  owner_id: string;
+}>;
+
+function mediaRowsFromProduct(product: Product): ProductMediaAsset[] {
+  return product.images.map((imageUrl, index) => ({
+    id: `${product.id}-image-${index}`,
+    product_id: product.id,
+    image_url: imageUrl,
+    is_primary: index === 0,
+    display_order: index,
+    storage_object_path: getStorageObjectPathFromUrl(imageUrl),
+    created_at: product.created_at,
+  }));
+}
+
+function splitSyntheticMediaId(id: string): { productId: string; index: number } | null {
+  const marker = "-image-";
+  const sep = id.lastIndexOf(marker);
+  if (sep === -1) return null;
+  const productId = id.slice(0, sep);
+  const index = Number(id.slice(sep + marker.length));
+  if (!productId || !Number.isInteger(index) || index < 0) return null;
+  return { productId, index };
+}
+
+export async function getProductMedia(productId: string): Promise<ProductMediaAsset[]> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("product_images")
+      .select("*")
+      .eq("product_id", productId)
+      .order("display_order", { ascending: true });
+    if (error) throw new Error(error.message || "An error occurred.");
+    return (data ?? []) as ProductMediaAsset[];
+  }
+
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  const product = await getProductById(productId);
+  return product ? mediaRowsFromProduct(product) : [];
+}
+
+export async function addProductMedia(productId: string, input: ProductMediaInput): Promise<ProductMediaAsset> {
+  const imageUrl = input.imageUrl.trim();
+  if (!imageUrl) throw new Error("Image URL is required.");
+  const payload = {
+    product_id: productId,
+    image_url: imageUrl,
+    is_primary: input.isPrimary ?? false,
+    display_order: input.displayOrder ?? 0,
+    alt_text: input.altText ?? null,
+    storage_object_path: input.storageObjectPath ?? getStorageObjectPathFromUrl(imageUrl),
+    owner_type: input.ownerType ?? null,
+    owner_id: input.ownerId ?? null,
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.from("product_images").insert(payload).select().single();
+    if (error) throw new Error(error.message || "An error occurred.");
+    return data as ProductMediaAsset;
+  }
+
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  const product = await getProductById(productId);
+  if (!product) throw new Error("Product not found.");
+  await updateProduct(productId, { images: [...product.images, imageUrl] });
+  return { ...payload, id: `${productId}-image-${product.images.length}`, created_at: new Date().toISOString() };
+}
+
+export async function updateProductMedia(id: string, fields: ProductMediaUpdate): Promise<ProductMediaAsset> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.from("product_images").update(fields).eq("id", id).select().single();
+    if (error) throw new Error(error.message || "An error occurred.");
+    return data as ProductMediaAsset;
+  }
+
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  const parsed = splitSyntheticMediaId(id);
+  if (!parsed) throw new Error("Media asset not found.");
+  const product = await getProductById(parsed.productId);
+  if (!product) throw new Error("Product not found.");
+  const images = [...product.images];
+  if (fields.image_url) images[parsed.index] = fields.image_url;
+  await updateProduct(parsed.productId, { images });
+  const asset = mediaRowsFromProduct({ ...product, images })[parsed.index];
+  if (!asset) throw new Error("Media asset not found.");
+  return { ...asset, ...fields };
+}
+
+export async function removeProductMedia(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { data: asset, error: selectError } = await supabase.from("product_images").select("*").eq("id", id).maybeSingle();
+    if (selectError) throw new Error(selectError.message || "An error occurred.");
+    const { error: deleteError } = await supabase.from("product_images").delete().eq("id", id);
+    if (deleteError) throw new Error(deleteError.message || "An error occurred.");
+    if (asset) {
+      try {
+        await removeProductImage((asset as ProductMediaAsset).image_url);
+      } catch {
+        // Best-effort storage cleanup; never block removal on cleanup failure.
+      }
+    }
+    return;
+  }
+
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  const parsed = splitSyntheticMediaId(id);
+  if (!parsed) return;
+  const product = await getProductById(parsed.productId);
+  if (!product) return;
+  await updateProduct(parsed.productId, { images: product.images.filter((_, index) => index !== parsed.index) });
+}
+
+export async function setProductPrimaryMedia(productId: string, mediaId: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error: clearError } = await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
+    if (clearError) throw new Error(clearError.message || "An error occurred.");
+    const { error: setError } = await supabase.from("product_images").update({ is_primary: true }).eq("id", mediaId);
+    if (setError) throw new Error(setError.message || "An error occurred.");
+    return;
+  }
+
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  const parsed = splitSyntheticMediaId(mediaId);
+  if (!parsed || parsed.productId !== productId) throw new Error("Media asset not found.");
+  const product = await getProductById(productId);
+  if (!product) throw new Error("Product not found.");
+  const images = [...product.images];
+  const [target] = images.splice(parsed.index, 1);
+  if (!target) throw new Error("Media asset not found.");
+  await updateProduct(productId, { images: [target, ...images] });
 }

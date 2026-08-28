@@ -9,9 +9,15 @@ import { getOrders, updateOrderStatus } from "../../../services/db/orders";
 import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
 import { BusinessControls } from "../../../components/admin/BusinessControls";
+import { SessionControls } from "../../../components/admin/SessionControls";
+import { PartnerControls } from "../../../components/admin/PartnerControls";
+import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
+import { CouponControls } from "../../../components/admin/CouponControls";
 import { ProductImage } from "../../../components/shared/ProductImage";
-import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category } from "../../../types";
+import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category, StoreSettings } from "../../../types";
 import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
+import { getStoreSettings } from "../../../services/db/settings";
+import { defaultStoreSettings } from "../../../lib/store-config";
 import { 
   BarChart3, 
   ShoppingBag, 
@@ -21,6 +27,10 @@ import {
   AlertTriangle, 
   History, 
   Settings,
+  LayoutGrid,
+  Store,
+  UtensilsCrossed,
+  TicketPercent,
   Plus, 
   Edit2, 
   Trash2, 
@@ -46,6 +56,7 @@ function AdminDashboardContent() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [inventoryHistory, setInventoryHistory] = useState<InventoryHistoryEntry[]>([]);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal / Form States
@@ -99,13 +110,14 @@ function AdminDashboardContent() {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const [prods, cats, ords, dels, profs, invHist] = await Promise.all([
+      const [prods, cats, ords, dels, profs, invHist, settings] = await Promise.all([
         getProducts({ includeInactive: true }),
         getCategories({ includeInactive: true }),
         getOrders(),
         getDeliveries(),
         getProfiles(),
-        getInventoryHistory()
+        getInventoryHistory(),
+        getStoreSettings().catch(() => defaultStoreSettings)
       ]);
       setProducts(prods);
       setCategories(cats);
@@ -113,6 +125,7 @@ function AdminDashboardContent() {
       setDeliveries(dels);
       setProfiles(profs);
       setInventoryHistory(invHist);
+      setStoreSettings(settings);
     } catch (err) {
       console.error("Error loading admin data:", err);
     } finally {
@@ -364,6 +377,11 @@ function AdminDashboardContent() {
   const customersCount = new Set(orders.map(o => o.phone_number)).size;
   const lowStockProducts = products.filter(p => p.stock_quantity <= 3);
 
+  const invoiceContactLine = [
+    storeSettings.contact_email || storeSettings.contacts.general?.email,
+    storeSettings.contact_phone || storeSettings.contacts.general?.phone,
+  ].filter(Boolean).join(" | ");
+
   // SVG Chart data
   const chartHeight = 120;
   const chartWidth = 500;
@@ -399,6 +417,10 @@ function AdminDashboardContent() {
     { key: "products", label: "Articles & CRUD", icon: Package },
     { key: "deliveries", label: "Livraisons & Drivers", icon: Truck },
     { key: "inventory", label: "Gestion Stock", icon: History },
+    { key: "sessions", label: "Collections", icon: LayoutGrid },
+    { key: "partners", label: "Partenaires", icon: Store },
+    { key: "food", label: "DLX Food", icon: UtensilsCrossed },
+    { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
     { key: "business", label: "Configuration", icon: Settings }
   ];
 
@@ -853,6 +875,14 @@ function AdminDashboardContent() {
                 </div>
               )}
 
+              {activeTab === "sessions" && <SessionControls />}
+
+              {activeTab === "partners" && <PartnerControls />}
+
+              {activeTab === "food" && <FoodVendorControls />}
+
+              {activeTab === "coupons" && <CouponControls />}
+
               {activeTab === "business" && <BusinessControls />}
 
             </div>
@@ -1063,7 +1093,7 @@ function AdminDashboardContent() {
                 <h1 className="text-2xl font-bold tracking-tight">DLXSTORE</h1>
                 <p className="text-gray-500 font-semibold">Shop Smart. Delivered Free.</p>
                 <p>Goma, Nord-Kivu, RDC</p>
-                <p>contact@dlxstore.cd | +243 990 123 456</p>
+                {invoiceContactLine && <p>{invoiceContactLine}</p>}
               </div>
               <div className="text-right">
                 <h2 className="text-lg font-bold">FACTURE COMMANDE</h2>

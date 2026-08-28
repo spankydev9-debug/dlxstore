@@ -33,6 +33,15 @@ export async function uploadProductImage(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+/** Extracts the storage object path for a DLX-owned product image URL, or null for external/unknown URLs. */
+export function getStorageObjectPathFromUrl(url: string): string | null {
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  const path = url.slice(index + marker.length).split("?")[0];
+  return path || null;
+}
+
 export async function removeProductImage(url: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
   const marker = `/storage/v1/object/public/${BUCKET}/`;

@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getProducts, getCategories } from "../../services/db/products";
+import { getSessionBySlug, getProductsForSession } from "../../services/db/sessions";
 import { Product, Category } from "../../types";
 import { Star, Search, SlidersHorizontal, RotateCcw, PackageX } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
@@ -21,6 +22,9 @@ function ShopContent() {
   // Filter States
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSession, setSelectedSession] = useState("");
+  const [selectedSessionName, setSelectedSessionName] = useState("");
+  const [sessionProductIds, setSessionProductIds] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -30,8 +34,10 @@ function ShopContent() {
   useEffect(() => {
     const urlSearch = searchParams.get("search") || "";
     const urlCat = searchParams.get("category") || "";
+    const urlSession = searchParams.get("session") || "";
     setSearch(urlSearch);
     setSelectedCategory(urlCat);
+    setSelectedSession(urlSession);
   }, [searchParams]);
 
   useEffect(() => {
@@ -49,9 +55,38 @@ function ShopContent() {
     loadData();
   }, []);
 
+  // Resolve session membership (used when ?session=slug is set)
+  useEffect(() => {
+    let cancelled = false;
+    async function resolveSession() {
+      if (!selectedSession) {
+        setSessionProductIds([]);
+        setSelectedSessionName("");
+        return;
+      }
+      try {
+        const session = await getSessionBySlug(selectedSession);
+        if (!session) {
+          if (!cancelled) { setSessionProductIds([]); setSelectedSessionName(""); }
+          return;
+        }
+        setSelectedSessionName(session.name);
+        const sessionProducts = await getProductsForSession(session.id);
+        if (!cancelled) setSessionProductIds(sessionProducts.map((p) => p.id));
+      } catch (err) {
+        console.error("Error resolving session:", err);
+        if (!cancelled) { setSessionProductIds([]); setSelectedSessionName(""); }
+      }
+    }
+    resolveSession();
+    return () => { cancelled = true; };
+  }, [selectedSession]);
+
   const handleClearFilters = () => {
     setSearch("");
     setSelectedCategory("");
+    setSelectedSession("");
+    setSessionProductIds([]);
     setMinPrice("");
     setMaxPrice("");
     setInStockOnly(false);
@@ -76,6 +111,11 @@ function ShopContent() {
         // Find category object slug
         const cat = categories.find(c => c.slug === selectedCategory);
         if (cat && p.category_id !== cat.id) return false;
+      }
+
+      // 2b. Session (product must belong to the filtered session, if any)
+      if (selectedSession && !sessionProductIds.includes(p.id)) {
+        return false;
       }
 
       // 3. Min Price
@@ -128,7 +168,14 @@ function ShopContent() {
       {/* Title */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">{t.shopTitle}</h1>
-        <p className="text-sm text-muted-foreground">{t.shopIntro}</p>
+        {selectedSession && selectedSessionName ? (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-sm font-semibold text-foreground">
+            <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+            Collection : {selectedSessionName}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t.shopIntro}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">

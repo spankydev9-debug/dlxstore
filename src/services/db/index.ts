@@ -8,6 +8,11 @@ import {
   mockProfiles,
   mockStoreSettings,
   mockInventoryHistory,
+  mockSessions,
+  mockPartnerShops,
+  mockShopProducts,
+  mockFoodVendors,
+  mockFoodCategories,
 } from "../../lib/mock-data";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,5 +63,25 @@ export function initMockDb() {
 
   if (!localStorage.getItem("dlxstore_inventory_history")) {
     localStorage.setItem("dlxstore_inventory_history", JSON.stringify(mockInventoryHistory));
+  }
+
+  if (!localStorage.getItem("dlxstore_sessions")) {
+    localStorage.setItem("dlxstore_sessions", JSON.stringify(mockSessions));
+  }
+
+  if (!localStorage.getItem("dlxstore_partner_shops")) {
+    localStorage.setItem("dlxstore_partner_shops", JSON.stringify(mockPartnerShops));
+  }
+
+  if (!localStorage.getItem("dlxstore_shop_products")) {
+    localStorage.setItem("dlxstore_shop_products", JSON.stringify(mockShopProducts));
+  }
+
+  if (!localStorage.getItem("dlxstore_food_vendors")) {
+    localStorage.setItem("dlxstore_food_vendors", JSON.stringify(mockFoodVendors));
+  }
+
+  if (!localStorage.getItem("dlxstore_food_categories")) {
+    localStorage.setItem("dlxstore_food_categories", JSON.stringify(mockFoodCategories));
   }
 }

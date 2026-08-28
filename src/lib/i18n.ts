@@ -6,7 +6,7 @@ export const languages = [
 export type Language = (typeof languages)[number]["code"];
 
 const fr = {
-  home: "Accueil", shop: "Boutique", food: "DLX Food", partner: "Devenir partenaire", about: "À propos", contact: "Contact",
+  home: "Accueil", shop: "Boutique", shops: "Boutiques", food: "DLX Food", partner: "Devenir partenaire", about: "À propos", contact: "Contact",
   language: "Langue", chooseLanguage: "Choisissez votre langue", chooseLanguageBody: "Sélectionnez votre langue pour DLXSTORE.",
   searchProducts: "Rechercher un produit à Goma…", searchGoma: "Rechercher à Goma…", changeTheme: "Changer de thème",
   launchTitle: "DLXSTORE arrive bientôt", launchBody: "Le futur marché numérique de la RDC se prépare.", explore: "Découvrir DLXSTORE", loading: "Chargement…",
@@ -73,7 +73,7 @@ const fr = {
 };
 
 const en: typeof fr = {
-  home: "Home", shop: "Shop", food: "DLX Food", partner: "Become a partner", about: "About", contact: "Contact",
+  home: "Home", shop: "Shop", shops: "Shops", food: "DLX Food", partner: "Become a partner", about: "About", contact: "Contact",
   language: "Language", chooseLanguage: "Choose your language", chooseLanguageBody: "Select your language for DLXSTORE.",
   searchProducts: "Search for a product in Goma…", searchGoma: "Search in Goma…", changeTheme: "Change theme",
   launchTitle: "DLXSTORE is coming soon", launchBody: "The DRC's digital marketplace is getting ready.", explore: "Explore DLXSTORE", loading: "Loading…",

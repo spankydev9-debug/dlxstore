@@ -1,4 +1,4 @@
-import { Category, Product, Order, Notification, Profile, Review, StoreSettings, InventoryHistoryEntry } from "../types";
+import { Category, Product, Order, Notification, Profile, Review, StoreSettings, InventoryHistoryEntry, StoreSession, PartnerShop, ShopProduct, FoodVendor, BusinessHours, FoodCategory } from "../types";
 import { defaultStoreSettings } from "./store-config";
 
 export const mockCategories: Category[] = [
@@ -28,6 +28,273 @@ export const mockCategories: Category[] = [
   }
 ];
 
+/** Demo merchandising sessions. Products referencing mock product ids may be added at runtime via admin. */
+export const mockSessions: StoreSession[] = [
+  {
+    id: "sess-new-drop",
+    name: "The New Drop",
+    slug: "the-new-drop",
+    description: "Freshly added products, first to know.",
+    is_active: true,
+    display_order: 1,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "sess-couples",
+    name: "Couples Goals",
+    slug: "couples-goals",
+    description: "Two people, one vibe.",
+    is_active: true,
+    display_order: 2,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "sess-best-sellers",
+    name: "Best Sellers",
+    slug: "best-sellers",
+    description: "Our most loved products.",
+    is_active: true,
+    display_order: 3,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "sess-trending",
+    name: "Trending Now",
+    slug: "trending-now",
+    description: "What everyone is looking at.",
+    is_active: true,
+    display_order: 4,
+    created_at: new Date().toISOString(),
+  },
+];
+
+/** Demo partner shops for Phase 3 */
+export const mockPartnerShops: PartnerShop[] = [
+  {
+    id: "shop-tech-hub",
+    profile_id: "usr-admin",
+    business_name: "Tech Hub Goma",
+    slug: "tech-hub-goma",
+    description: "Premium electronics and gadgets for the modern DRC consumer.",
+    shop_name: "Tech Hub",
+    shop_description: "Your one-stop shop for the latest technology in Goma.",
+    shop_image_url: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=500&auto=format&fit=crop&q=60",
+    banner_image_url: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=60",
+    province: "Nord-Kivu",
+    city: "Goma",
+    status: "active",
+    is_featured: true,
+    commission_rate: 15,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+  },
+  {
+    id: "shop-fashion-closet",
+    profile_id: "usr-admin",
+    business_name: "Fashion Closet",
+    slug: "fashion-closet",
+    description: "Trendy clothing and accessories for style-conscious customers.",
+    shop_name: "Fashion Closet",
+    shop_description: "Elevate your style with our curated fashion collection.",
+    shop_image_url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=500&auto=format&fit=crop&q=60",
+    banner_image_url: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1200&auto=format&fit=crop&q=60",
+    province: "Nord-Kivu",
+    city: "Goma",
+    status: "active",
+    is_featured: true,
+    commission_rate: 12,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
+  },
+];
+
+/** Demo shop-product relationships */
+export const mockShopProducts: ShopProduct[] = [
+  {
+    id: "sp-tech-1",
+    shop_id: "shop-tech-hub",
+    product_id: "p1111111-1111-1111-1111-111111111111",
+    is_visible: true,
+    display_order: 0,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+  },
+  {
+    id: "sp-tech-2",
+    shop_id: "shop-tech-hub",
+    product_id: "p1111112-1111-1111-1111-111111111112",
+    is_visible: true,
+    display_order: 1,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(),
+  },
+  {
+    id: "sp-tech-3",
+    shop_id: "shop-tech-hub",
+    product_id: "p1111113-1111-1111-1111-111111111113",
+    is_visible: true,
+    display_order: 2,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(),
+  },
+  {
+    id: "sp-fashion-1",
+    shop_id: "shop-fashion-closet",
+    product_id: "p2222221-2222-2222-2222-222222222221",
+    is_visible: true,
+    display_order: 0,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 35).toISOString(),
+  },
+  {
+    id: "sp-fashion-2",
+    shop_id: "shop-fashion-closet",
+    product_id: "p2222222-2222-2222-2222-222222222222",
+    is_visible: true,
+    display_order: 1,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 28).toISOString(),
+  },
+];
+
+/** Demo food vendors for Phase 4 */
+const mockBusinessHours: BusinessHours[] = [
+  { day: 0, open: "08:00", close: "22:00" }, // Sunday
+  { day: 1, open: "08:00", close: "22:00" }, // Monday
+  { day: 2, open: "08:00", close: "22:00" }, // Tuesday
+  { day: 3, open: "08:00", close: "22:00" }, // Wednesday
+  { day: 4, open: "08:00", close: "22:00" }, // Thursday
+  { day: 5, open: "08:00", close: "23:00" }, // Friday
+  { day: 6, open: "09:00", close: "23:00" }, // Saturday
+];
+
+export const mockFoodVendors: FoodVendor[] = [
+  {
+    id: "food-vendor-1",
+    name: "Goma Grill Express",
+    slug: "goma-grill-express",
+    province: "Nord-Kivu",
+    city: "Goma",
+    description: "Grillades et plats chauds disponibles pour livraison rapide.",
+    is_24_7: false,
+    hours: mockBusinessHours,
+    food_categories: ["Grillades", "Plats chauds", "Fast food"],
+    is_featured: true,
+    rating: 4.7,
+    minimum_order_amount: 5,
+    delivery_fee: 0,
+    preparation_time_minutes: 25,
+    active: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90).toISOString(),
+  },
+  {
+    id: "food-vendor-2",
+    name: "Boulangerie du Lac",
+    slug: "boulangerie-du-lac",
+    province: "Nord-Kivu",
+    city: "Goma",
+    description: "Pains frais, viennoiseries et pâtisseries artisanales.",
+    is_24_7: false,
+    hours: mockBusinessHours.map(h => ({ ...h, open: "06:00", close: "18:00" })),
+    food_categories: ["Boulangerie", "Pâtisserie", "Petit-déjeuner"],
+    is_featured: false,
+    active: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
+  },
+  {
+    id: "food-vendor-3",
+    name: "Chez Maman Authentique",
+    slug: "chez-maman-authentique",
+    province: "Nord-Kivu",
+    city: "Goma",
+    description: "Cuisine congolaise traditionnelle et plats familiaux.",
+    is_24_7: false,
+    hours: mockBusinessHours,
+    food_categories: ["Cuisine congolaise", "Plats familiaux", "Traditionnel"],
+    is_featured: false,
+    active: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString(),
+  },
+];
+
+/** Demo food categories for Phase 4 */
+export const mockFoodCategories: FoodCategory[] = [
+  {
+    id: "food-cat-1",
+    name: "Grillades",
+    slug: "grillades",
+    description: "Plats grillés et barbecue",
+    icon_emoji: "🍖",
+    is_active: true,
+    display_order: 1,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-2",
+    name: "Fast Food",
+    slug: "fast-food",
+    description: "Restauration rapide",
+    icon_emoji: "🍔",
+    is_active: true,
+    display_order: 2,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-3",
+    name: "Boulangerie",
+    slug: "boulangerie",
+    description: "Pains, viennoiseries et pâtisseries",
+    icon_emoji: "🥐",
+    is_active: true,
+    display_order: 3,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-4",
+    name: "Cuisine congolaise",
+    slug: "cuisine-congolaise",
+    description: "Plats traditionnels congolais",
+    icon_emoji: "🍲",
+    is_active: true,
+    display_order: 4,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-5",
+    name: "Pâtisserie",
+    slug: "patisserie",
+    description: "Desserts et gâteaux",
+    icon_emoji: "🍰",
+    is_active: true,
+    display_order: 5,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-6",
+    name: "Boissons",
+    slug: "boissons",
+    description: "Boissons et rafraîchissements",
+    icon_emoji: "🥤",
+    is_active: true,
+    display_order: 6,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-7",
+    name: "Petit-déjeuner",
+    slug: "petit-dejeuner",
+    description: "Formules petit-déjeuner",
+    icon_emoji: "🍳",
+    is_active: true,
+    display_order: 7,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "food-cat-8",
+    name: "Snacks",
+    slug: "snacks",
+    description: "Encas et snacks",
+    icon_emoji: "🍿",
+    is_active: true,
+    display_order: 8,
+    created_at: new Date().toISOString(),
+  },
+];
 export const mockProducts: Product[] = [
   {
     id: "p1111111-1111-1111-1111-111111111111",
@@ -202,6 +469,78 @@ export const mockProducts: Product[] = [
       "https://images.unsplash.com/photo-1507668077129-56e32842fceb?w=500&auto=format&fit=crop&q=60"
     ],
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString()
+  },
+  {
+    id: "p4444444-4444-4444-4444-444444444444",
+    name: "Plat du Jour - Poulet Grillé",
+    slug: "plat-du-jour-poulet-grille",
+    description: "Poulet grillé accompagné de riz et légumes frais. Plat du jour préparé avec des ingrédients locaux.",
+    price: 12,
+    category_id: "c3333333-3333-3333-3333-333333333333",
+    brand: "Goma Grill Express",
+    sizes: [],
+    colors: [],
+    sku: "SKU-FOOD-POULET",
+    rating: 4.6,
+    stock_quantity: 20,
+    is_featured: true,
+    is_best_seller: true,
+    is_new_arrival: false,
+    product_type: "food",
+    food_vendor_id: "food-vendor-1",
+    food_category: "Grillades",
+    images: [
+      "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=500&auto=format&fit=crop&q=60"
+    ],
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString()
+  },
+  {
+    id: "p4444445-4444-4444-4444-444444444445",
+    name: "Croissant au Beurre",
+    slug: "croissant-au-beurre",
+    description: "Croissant au beurre pur, cuit frais chaque matin. Idéal pour le petit-déjeuner.",
+    price: 3,
+    category_id: "c3333333-3333-3333-3333-333333333333",
+    brand: "Boulangerie du Lac",
+    sizes: [],
+    colors: [],
+    sku: "SKU-FOOD-CROISSANT",
+    rating: 4.8,
+    stock_quantity: 50,
+    is_featured: false,
+    is_best_seller: true,
+    is_new_arrival: false,
+    product_type: "food",
+    food_vendor_id: "food-vendor-2",
+    food_category: "Boulangerie",
+    images: [
+      "https://images.unsplash.com/photo-1555507036-ab1f40f8f909?w=500&auto=format&fit=crop&q=60"
+    ],
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString()
+  },
+  {
+    id: "p4444446-4444-4444-4444-444444444446",
+    name: "Poisson Braisé à la Congolaise",
+    slug: "poisson-braise-congolais",
+    description: "Poisson braisé à la mode congolaise, accompagné de manioc et légumes. Recette traditionnelle.",
+    price: 15,
+    category_id: "c3333333-3333-3333-3333-333333333333",
+    brand: "Chez Maman Authentique",
+    sizes: [],
+    colors: [],
+    sku: "SKU-FOID-POISSON",
+    rating: 4.7,
+    stock_quantity: 15,
+    is_featured: true,
+    is_best_seller: false,
+    is_new_arrival: true,
+    product_type: "food",
+    food_vendor_id: "food-vendor-3",
+    food_category: "Cuisine congolaise",
+    images: [
+      "https://images.unsplash.com/photo-1544025162-d76694265947b?w=500&auto=format&fit=crop&q=60"
+    ],
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString()
   }
 ];
 
