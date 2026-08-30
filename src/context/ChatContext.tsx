@@ -154,7 +154,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [user, refreshConversations, refreshMessages]);
 
-const openConversation = useCallback(
+  const openConversation = useCallback(
     async (id: string | null) => {
       setActiveConversationId(id);
       if (!id) {
