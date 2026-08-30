@@ -186,7 +186,7 @@ function DashboardContent() {
     { key: "wishlist", label: t.wishlist, icon: Heart },
     { key: "notifications", label: t.notifications, icon: Bell },
     { key: "addresses", label: t.savedAddresses, icon: MapPin },
-    { key: "avatar", label: "Mon Avatar", icon: UserCircle },
+    { key: "avatar", label: t.avatarSettings, icon: UserCircle },
     { key: "language", label: t.languageSettings, icon: Settings },
     { key: "settings", label: t.profileSettings, icon: User },
   ];
@@ -370,8 +370,8 @@ function DashboardContent() {
               {/* AVATAR TAB */}
               {activeTab === "avatar" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Mon Avatar DLX</h3>
-                  <p className="text-sm text-muted-foreground">Personnalisez votre avatar pour représenter votre identité sur DLXSTORE.</p>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.avatarSettings}</h3>
+                  <p className="text-sm text-muted-foreground">{t.avatarIntro}</p>
                   <AvatarEditor />
                 </div>
               )}

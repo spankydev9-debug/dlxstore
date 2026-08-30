@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { getMyAvatar, saveMyAvatar } from "../../services/db/avatar";
 import {
   AvatarAttributes,
@@ -15,6 +16,7 @@ import { Sparkles, Save, RefreshCw, User } from "lucide-react";
 
 export function AvatarEditor() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [attributes, setAttributes] = useState<AvatarAttributes>(defaultAvatarAttributes);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,7 +67,7 @@ export function AvatarEditor() {
     setErrorMessage("");
     try {
       await saveMyAvatar(user.id, attributes);
-      setSuccessMessage("Votre avatar a été enregistré avec succès !");
+      setSuccessMessage(t.avatarSaved);
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err) {
       console.error("Error saving avatar:", err);
