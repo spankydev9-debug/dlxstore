@@ -12,7 +12,29 @@ import {
   getAvatarPreview,
   summarizeAvatarAttributes,
 } from "../../lib/avatar";
-import { Sparkles, Save, RefreshCw, User } from "lucide-react";
+import { Sparkles, Save, RefreshCw } from "lucide-react";
+
+type AvatarGroupLabelKey =
+  | "style"
+  | "build"
+  | "height"
+  | "skinTone"
+  | "hairStyle"
+  | "hairColor"
+  | "clothingSize"
+  | "facePreset";
+
+// Avatar option-group keys -> i18n label keys
+const groupLabelKeys: Record<keyof AvatarAttributes, AvatarGroupLabelKey> = {
+  presentation: "style",
+  build: "build",
+  height: "height",
+  skinTone: "skinTone",
+  hairStyle: "hairStyle",
+  hairColor: "hairColor",
+  clothingSize: "clothingSize",
+  facePreset: "facePreset",
+};
 
 export function AvatarEditor() {
   const { user } = useAuth();
@@ -68,11 +90,12 @@ export function AvatarEditor() {
     try {
       await saveMyAvatar(user.id, attributes);
       setSuccessMessage(t.avatarSaved);
+      window.dispatchEvent(new Event("dlxstore-avatar-updated"));
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err) {
       console.error("Error saving avatar:", err);
       setErrorMessage(
-        err instanceof Error ? err.message : "Impossible d'enregistrer l'avatar."
+        err instanceof Error ? err.message : t.avatarSaveError
       );
     } finally {
       setSaving(false);
@@ -94,13 +117,13 @@ export function AvatarEditor() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-border/40 pb-2">
-        <h3 className="text-lg font-bold text-foreground">Éditeur d'Avatar DLX</h3>
+        <h3 className="text-lg font-bold text-foreground">{t.avatarEditorTitle}</h3>
         <button
           onClick={handleRandomize}
           className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted transition-all"
         >
           <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-          Aléatoire
+          {t.avatarRandom}
         </button>
       </div>
 
@@ -108,7 +131,7 @@ export function AvatarEditor() {
         {/* Preview Panel */}
         <div className="flex flex-col items-center space-y-4 rounded-2xl border border-border bg-muted/20 p-4 text-center">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Aperçu
+            {t.avatarPreview}
           </span>
 
           {/* Avatar representation using swatch & faceEmoji */}
@@ -124,7 +147,7 @@ export function AvatarEditor() {
             {/* Floating hairstyle preview sticker */}
             <div
               className={`absolute -right-1 -top-1 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card shadow-sm ${preview.hairSwatch}`}
-              title={`Coiffure: ${attributes.hairStyle}`}
+              title={`${t.avatarGroupLabels.hairStyle}: ${attributes.hairStyle}`}
             >
               <span className="select-none text-lg leading-none">{preview.emoji}</span>
             </div>
@@ -132,7 +155,7 @@ export function AvatarEditor() {
 
           <div className="space-y-1">
             <p className="text-sm font-bold text-foreground">
-              {user?.full_name || "Client DLX"}
+              {user?.full_name || t.avatarGuestName}
             </p>
             <p className="max-w-[150px] text-[10px] text-muted-foreground leading-normal">
               {summary}
@@ -146,7 +169,7 @@ export function AvatarEditor() {
             {avatarOptionGroups.map((group) => (
               <div key={group.key} className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
+                  {t.avatarGroupLabels[groupLabelKeys[group.key]] ?? group.label}
                 </label>
                 <select
                   value={attributes[group.key]}
@@ -186,7 +209,7 @@ export function AvatarEditor() {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {saving ? "Enregistrement..." : "Enregistrer mon avatar"}
+              {saving ? t.avatarSaving : t.avatarSave}
             </button>
           </div>
         </div>

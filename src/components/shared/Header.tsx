@@ -31,6 +31,7 @@ import { ProductImage } from "./ProductImage";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
 import { CustomerSupportChat } from "../chat/CustomerSupportChat";
+import { AvatarBadge } from "../account/AvatarBadge";
 
 export default function Header() {
   const { user, signOut } = useAuth();
@@ -124,7 +125,7 @@ export default function Header() {
             <Link href="/partners" className="hover:text-foreground transition-colors">{t.shops}</Link>
             <Link href="/partner" className="hover:text-foreground transition-colors">{t.partner}</Link>
             <Link href="/about" className="hover:text-foreground transition-colors">{t.about}</Link>
-            <Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link href="/contact" className="hover:text-foreground transition-colors">{t.contact}</Link>
           </nav>
         </div>
 
@@ -233,15 +234,15 @@ export default function Header() {
               {isNotificationsOpen && (
                 <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border/80 bg-card p-4 shadow-xl animate-fade-in z-50">
                   <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-2">
-                    <span className="font-semibold text-sm text-foreground">Notifications</span>
+                    <span className="font-semibold text-sm text-foreground">{t.notifications}</span>
                     {unreadCount > 0 && (
-                      <span className="text-xs text-muted-foreground">{unreadCount} non lues</span>
+                      <span className="text-xs text-muted-foreground">{unreadCount} {t.unreadLabel}</span>
                     )}
                   </div>
 
                   <div className="max-h-60 overflow-y-auto space-y-3">
                     {notifications.length === 0 ? (
-                      <p className="text-center text-xs text-muted-foreground py-4">Aucune notification.</p>
+                      <p className="text-center text-xs text-muted-foreground py-4">{t.noNotifications}</p>
                     ) : (
                       notifications.slice(0, 5).map((n) => (
                         <div 
@@ -264,7 +265,7 @@ export default function Header() {
                       onClick={() => setIsNotificationsOpen(false)}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
-                      Voir toutes les notifications
+                      {t.viewAllNotifications}
                     </Link>
                   </div>
                 </div>
@@ -280,15 +281,13 @@ export default function Header() {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center gap-1 sm:gap-2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground font-semibold text-sm">
-                    {user.full_name.charAt(0).toUpperCase()}
-                  </div>
+                  <AvatarBadge user={user} />
                 </button>
 
                 {isUserMenuOpen && (
                   <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border/80 bg-card p-2 shadow-xl animate-fade-in z-50">
                     <div className="border-b border-border/40 px-3 py-2">
-                      <p className="text-xs text-muted-foreground font-medium">Connecté en tant que</p>
+                      <p className="text-xs text-muted-foreground font-medium">{t.signedInAs}</p>
                       <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
                       <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                     </div>
@@ -360,7 +359,7 @@ export default function Header() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
           <div className="w-full max-w-4xl animate-scale-in">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Support DLXSTORE</h2>
+              <h2 className="text-lg font-bold">{t.supportTitle}</h2>
               <button
                 onClick={() => setIsChatOpen(false)}
                 className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -394,14 +393,14 @@ export default function Header() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
-              Accueil
+              {t.home}
             </Link>
             <Link 
               href="/shop" 
               onClick={() => setIsMobileMenuOpen(false)}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
-              Boutique
+              {t.shop}
             </Link>
             <Link 
               href="/about" 
@@ -418,7 +417,7 @@ export default function Header() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
-              Contact
+              {t.contact}
             </Link>
           </nav>
 
