@@ -258,7 +258,7 @@ function DashboardContent() {
                         <div key={order.id} className="rounded-xl border border-border/80 p-4 space-y-3 hover:border-foreground/40 transition-colors">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/30 pb-2 text-xs sm:text-sm font-semibold">
                             <div>
-                              Commande <span className="text-primary">#{order.id}</span>
+                              {t.orderLabel} <span className="text-primary">#{order.id}</span>
                             </div>
                             <div className="text-muted-foreground">
                               {new Date(order.created_at).toLocaleDateString()}
@@ -298,9 +298,9 @@ function DashboardContent() {
               {/* WISHLIST TAB */}
               {activeTab === "wishlist" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Articles Favoris</h3>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.wishlist}</h3>
                   {wishlist.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-12">Aucun article enregistré pour le moment.</p>
+                    <p className="text-xs text-muted-foreground italic text-center py-12">{t.wishlistEmpty}</p>
                   ) : (
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                       {wishlist.map((p) => {
@@ -318,7 +318,7 @@ function DashboardContent() {
                               <button
                                 onClick={() => handleRemoveWishlist(p.id)}
                                 className="absolute top-2 right-2 rounded-full bg-white p-2 text-destructive shadow-sm hover:bg-red-50 transition-colors border border-border"
-                                title="Retirer des favoris"
+                                title={t.removeFromWishlist}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -341,9 +341,9 @@ function DashboardContent() {
               {/* NOTIFICATIONS TAB */}
               {activeTab === "notifications" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Notifications de commande</h3>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.orderNotifications}</h3>
                   {notifications.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-12">Aucune notification disponible.</p>
+                    <p className="text-xs text-muted-foreground italic text-center py-12">{t.noNotifications}</p>
                   ) : (
                     <div className="divide-y divide-border/40">
                       {notifications.map((n) => (
@@ -358,7 +358,7 @@ function DashboardContent() {
                           </div>
                           <p className="text-xs text-muted-foreground">{n.message}</p>
                           {!n.is_read && (
-                            <span className="text-[9px] font-bold text-primary pt-0.5">Marquer comme lu</span>
+                            <span className="text-[9px] font-bold text-primary pt-0.5">{t.markRead}</span>
                           )}
                         </div>
                       ))}
@@ -379,11 +379,11 @@ function DashboardContent() {
               {/* SAVED ADDRESSES TAB */}
               {activeTab === "addresses" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Adresse de livraison par défaut</h3>
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.defaultAddress}</h3>
                   <form onSubmit={handleSaveAddress} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Commune</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.municipality}</label>
                         <select
                           value={municipality}
                           onChange={(e) => {
@@ -398,7 +398,7 @@ function DashboardContent() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quartier</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.neighborhood}</label>
                         <select
                           value={neighborhood}
                           onChange={(e) => {
@@ -416,7 +416,7 @@ function DashboardContent() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="col-span-2 space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Avenue</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.avenue}</label>
                         <input
                           type="text"
                           required
@@ -431,7 +431,7 @@ function DashboardContent() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">N° Maison</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.houseNumber}</label>
                         <input
                           type="text"
                           value={houseNumber}
@@ -449,7 +449,7 @@ function DashboardContent() {
                       type="submit"
                       className="inline-flex h-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold px-6 text-xs hover:bg-primary/95 transition-all shadow-sm"
                     >
-                      Enregistrer l'adresse
+                      {t.saveAddress}
                     </button>
                   </form>
                 </div>
@@ -514,7 +514,7 @@ function DashboardContent() {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <Phone className="h-4 w-4" />
-                        Téléphone WhatsApp
+                        {t.whatsappPhone}
                       </label>
                       <input
                         type="tel"
@@ -531,7 +531,7 @@ function DashboardContent() {
                       disabled={isSavingProfile}
                       className="inline-flex h-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold px-6 text-xs hover:bg-primary/95 transition-all shadow-sm disabled:opacity-50"
                     >
-                      {isSavingProfile ? "Sauvegarde..." : "Mettre à jour le profil"}
+                      {isSavingProfile ? t.saving : t.updateProfile}
                     </button>
                   </form>
                 </div>
