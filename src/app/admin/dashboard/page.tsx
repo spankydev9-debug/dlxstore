@@ -13,6 +13,8 @@ import { SessionControls } from "../../../components/admin/SessionControls";
 import { PartnerControls } from "../../../components/admin/PartnerControls";
 import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
 import { CouponControls } from "../../../components/admin/CouponControls";
+import { SupportInbox } from "../../../components/admin/SupportInbox";
+import { InternalChat } from "../../../components/admin/InternalChat";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category, StoreSettings } from "../../../types";
 import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
@@ -38,7 +40,8 @@ import {
   Printer, 
   ArrowLeft,
   TrendingUp,
-  X
+  X,
+  MessageSquare
 } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -137,6 +140,7 @@ function AdminDashboardContent() {
     if (user && user.role === "admin") {
       loadAllData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user]);
 
   const handleOpenProductModal = (prod: Product | null = null) => {
@@ -421,6 +425,8 @@ function AdminDashboardContent() {
     { key: "partners", label: "Partenaires", icon: Store },
     { key: "food", label: "DLX Food", icon: UtensilsCrossed },
     { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
+    { key: "support", label: "Support Client", icon: MessageSquare },
+    { key: "internal", label: "Chat Interne", icon: Users },
     { key: "business", label: "Configuration", icon: Settings }
   ];
 
@@ -882,6 +888,20 @@ function AdminDashboardContent() {
               {activeTab === "food" && <FoodVendorControls />}
 
               {activeTab === "coupons" && <CouponControls />}
+
+              {activeTab === "support" && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Boîte de réception support</h3>
+                  <SupportInbox />
+                </div>
+              )}
+
+              {activeTab === "internal" && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Chat interne DLX</h3>
+                  <InternalChat />
+                </div>
+              )}
 
               {activeTab === "business" && <BusinessControls />}
 

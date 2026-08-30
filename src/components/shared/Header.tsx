@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useNotifications } from "../../context/NotificationContext";
+import { useChat } from "../../context/ChatContext";
 import { useTheme } from "./ThemeProvider";
 import { getProducts } from "../../services/db/products";
 import { Product } from "../../types";
@@ -22,17 +23,20 @@ import {
   LogOut, 
   LayoutDashboard,
   Heart,
-  ChevronRight
+  ChevronRight,
+  MessageSquare
 } from "lucide-react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ProductImage } from "./ProductImage";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
+import { CustomerSupportChat } from "../chat/CustomerSupportChat";
 
 export default function Header() {
   const { user, signOut } = useAuth();
   const { cartCount } = useCart();
   const { unreadCount, notifications, markAsRead } = useNotifications();
+  const { unreadCount: chatUnreadCount } = useChat();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const { t } = useLanguage();
@@ -40,6 +44,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -194,6 +199,22 @@ export default function Header() {
             )}
           </Link>
 
+          {/* Chat Button */}
+          {user && (
+            <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              title="Support DLXSTORE"
+            >
+              <MessageSquare className="h-5 w-5" />
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {chatUnreadCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Notifications Dropdown (Bell) */}
           {user && (
             <div ref={notificationsRef} className="relative">
@@ -333,6 +354,24 @@ export default function Header() {
           </button>
         </div>
       </div>
+
+      {/* Chat Modal */}
+      {isChatOpen && user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+          <div className="w-full max-w-4xl animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Support DLXSTORE</h2>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <CustomerSupportChat />
+          </div>
+        </div>
+      )}
 
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (

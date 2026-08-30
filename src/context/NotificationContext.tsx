@@ -50,6 +50,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }, 8000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const markAsRead = async (id: string) => {

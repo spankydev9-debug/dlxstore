@@ -304,3 +304,69 @@ export interface InventoryHistoryEntry {
   notes?: string;
   created_at: string;
 }
+// ---------------------------------------------------------------------------
+// DLX Chat
+// ---------------------------------------------------------------------------
+
+export type ConversationType = "customer_support" | "internal";
+export type ConversationStatus = "open" | "resolved" | "closed";
+
+/** A participant surfaced through list_my_conversations for identity/context. */
+export interface ConversationParticipantInfo {
+  profile_id: string;
+  full_name: string;
+  role: UserRole;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  type: ConversationType;
+  title?: string | null;
+  customer_profile_id?: string | null;
+  order_id?: string | null;
+  status: ConversationStatus;
+  last_message_at?: string | null;
+  last_message_preview?: string | null;
+  created_at: string;
+  updated_at: string;
+  unread_count: number;
+  participants: ConversationParticipantInfo[];
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_name?: string | null;
+  sender_role?: UserRole | null;
+  body: string;
+  created_at: string;
+  edited_at?: string | null;
+  deleted_at?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Customer Avatar
+// ---------------------------------------------------------------------------
+
+/** Attribute set chosen by the customer for their DLXSTORE avatar. */
+export interface AvatarAttributes {
+  presentation: string;
+  build: string;
+  height: string;
+  skinTone: string;
+  hairStyle: string;
+  hairColor: string;
+  clothingSize: string;
+  facePreset: string;
+}
+
+export interface CustomerAvatar {
+  id: string;
+  profile_id: string;
+  attributes: AvatarAttributes;
+  created_at: string;
+  updated_at: string;
+}

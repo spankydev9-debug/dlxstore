@@ -5,6 +5,7 @@ import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import { LanguageProvider } from "../context/LanguageContext";
+import { ChatProvider } from "../context/ChatContext";
 import { StorefrontShell } from "../components/shared/StorefrontShell";
 import { PwaRegistration } from "../components/shared/PwaRegistration";
 
@@ -54,13 +55,15 @@ export default function RootLayout({
         <PwaRegistration />
         <ThemeProvider>
           <LanguageProvider>
-          <AuthProvider>
-            <CartProvider>
-              <NotificationProvider>
-                <StorefrontShell>{children}</StorefrontShell>
-              </NotificationProvider>
-            </CartProvider>
-          </AuthProvider>
+            <AuthProvider>
+              <CartProvider>
+                <NotificationProvider>
+                  <ChatProvider>
+                    <StorefrontShell>{children}</StorefrontShell>
+                  </ChatProvider>
+                </NotificationProvider>
+              </CartProvider>
+            </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>
       </body>
