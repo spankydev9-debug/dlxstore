@@ -2,8 +2,10 @@ import React from "react";
 import Link from "next/link";
 import { Truck, ShieldCheck, MapPin, MessageSquare } from "lucide-react";
 import { DownloadApp } from "./DownloadApp";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function Footer() {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -16,9 +18,9 @@ export default function Footer() {
               <Truck className="h-6 w-6" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground text-sm sm:text-base">Livraison Gratuite</h4>
+              <h4 className="font-semibold text-foreground text-sm sm:text-base">{t.footerFreeDelivery}</h4>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Livraison gratuite garantie partout dans la ville de Goma à votre porte.
+                {t.footerFreeDeliveryDesc}
               </p>
             </div>
           </div>
@@ -28,9 +30,9 @@ export default function Footer() {
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground text-sm sm:text-base">Paiement à la Livraison</h4>
+              <h4 className="font-semibold text-foreground text-sm sm:text-base">{t.footerPaymentOnDelivery}</h4>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Aucun paiement en ligne requis. Vous payez en espèces (COD) uniquement après inspection de vos articles.
+                {t.footerPaymentOnDeliveryDesc}
               </p>
             </div>
           </div>
@@ -40,9 +42,9 @@ export default function Footer() {
               <MessageSquare className="h-6 w-6" />
             </div>
             <div>
-              <h4 className="font-semibold text-foreground text-sm sm:text-base">Assistance WhatsApp Rapide</h4>
+              <h4 className="font-semibold text-foreground text-sm sm:text-base">{t.footerWhatsAppSupport}</h4>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Les canaux officiels de support seront affichés ici dès leur configuration.
+                {t.footerWhatsAppSupportDesc}
               </p>
             </div>
           </div>
@@ -58,45 +60,45 @@ export default function Footer() {
             DLX<span className="text-primary font-light">STORE</span>
           </Link>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Une fondation de marché numérique pensée pour la République démocratique du Congo.
+            {t.footerBrandDesc}
           </p>
           <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground">
             <MapPin className="h-4.5 w-4.5 text-primary" />
-            <span>Goma, Province du Nord-Kivu, RDC</span>
+            <span>{t.footerLocation}</span>
           </div>
         </div>
 
         {/* Categories */}
         <div>
-          <h4 className="font-semibold text-foreground text-sm mb-4">Catégories</h4>
+          <h4 className="font-semibold text-foreground text-sm mb-4">{t.footerCategories}</h4>
           <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
-            <li><Link href="/shop?category=electronique" className="hover:text-foreground transition-colors">Électronique & High-Tech</Link></li>
-            <li><Link href="/shop?category=mode-vetements" className="hover:text-foreground transition-colors">Mode & Vêtements</Link></li>
-            <li><Link href="/shop?category=maison-energie" className="hover:text-foreground transition-colors">Maison & Énergie</Link></li>
+            <li><Link href="/shop?category=electronique" className="hover:text-foreground transition-colors">{t.footerElectronics}</Link></li>
+            <li><Link href="/shop?category=mode-vetements" className="hover:text-foreground transition-colors">{t.footerFashion}</Link></li>
+            <li><Link href="/shop?category=maison-energie" className="hover:text-foreground transition-colors">{t.footerHomeEnergy}</Link></li>
           </ul>
         </div>
 
         {/* Links */}
         <div>
-          <h4 className="font-semibold text-foreground text-sm mb-4">Liens Utiles</h4>
+          <h4 className="font-semibold text-foreground text-sm mb-4">{t.footerUsefulLinks}</h4>
           <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
-            <li><Link href="/shop" className="hover:text-foreground transition-colors">Tous les produits</Link></li>
-            <li><Link href="/about" className="hover:text-foreground transition-colors">À propos de nous</Link></li>
-            <li><Link href="/contact" className="hover:text-foreground transition-colors">Contactez-nous</Link></li>
-            <li><Link href="/dashboard" className="hover:text-foreground transition-colors">Mon compte</Link></li>
+            <li><Link href="/shop" className="hover:text-foreground transition-colors">{t.footerAllProducts}</Link></li>
+            <li><Link href="/about" className="hover:text-foreground transition-colors">{t.footerAboutUs}</Link></li>
+            <li><Link href="/contact" className="hover:text-foreground transition-colors">{t.footerContactUs}</Link></li>
+            <li><Link href="/dashboard" className="hover:text-foreground transition-colors">{t.footerMyAccount}</Link></li>
           </ul>
         </div>
 
         {/* Contact info */}
         <div>
-          <h4 className="font-semibold text-foreground text-sm mb-4">Contact</h4>
+          <h4 className="font-semibold text-foreground text-sm mb-4">{t.footerContact}</h4>
           <ul className="space-y-3 text-xs sm:text-sm text-muted-foreground">
             <li className="pt-2">
               <Link
                 href="/contact"
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition-colors"
               >
-                Voir les canaux officiels
+                {t.footerViewOfficialChannels}
               </Link>
             </li>
           </ul>
@@ -106,8 +108,8 @@ export default function Footer() {
       {/* Download DLXSTORE (PWA install helper) */}
       <div className="border-t border-border/40 py-10 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl flex flex-col items-center gap-4 text-center">
         <div className="space-y-1.5">
-          <p className="text-sm font-semibold text-foreground">Installation sur mobile & ordinateur</p>
-          <p className="text-xs text-muted-foreground">Ajoutez DLXSTORE à votre écran d'accueil pour un accès en un geste.</p>
+          <p className="text-sm font-semibold text-foreground">{t.footerInstallTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.footerInstallDesc}</p>
         </div>
         <DownloadApp />
       </div>
@@ -115,10 +117,10 @@ export default function Footer() {
       {/* Copyright */}
       <div className="border-t border-border/40 py-6 px-4 sm:px-6 lg:px-8 mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-4">
         <div>
-          © {currentYear} DLXSTORE. Tous droits réservés.
+          © {currentYear} DLXSTORE. {t.footerCopyright}
         </div>
         <div className="flex gap-4">
-          <span>Ville de Goma - Livraison Gratuite - Paiement COD</span>
+          <span>{t.footerCityDelivery}</span>
         </div>
       </div>
     </footer>
