@@ -10,6 +10,7 @@ import {
   defaultAvatarAttributes,
   getAvatarFaceEmoji,
   getAvatarPreview,
+  normalizeAvatarAttributes,
   summarizeAvatarAttributes,
 } from "../../lib/avatar";
 import { Sparkles, Save, RefreshCw } from "lucide-react";
@@ -51,7 +52,9 @@ export function AvatarEditor() {
     getMyAvatar(user.id)
       .then((avatar) => {
         if (avatar && avatar.attributes) {
-          setAttributes(avatar.attributes);
+          // Normalize persisted attributes through the shared normalizer so
+          // partial/legacy payloads are forward-compatible with the defaults.
+          setAttributes(normalizeAvatarAttributes(avatar.attributes));
         }
       })
       .catch((err) => {
