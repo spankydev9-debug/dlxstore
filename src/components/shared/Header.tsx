@@ -300,7 +300,7 @@ export default function Header() {
                           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
                         >
                           <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                          Dashboard Admin
+                          {t.adminDashboard}
                         </Link>
                       )}
                       <Link
@@ -309,7 +309,7 @@ export default function Header() {
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
                       >
                         <User className="h-4 w-4 text-muted-foreground" />
-                        Mon Compte
+                        {t.myAccount}
                       </Link>
                       <Link
                         href="/dashboard?tab=wishlist"
@@ -317,7 +317,7 @@ export default function Header() {
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
                       >
                         <Heart className="h-4 w-4 text-muted-foreground" />
-                        Favoris
+                        {t.wishlist}
                       </Link>
                       <button
                         onClick={() => {
@@ -328,7 +328,7 @@ export default function Header() {
                         className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <LogOut className="h-4 w-4" />
-                        Se déconnecter
+                        {t.signOut}
                       </button>
                     </div>
                   </div>
