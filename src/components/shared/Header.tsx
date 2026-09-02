@@ -205,7 +205,7 @@ export default function Header() {
             <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              title="Support DLXSTORE"
+              title={t.supportTitle}
             >
               <MessageSquare className="h-5 w-5" />
               {chatUnreadCount > 0 && (

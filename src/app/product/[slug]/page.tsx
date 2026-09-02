@@ -14,12 +14,14 @@ import { getStoreSettings } from "../../../services/db/settings";
 import { buildProductWhatsAppMessage, buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../../lib/whatsapp";
 import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck } from "lucide-react";
 import { ProductImage } from "../../../components/shared/ProductImage";
+import { useLanguage } from "../../../context/LanguageContext";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const { addToCart } = useCart();
+  const { t } = useLanguage();
   const slug = params.slug as string;
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -78,13 +80,13 @@ export default function ProductDetailPage() {
         if (prod.colors.length > 0) setSelectedColor(prod.colors[0]);
       } catch (err) {
         console.error("Error loading product details:", err);
-        setLoadError("Impossible de charger ce produit. Vérifiez votre connexion puis réessayez.");
+        setLoadError(t.productLoadError);
       } finally {
         setIsLoading(false);
       }
     }
     loadData();
-  }, [slug, user, router]);
+  }, [slug, user, router, t.productLoadError]);
 
   useEffect(() => { getStoreSettings().then(setStoreSettings).catch(console.error); }, []);
 
@@ -111,7 +113,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
     addToCart(product, quantity, selectedSize, selectedColor);
-    alert("Produit ajouté au panier !");
+    alert(t.addedToCartAlert);
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -122,10 +124,10 @@ export default function ProductDetailPage() {
       const newRev = await addReview(product.id, user.id, user.full_name, rating, comment);
       setReviews(prev => [newRev, ...prev]);
       setComment("");
-      alert("Votre avis a été publié !");
+      alert(t.reviewPublishedAlert);
     } catch (err) {
       console.error("Error submitting review:", err);
-      alert("Erreur lors de la publication de votre avis.");
+      alert(t.reviewErrorAlert);
     } finally {
       setIsSubmittingReview(false);
     }
@@ -151,12 +153,12 @@ export default function ProductDetailPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="text-sm text-muted-foreground">Chargement des détails de l'article...</p>
+        <p className="text-sm text-muted-foreground">{t.productLoading}</p>
       </div>
     );
   }
 
-  if (loadError || !product) return <div role="alert" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">Produit indisponible</h1><p className="text-sm text-muted-foreground">{loadError || "Ce produit n’est plus disponible."}</p><Link href="/shop" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">Retour à la boutique</Link></div>;
+  if (loadError || !product) return <div role="alert" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">{t.productUnavailable}</h1><p className="text-sm text-muted-foreground">{loadError || "{t.productUnavailableBody}"}</p><Link href="/shop" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">{t.backToShop}</Link></div>;
 
   const finalPrice = product.discount_price ?? product.price;
   const hasDiscount = !!product.discount_price;
@@ -217,7 +219,7 @@ export default function ProductDetailPage() {
                 ))}
               </div>
               <span className="text-xs font-bold text-foreground">{product.rating}</span>
-              <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
+              <span className="text-xs text-muted-foreground">({reviews.length} {t.reviewsWord})</span>
             </div>
           </div>
 
@@ -228,13 +230,13 @@ export default function ProductDetailPage() {
               <span className="text-lg text-muted-foreground line-through">{product.price} $</span>
             )}
             <span className="ml-auto rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              Livraison Gratuite (COD)
+              {t.freeDeliveryCod}
             </span>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <h3 className="font-bold text-sm text-foreground">Description</h3>
+            <h3 className="font-bold text-sm text-foreground">{t.description}</h3>
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{product.description}</p>
           </div>
 
@@ -243,7 +245,7 @@ export default function ProductDetailPage() {
             {/* Size selector */}
             {product.sizes.length > 0 && (
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Taille</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.size}</span>
                 <div className="flex flex-wrap gap-2">
                   {product.sizes.map((size) => (
                     <button
@@ -261,7 +263,7 @@ export default function ProductDetailPage() {
             {/* Color selector */}
             {product.colors.length > 0 && (
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Couleur</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.color}</span>
                 <div className="flex flex-wrap gap-2">
                   {product.colors.map((color) => (
                     <button
@@ -279,11 +281,11 @@ export default function ProductDetailPage() {
             {/* Quantity Selector & Stock Indicator */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quantité</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.quantity}</span>
                 <div className="flex items-center gap-1.5">
                   <span className={`h-2.5 w-2.5 rounded-full ${product.stock_quantity > 3 ? 'bg-emerald-500' : product.stock_quantity > 0 ? 'bg-amber-500' : 'bg-destructive'}`}></span>
                   <span className="text-xs text-muted-foreground">
-                    {product.stock_quantity > 3 ? 'En stock' : product.stock_quantity > 0 ? `Stock bas (${product.stock_quantity} restants)` : 'Rupture de stock'}
+                    {product.stock_quantity > 3 ? t.inStock : product.stock_quantity > 0 ? `${t.lowStock} (${product.stock_quantity} ${t.stockRemaining})` : t.outOfStock}
                   </span>
                 </div>
               </div>
@@ -326,19 +328,19 @@ export default function ProductDetailPage() {
                 className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md"
               >
                 <ShoppingCart className="h-5 w-5" />
-                Ajouter au panier
+                {t.addToCart}
               </button>
               {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md">
                 <MessageSquare className="h-5 w-5" />
-                Commander via WhatsApp
-              </a> : <Link href="/contact" className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md"><MessageSquare className="h-5 w-5" />Contacter DLXSTORE</Link>}
+                {t.orderViaWhatsapp}
+              </a> : <Link href="/contact" className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-full bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md"><MessageSquare className="h-5 w-5" />{t.contactDlxstore}</Link>}
             </div>
           ) : (
             <button
               disabled
               className="w-full h-12 rounded-full bg-muted text-muted-foreground font-semibold cursor-not-allowed border border-border"
             >
-              Épuisé
+              {t.soldOut}
             </button>
           )}
 
@@ -346,11 +348,11 @@ export default function ProductDetailPage() {
           <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 space-y-3">
             <div className="flex items-center gap-3 text-xs">
               <Truck className="h-4.5 w-4.5 text-primary" />
-              <span className="font-semibold text-foreground">Livraison Gratuite partout à Goma</span>
+              <span className="font-semibold text-foreground">{t.freeDeliveryEverywhere}</span>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <ShieldCheck className="h-4.5 w-4.5 text-primary" />
-              <span className="font-semibold text-foreground">Paiement Cash à la livraison (COD) uniquement</span>
+              <span className="font-semibold text-foreground">{t.codGuarantee}</span>
             </div>
           </div>
         </div>
@@ -360,12 +362,12 @@ export default function ProductDetailPage() {
       {/* Reviews Section */}
       <div className="border-t border-border/40 pt-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold tracking-tight">Avis des clients</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t.customerReviews}</h2>
           
           <div className="rounded-2xl border border-border/60 p-5 space-y-4">
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-extrabold text-foreground">{product.rating}</span>
-              <span className="text-xs text-muted-foreground">sur 5</span>
+              <span className="text-xs text-muted-foreground">{t.outOf5}</span>
             </div>
             <div className="flex items-center gap-0.5">
               {[...Array(5)].map((_, i) => (
@@ -375,15 +377,15 @@ export default function ProductDetailPage() {
                 />
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Avis authentiques de clients basés à Goma.</p>
+            <p className="text-xs text-muted-foreground">{t.authenticReviews}</p>
           </div>
 
           {/* Review write form */}
           {user ? (
             <form onSubmit={handleReviewSubmit} className="space-y-4 border border-border/60 rounded-2xl p-5 bg-card">
-              <h3 className="font-bold text-sm text-foreground">Laisser un avis</h3>
+              <h3 className="font-bold text-sm text-foreground">{t.leaveReview}</h3>
               <div className="space-y-1">
-                <span className="text-xs text-muted-foreground font-semibold">Note</span>
+                <span className="text-xs text-muted-foreground font-semibold">{t.ratingLabel}</span>
                 <div className="flex gap-1.5">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -398,13 +400,13 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="comment" className="text-xs text-muted-foreground font-semibold">Commentaire</label>
+                <label htmlFor="comment" className="text-xs text-muted-foreground font-semibold">{t.commentLabel}</label>
                 <textarea
                   id="comment"
                   rows={4}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="Écrivez votre commentaire ici..."
+                  placeholder={t.commentPlaceholder}
                   required
                   className="w-full rounded-lg border border-border bg-background p-3 text-xs outline-none focus:border-foreground"
                 />
@@ -414,17 +416,17 @@ export default function ProductDetailPage() {
                 disabled={isSubmittingReview}
                 className="w-full inline-flex justify-center items-center h-9 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/95 transition-all disabled:opacity-50"
               >
-                {isSubmittingReview ? "Publication..." : "Publier l'avis"}
+                {isSubmittingReview ? t.publishing : t.publishReview}
               </button>
             </form>
           ) : (
             <div className="rounded-2xl border border-dashed border-border p-5 text-center">
-              <p className="text-xs text-muted-foreground mb-3">Connectez-vous pour laisser un avis.</p>
+              <p className="text-xs text-muted-foreground mb-3">{t.loginPrompt}</p>
               <Link
                 href="/auth?mode=login"
                 className="inline-flex h-9 items-center justify-center rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-all"
               >
-                Se connecter
+                {t.signIn}
               </Link>
             </div>
           )}
@@ -432,10 +434,10 @@ export default function ProductDetailPage() {
 
         {/* Reviews List */}
         <div className="lg:col-span-2 space-y-6">
-          <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Commentaires ({reviews.length})</h3>
+          <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.comments} ({reviews.length})</h3>
           
           {reviews.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-4">Aucun avis rédigé pour le moment.</p>
+            <p className="text-xs text-muted-foreground italic py-4">{t.noReviews}</p>
           ) : (
             <div className="divide-y divide-border/40 space-y-6">
               {reviews.map((rev) => (
@@ -467,7 +469,7 @@ export default function ProductDetailPage() {
       {/* Related Products */}
       {relatedProducts.length > 0 && (
         <div className="border-t border-border/40 pt-12 space-y-6">
-          <h2 className="text-2xl font-bold tracking-tight">Articles similaires</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t.similarProducts}</h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {relatedProducts.map((product) => {
               const finalPrice = product.discount_price ?? product.price;

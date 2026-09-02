@@ -8,10 +8,12 @@ import { PartnerShop, Product } from "../../../types";
 import { getPartnerShopBySlug, getShopProducts } from "../../../services/db/partner-shops";
 import { getProducts } from "../../../services/db/products";
 import { ProductImage } from "../../../components/shared/ProductImage";
+import { useLanguage } from "../../../context/LanguageContext";
 
 export default function PartnerShopPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useLanguage();
   const slug = params.slug as string;
 
   const [shop, setShop] = useState<PartnerShop | null>(null);
@@ -56,7 +58,7 @@ export default function PartnerShopPage() {
   if (isLoading || !shop) {
     return (
       <main className="mx-auto max-w-6xl py-10">
-        <div className="py-20 text-center text-sm text-muted-foreground">Chargement de la boutique…</div>
+        <div className="py-20 text-center text-sm text-muted-foreground">{t.shopLoading}</div>
       </main>
     );
   }
@@ -79,13 +81,13 @@ export default function PartnerShopPage() {
         <div className="relative space-y-3 p-7 sm:p-10">
           <Link href="/partners" className="inline-flex items-center gap-1 text-xs font-semibold text-white/80 hover:text-white">
             <ArrowLeft className="h-3.5 w-3.5" />
-            Toutes les boutiques
+            {t.allShops}
           </Link>
           <div className="flex items-center gap-2">
             <Store className="h-5 w-5" />
             <h1 className="text-3xl font-extrabold sm:text-4xl">{displayName}</h1>
             {shop.is_featured && (
-              <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold">En vedette</span>
+              <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold">{t.partnerFeatured}</span>
             )}
           </div>
           {shop.city && (
@@ -102,8 +104,8 @@ export default function PartnerShopPage() {
 
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Articles de la boutique</h2>
-          <span className="text-sm text-muted-foreground">{products.length} article{products.length === 1 ? "" : "s"}</span>
+          <h2 className="text-xl font-bold">{t.shopProducts}</h2>
+          <span className="text-sm text-muted-foreground">{products.length} {t.items}</span>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {products.map((product) => {
@@ -131,7 +133,7 @@ export default function PartnerShopPage() {
                   )}
                   {hasDiscount && (
                     <span className="absolute top-3 left-3 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold text-destructive-foreground">
-                      Promo
+                      {t.promotion}
                     </span>
                   )}
                 </div>
@@ -159,7 +161,7 @@ export default function PartnerShopPage() {
         </div>
         {products.length === 0 && (
           <p className="mt-4 rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-            Les articles de cette boutique apparaîtront ici dès qu&apos;ils auront été publiés.
+            {t.shopProductsEmpty}
           </p>
         )}
       </section>

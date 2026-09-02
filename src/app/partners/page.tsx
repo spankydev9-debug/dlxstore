@@ -6,8 +6,10 @@ import { ArrowRight, MapPin, Store } from "lucide-react";
 import { PartnerShop } from "../../types";
 import { getPartnerShops } from "../../services/db/partner-shops";
 import { ProductImage } from "../../components/shared/ProductImage";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function PartnersPage() {
+  const { t } = useLanguage();
   const [shops, setShops] = useState<PartnerShop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -15,9 +17,9 @@ export default function PartnersPage() {
   useEffect(() => {
     getPartnerShops()
       .then((nextShops) => setShops(nextShops))
-      .catch(() => setError("Les boutiques partenaires ne sont pas encore disponibles. Réessayez bientôt."))
+      .catch(() => setError(t.partnersError))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t.partnersError]);
 
   const sortedShops = useMemo(
     () => [...shops].sort((a, b) => Number(b.is_featured) - Number(a.is_featured)),
@@ -30,25 +32,24 @@ export default function PartnersPage() {
         <div className="max-w-2xl">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-bold">
             <Store className="h-4 w-4" />
-            DLX Shops
+            {t.partnersBadge}
           </div>
-          <h1 className="text-3xl font-extrabold sm:text-5xl">Les boutiques partenaires</h1>
+          <h1 className="text-3xl font-extrabold sm:text-5xl">{t.partnersTitle}</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/90 sm:text-base">
-            Découvrez les boutiques de nos partenaires à Goma. Chaque boutique propose sa propre sélection
-            d&apos;articles, toujours avec livraison gratuite et paiement à la livraison.
+            {t.partnersSubtitle}
           </p>
         </div>
       </section>
 
       {loading ? (
-        <div className="py-20 text-center text-sm text-muted-foreground">Chargement des boutiques…</div>
+        <div className="py-20 text-center text-sm text-muted-foreground">{t.partnersLoading}</div>
       ) : error ? (
         <div role="alert" className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">{error}</div>
       ) : (
         <section>
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Boutiques actives</h2>
-            <span className="text-sm text-muted-foreground">{sortedShops.length} boutique{sortedShops.length === 1 ? "" : "s"}</span>
+            <h2 className="text-xl font-bold">{t.partnersActive}</h2>
+            <span className="text-sm text-muted-foreground">{sortedShops.length} {t.shopsUnit}</span>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sortedShops.map((shop) => {
@@ -76,7 +77,7 @@ export default function PartnersPage() {
                     )}
                     {shop.is_featured && (
                       <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold text-primary-foreground">
-                        En vedette
+                        {t.partnerFeatured}
                       </span>
                     )}
                   </div>
@@ -92,7 +93,7 @@ export default function PartnersPage() {
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{displayDescription}</p>
                     )}
                     <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                      Visiter la boutique
+                      {t.visitShop}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                   </div>
@@ -102,7 +103,7 @@ export default function PartnersPage() {
           </div>
           {sortedShops.length === 0 && (
             <p className="mt-4 rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-              Les boutiques partenaires apparaîtront ici dès leur activation par DLX.
+              {t.partnersEmpty}
             </p>
           )}
         </section>
@@ -110,10 +111,10 @@ export default function PartnersPage() {
 
       <section className="rounded-2xl border border-border bg-card p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Vous avez une boutique à Goma et vous souhaitez rejoindre le marketplace DLX ?
+          {t.partnersCta}
         </p>
         <Link href="/partner" className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
-          Devenir partenaire
+          {t.partner}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </section>

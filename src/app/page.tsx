@@ -50,41 +50,29 @@ export default function HomePage() {
   const testimonials = [
     {
       name: "Pascaline Kahindo",
-      role: "Entrepreneuse, Keshero",
-      text: "J'ai acheté la station solaire EcoFlow pour ma boutique. La livraison était totalement gratuite jusqu'à ma porte et j'ai payé en espèces après avoir testé l'appareil. Un service de confiance rare à Goma !",
+      role: t.testimonial1Role,
+      text: t.testimonial1Text,
       rating: 5
     },
     {
       name: "Christian Balume",
-      role: "Étudiant, Himbi",
-      text: "Le MacBook Air est arrivé scellé et en parfait état. Le fait de pouvoir vérifier la marchandise avant de donner l'argent au livreur rassure énormément. Je recommande DLXSTORE à 100%.",
+      role: t.testimonial2Role,
+      text: t.testimonial2Text,
       rating: 5
     },
     {
       name: "Ephrem Birindwa",
-      role: "Enseignant, Ndosho",
-      text: "La livraison à Ndosho s'est faite le jour même de la commande. Les baskets Nike sont originales et très confortables pour mes déplacements quotidiens.",
+      role: t.testimonial3Role,
+      text: t.testimonial3Text,
       rating: 5
     }
   ];
 
   const faqs = [
-    {
-      q: "Comment fonctionne la livraison gratuite à Goma ?",
-      a: "La livraison est 100% gratuite dans tous les quartiers de Goma (Himbi, Keshero, Katindo, Ndosho, Mugunga, Majengo, Mabanga, Bujovu, etc.). Une fois votre commande passée, un livreur vous contactera par téléphone pour convenir de l'heure exacte de livraison."
-    },
-    {
-      q: "Comment puis-je payer mes articles ?",
-      a: "Chez DLXSTORE, nous utilisons exclusivement le paiement à la livraison (Cash on Delivery). Vous payez en dollars américains (USD) ou en francs congolais (CDF) directement au livreur, après avoir vérifié et essayé vos produits."
-    },
-    {
-      q: "Comment contacter DLXSTORE ?",
-      a: "Les canaux officiels de DLXSTORE sont publiés dans la page Contact dès qu’ils sont configurés par l’équipe."
-    },
-    {
-      q: "Que faire si un article ne me convient pas ?",
-      a: "Vous pouvez refuser l'article directement auprès du livreur lors de la présentation. Consultez la page Contact pour les canaux de support officiels."
-    }
+    { q: t.faq1Q, a: t.faq1A },
+    { q: t.faq2Q, a: t.faq2A },
+    { q: t.faq3Q, a: t.faq3A },
+    { q: t.faq4Q, a: t.faq4A }
   ];
 
   if (isLoading) {
@@ -321,19 +309,19 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {testimonials.map((t, index) => (
+          {testimonials.map((item, index) => (
             <div key={index} className="flex flex-col bg-card border border-border/40 p-6 rounded-2xl shadow-sm space-y-4">
               <div className="flex gap-0.5">
-                {[...Array(t.rating)].map((_, i) => (
+                {[...Array(item.rating)].map((_, i) => (
                   <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
                 ))}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground italic flex-1 leading-relaxed">
-                "{t.text}"
+                "{item.text}"
               </p>
               <div>
-                <h4 className="font-bold text-sm text-foreground">{t.name}</h4>
-                <p className="text-[10px] text-muted-foreground">{t.role}</p>
+                <h4 className="font-bold text-sm text-foreground">{item.name}</h4>
+                <p className="text-[10px] text-muted-foreground">{item.role}</p>
               </div>
             </div>
           ))}
