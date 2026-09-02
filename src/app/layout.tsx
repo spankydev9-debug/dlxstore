@@ -8,28 +8,33 @@ import { LanguageProvider } from "../context/LanguageContext";
 import { ChatProvider } from "../context/ChatContext";
 import { StorefrontShell } from "../components/shared/StorefrontShell";
 import { PwaRegistration } from "../components/shared/PwaRegistration";
+import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "../lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dlxstore.cd"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "DLXSTORE | Digital marketplace for the DRC",
-    template: "%s | DLXSTORE",
+    default: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    template: `%s | ${SITE_NAME}`,
   },
-  description: "DLXSTORE is building a trusted digital marketplace for the Democratic Republic of Congo.",
-  keywords: ["RDC", "DRC", "marketplace", "e-commerce", "DLXSTORE"],
+  description: process.env.NEXT_PUBLIC_SITE_DESCRIPTION || "The DLXSTORE marketplace makes shopping in Goma easier with a curated catalog, free delivery and safe cash-on-delivery payment.",
+  keywords: ["RDC", "DRC", "Goma", "marketplace", "e-commerce", "DLXSTORE"],
   robots: "index, follow",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "DLXSTORE | Digital marketplace for the DRC",
-    description: "A trusted digital marketplace for the Democratic Republic of Congo.",
-    siteName: "DLXSTORE",
-    locale: "fr_FR",
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    description: "A trusted digital marketplace for the Democratic Republic of Congo, with free delivery across Goma and cash on delivery.",
+    siteName: SITE_NAME,
+    locale: "fr_CD",
     type: "website",
+    url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "DLXSTORE",
-    description: "A trusted digital marketplace for the DRC.",
-  }
+    title: SITE_NAME,
+    description: "A trusted digital marketplace for the DRC with free delivery across Goma.",
+  },
 };
 
 export const viewport = {
@@ -38,6 +43,28 @@ export const viewport = {
   viewportFit: "cover",
   maximumScale: 5,
   userScalable: true,
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon`,
+  description: SITE_TAGLINE,
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  description: SITE_TAGLINE,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/shop?search={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({
@@ -53,6 +80,14 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
         <PwaRegistration />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
