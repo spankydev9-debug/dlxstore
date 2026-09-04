@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useChat } from "../../context/ChatContext";
 import { useAuth } from "../../context/AuthContext";
@@ -30,6 +31,7 @@ export function CustomerSupportChat({
     openSupportConversation,
   } = useChat();
   const { user } = useAuth();
+  const router = useRouter();
 
   const supportConversations = useMemo(
     () => conversations.filter((c) => c.type === "customer_support"),
@@ -39,7 +41,7 @@ export function CustomerSupportChat({
   // If a specific order was requested and no matching open thread exists,
   // open (or create) that order-scoped conversation.
   useEffect(() => {
-    if (!initialOrderId) return;
+    if (!initialOrderId || !user) return;
     const exists = supportConversations.some(
       (c) => c.order_id === initialOrderId && c.status !== "closed"
     );
@@ -47,13 +49,22 @@ export function CustomerSupportChat({
       void openSupportConversation(initialOrderId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrderId]);
+  }, [initialOrderId, user]);
 
   const displayName = (conversationId: string) => {
     const conv = supportConversations.find((c) => c.id === conversationId);
     if (!conv) return "Support DLXSTORE";
     const other = conv.participants.find((p) => p.profile_id !== user?.id);
     return other?.full_name || "Support DLXSTORE";
+  };
+
+  /** If the user is not signed in, redirect to login. Otherwise open/create the support thread. */
+  const handleStartConversation = (orderId?: string) => {
+    if (!user) {
+      router.push("/auth?mode=login");
+      return;
+    }
+    void openSupportConversation(orderId);
   };
 
   if (isLoading && supportConversations.length === 0) {
@@ -91,7 +102,7 @@ export function CustomerSupportChat({
         </div>
         <div className="border-t border-border p-2">
           <button
-            onClick={() => void openSupportConversation()}
+            onClick={() => void handleStartConversation()}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
@@ -110,9 +121,14 @@ export function CustomerSupportChat({
             <ChatEmptyState
               title="Contactez le support DLXSTORE"
               body="Posez vos questions sur une commande, une livraison, un remboursement ou tout autre sujet. Un membre de l'équipe vous répondra ici."
-              action="Démarrer une conversation"
-              onAction={() => void openSupportConversation()}
+              action={user ? "Démarrer une conversation" : "Se connecter pour contacter le support"}
+              onAction={() => handleStartConversation()}
             />
+            {error && (
+              <div className="px-4 py-2 text-center text-xs text-destructive">
+                {error}
+              </div>
+            )}
           </>
         ) : (
           <>

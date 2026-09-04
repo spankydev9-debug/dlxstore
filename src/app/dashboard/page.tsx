@@ -9,25 +9,30 @@ import { getOrders } from "../../services/db/orders";
 import { getWishlist, removeFromWishlist } from "../../services/db/wishlist";
 import { getNotifications, markAsRead } from "../../services/db/notifications";
 import { updateProfile } from "../../services/auth";
-import { Order, Product, Notification } from "../../types";
+import { getMyRewardsSummary, recordShareEvent } from "../../services/db/rewards";
+import { Order, Product, Notification, RewardsSummary } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { languages } from "../../lib/i18n";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { AvatarEditor } from "../../components/account/AvatarEditor";
-import { 
-  ShoppingBag, 
-  Heart, 
-  Bell, 
-  MapPin, 
-  Settings, 
-  LogOut, 
-  ChevronRight, 
-  ExternalLink,
+import {
+  ShoppingBag,
+  Heart,
+  Bell,
+  MapPin,
+  Settings,
+  LogOut,
+  ChevronRight,
   Trash2,
   Lock,
   User,
   Phone,
-  UserCircle
+  UserCircle,
+  Gift,
+  Share2,
+  Copy,
+  Check,
+  Star,
 } from "lucide-react";
 
 function DashboardContent() {
@@ -44,6 +49,11 @@ function DashboardContent() {
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [rewards, setRewards] = useState<RewardsSummary | null>(null);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [rewardsError, setRewardsError] = useState("");
+  const [sharingStatus, setSharingStatus] = useState<"idle" | "loading" | "success" | "cooldown" | "error">("idle");
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Address Form States (Persist to localStorage as convenience)
   const [municipality, setMunicipality] = useState("Goma");
@@ -101,6 +111,18 @@ function DashboardContent() {
         } else if (activeTab === "settings") {
           setFullName(user.full_name);
           setPhone(user.phone || "");
+        } else if (activeTab === "rewards") {
+          setRewardsLoading(true);
+          setRewardsError("");
+          try {
+            const summary = await getMyRewardsSummary();
+            setRewards(summary);
+          } catch (err) {
+            console.error("Error loading rewards:", err);
+            setRewardsError(t.rewardsError);
+          } finally {
+            setRewardsLoading(false);
+          }
         }
       } catch (err) {
         console.error("Error loading tab data:", err);
@@ -187,6 +209,7 @@ function DashboardContent() {
     { key: "notifications", label: t.notifications, icon: Bell },
     { key: "addresses", label: t.savedAddresses, icon: MapPin },
     { key: "avatar", label: t.avatarSettings, icon: UserCircle },
+    { key: "rewards", label: t.rewardsTab, icon: Gift },
     { key: "language", label: t.languageSettings, icon: Settings },
     { key: "settings", label: t.profileSettings, icon: User },
   ];
@@ -369,12 +392,241 @@ function DashboardContent() {
 
               {/* AVATAR TAB */}
               {activeTab === "avatar" && (
-                <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.avatarSettings}</h3>
-                  <p className="text-sm text-muted-foreground">{t.avatarIntro}</p>
+                <div className="space-y-4">
                   <AvatarEditor />
                 </div>
               )}
+
+              {/* DLX REWARDS TAB */}
+              {activeTab === "rewards" && (
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-amber-500/5 p-5">
+                    <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                        <Star className="h-5 w-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-foreground">{t.rewardsTitle}</h3>
+                        <p className="text-xs text-muted-foreground">{t.rewardsIntro}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {rewardsLoading && (
+                    <div className="flex h-40 items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  )}
+
+                  {rewardsError && !rewardsLoading && (
+                    <p className="rounded-xl bg-destructive/10 px-4 py-3 text-xs text-destructive font-semibold">
+                      {rewardsError}
+                    </p>
+                  )}
+
+                  {rewards && !rewardsLoading && (
+                    <>
+                      {/* Progress cards */}
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {/* Purchase progress */}
+                        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <ShoppingBag className="h-3.5 w-3.5" />
+                              {t.rewardsPurchaseProgress}
+                            </p>
+                          </div>
+                          {rewards.next_purchase_milestone ? (
+                            <>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs font-semibold">
+                                  <span className="text-foreground">
+                                    {rewards.qualifying_order_count} / {rewards.next_purchase_milestone.threshold} {t.rewardsOrdersUnit}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {Math.round((rewards.qualifying_order_count / rewards.next_purchase_milestone.threshold) * 100)}%
+                                  </span>
+                                </div>
+                                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-primary to-amber-500 transition-all duration-700"
+                                    style={{ width: `${Math.min(100, Math.round((rewards.qualifying_order_count / rewards.next_purchase_milestone.threshold) * 100))}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                {t.rewardsNextReward}: <span className="font-bold text-foreground">{rewards.next_purchase_milestone.label}</span>
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-xs font-semibold text-emerald-600">{t.rewardsNoMilestone}</p>
+                          )}
+                        </div>
+
+                        {/* Share progress */}
+                        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <Share2 className="h-3.5 w-3.5" />
+                              {t.rewardsShareProgress}
+                            </p>
+                          </div>
+                          {rewards.next_share_milestone ? (
+                            <>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs font-semibold">
+                                  <span className="text-foreground">
+                                    {rewards.share_count} / {rewards.next_share_milestone.threshold} {t.rewardsSharesUnit}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {Math.round((rewards.share_count / rewards.next_share_milestone.threshold) * 100)}%
+                                  </span>
+                                </div>
+                                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-700"
+                                    style={{ width: `${Math.min(100, Math.round((rewards.share_count / rewards.next_share_milestone.threshold) * 100))}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                {t.rewardsNextReward}: <span className="font-bold text-foreground">{rewards.next_share_milestone.label}</span>
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-xs font-semibold text-emerald-600">{t.rewardsNoMilestone}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Share DLXSTORE button */}
+                      <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-3">
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground">{t.rewardsShareTitle}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">{t.rewardsShareBody}</p>
+                        </div>
+                        {sharingStatus === "success" && (
+                          <p className="flex items-center gap-2 text-xs font-semibold text-emerald-600">
+                            <Check className="h-4 w-4" />{t.rewardsShareSuccess}
+                          </p>
+                        )}
+                        {sharingStatus === "cooldown" && (
+                          <p className="text-xs font-semibold text-amber-600">{t.rewardsShareCooldown}</p>
+                        )}
+                        {sharingStatus === "error" && (
+                          <p className="text-xs font-semibold text-destructive">{t.rewardsShareError}</p>
+                        )}
+                        <button
+                          disabled={sharingStatus === "loading" || sharingStatus === "success" || sharingStatus === "cooldown"}
+                          onClick={async () => {
+                            setSharingStatus("loading");
+                            try {
+                              // Try native Web Share API first for realistic share UX
+                              const channel = typeof navigator !== "undefined" && "share" in navigator
+                                ? "native_share" as const
+                                : "copy_link" as const;
+                              if (channel === "native_share") {
+                                await navigator.share({ title: t.rewardsShareWebTitle, text: t.rewardsShareWebText, url: window.location.origin });
+                              } else {
+                                await navigator.clipboard.writeText(window.location.origin);
+                              }
+                              const result = await recordShareEvent(channel);
+                              setSharingStatus(result.recorded ? (result.awarded ? "success" : "success") : "cooldown");
+                              if (result.recorded) {
+                                const updated = await getMyRewardsSummary();
+                                setRewards(updated);
+                              }
+                            } catch {
+                              setSharingStatus("error");
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-xs font-bold text-white hover:bg-amber-500/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Share2 className="h-4 w-4" />
+                          {sharingStatus === "loading" ? t.loading : t.rewardsShareButton}
+                        </button>
+                      </div>
+
+                      {/* Coupons */}
+                      <div className="space-y-3">
+                        <h4 className="font-bold text-sm text-foreground border-b border-border/40 pb-2">
+                          {t.rewardsCoupons}
+                        </h4>
+                        {rewards.rewards.length === 0 ? (
+                          <div className="flex flex-col items-center py-10 gap-2 text-center">
+                            <Gift className="h-8 w-8 text-muted-foreground/40" />
+                            <p className="text-xs text-muted-foreground">{t.rewardsNoCoupons}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {rewards.rewards.map((reward) => {
+                              const isActive = reward.status === "awarded";
+                              const isExpired = reward.status === "expired" ||
+                                (reward.expires_at && new Date(reward.expires_at) < new Date());
+                              return (
+                                <div
+                                  key={reward.id}
+                                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border p-4 transition-all ${
+                                    isActive && !isExpired
+                                      ? "border-amber-500/30 bg-amber-500/5"
+                                      : "border-border/60 bg-card opacity-60"
+                                  }`}
+                                >
+                                  <div className="space-y-0.5">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                      {t.rewardsMilestoneLabel}: {reward.milestone_label}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      <code className="rounded bg-muted px-2 py-1 font-mono text-sm font-bold text-foreground">
+                                        {reward.coupon_code}
+                                      </code>
+                                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+                                        isExpired ? "bg-muted text-muted-foreground" :
+                                        reward.status === "used" ? "bg-muted text-muted-foreground" :
+                                        "bg-amber-500/10 text-amber-600"
+                                      }`}>
+                                        {isExpired ? t.rewardsCouponExpired :
+                                         reward.status === "used" ? t.rewardsCouponUsed :
+                                         t.rewardsCouponActive}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {reward.coupon_type === "percentage"
+                                        ? t.rewardsDiscountPercent.replace("{n}", String(reward.coupon_value))
+                                        : t.rewardsDiscountFixed.replace("{n}", String(reward.coupon_value))}
+                                      {reward.expires_at && !isExpired && (
+                                        <> · {t.rewardsCouponExpires} {new Date(reward.expires_at).toLocaleDateString()}</>
+                                      )}
+                                    </p>
+                                  </div>
+                                  {isActive && !isExpired && (
+                                    <button
+                                      onClick={() => {
+                                        void navigator.clipboard.writeText(reward.coupon_code);
+                                        setCopiedCode(reward.coupon_code);
+                                        setTimeout(() => setCopiedCode(null), 2000);
+                                      }}
+                                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold hover:bg-muted transition-all shrink-0"
+                                    >
+                                      {copiedCode === reward.coupon_code
+                                        ? <><Check className="h-3.5 w-3.5 text-emerald-600" />{t.rewardsCouponCopied}</>
+                                        : <><Copy className="h-3.5 w-3.5" />{t.rewardsCouponCopy}</>
+                                      }
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
 
               {/* SAVED ADDRESSES TAB */}
               {activeTab === "addresses" && (

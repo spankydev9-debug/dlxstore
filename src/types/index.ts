@@ -149,7 +149,7 @@ export interface Notification {
   title: string;
   message: string;
   is_read: boolean;
-  type: "order_status" | "low_stock" | "new_order";
+  type: "order_status" | "low_stock" | "new_order" | "chat_message" | "reward";
   created_at: string;
 }
 
@@ -369,4 +369,54 @@ export interface CustomerAvatar {
   attributes: AvatarAttributes;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// DLX Rewards
+// ---------------------------------------------------------------------------
+
+export interface RewardMilestone {
+  id: string;
+  label: string;
+  milestone_type: "purchase_count" | "share_count";
+  threshold: number;
+  coupon_code: string;
+  coupon_type: CouponType;
+  coupon_value: number;
+  coupon_min_order: number;
+  coupon_expires_days: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type RewardStatus = "pending" | "awarded" | "used" | "expired";
+
+export interface CustomerReward {
+  id: string;
+  profile_id: string;
+  milestone_id: string;
+  coupon_id: string;
+  coupon_code: string;
+  status: RewardStatus;
+  awarded_at: string;
+  expires_at: string | null;
+  used_at: string | null;
+  milestone_label: string;
+  coupon_type: CouponType;
+  coupon_value: number;
+}
+
+export interface ShareEvent {
+  id: string;
+  profile_id: string;
+  channel: string;
+  created_at: string;
+}
+
+export interface RewardsSummary {
+  qualifying_order_count: number;
+  share_count: number;
+  next_purchase_milestone: RewardMilestone | null;
+  next_share_milestone: RewardMilestone | null;
+  rewards: CustomerReward[];
 }
