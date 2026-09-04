@@ -76,7 +76,7 @@ export function CustomerSupportChat({
   }
 
   return (
-    <div className="grid h-[560px] overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-[280px_1fr]">
+    <div className="grid h-full min-h-[400px] overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-[280px_1fr]">
       {/* Conversation list (desktop) */}
       <aside className="hidden flex-col border-r border-border md:flex">
         <div className="flex items-center justify-between gap-2 border-b border-border p-3">

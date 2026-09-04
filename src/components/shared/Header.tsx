@@ -356,18 +356,21 @@ export default function Header() {
 
       {/* Chat Modal */}
       {isChatOpen && user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
-          <div className="w-full max-w-4xl animate-scale-in">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-safe-area-inset-bottom backdrop-blur-sm sm:items-center sm:p-6 animate-fade-in">
+          <div className="w-full max-w-4xl max-h-[calc(100dvh-2rem)] sm:max-h-[80vh] animate-scale-in flex flex-col bg-card rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 shrink-0">
               <h2 className="text-lg font-bold">{t.supportTitle}</h2>
               <button
                 onClick={() => setIsChatOpen(false)}
                 className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <CustomerSupportChat />
+            <div className="flex-1 overflow-hidden">
+              <CustomerSupportChat />
+            </div>
           </div>
         </div>
       )}
