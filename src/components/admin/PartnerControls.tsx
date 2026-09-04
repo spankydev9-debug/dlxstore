@@ -19,6 +19,7 @@ import {
 } from "../../services/db/partner-shops";
 import { getProducts } from "../../services/db/products";
 import { DRC_PROVINCES } from "../../lib/drc-geography";
+import { formatMoney } from "../../lib/format";
 
 function slugify(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -220,7 +221,7 @@ function PartnerShopRow({ shop, onEdit, onDelete, onToggleStatus, onToggleFeatur
               <p className="text-xs text-muted-foreground">Commandes</p>
             </div>
             <div>
-              <p className="text-2xl font-bold">{stats.total_revenue.toLocaleString()} $</p>
+              <p className="text-2xl font-bold">{formatMoney(stats.total_revenue)}</p>
               <p className="text-xs text-muted-foreground">Revenus</p>
             </div>
           </div>

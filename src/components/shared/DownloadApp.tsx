@@ -94,9 +94,9 @@ export function DownloadApp({ variant = "footer" }: { variant?: "drawer" | "foot
           role="dialog"
           aria-modal="true"
           aria-labelledby="dlx-install-dialog-title"
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-5 backdrop-blur-sm sm:items-center"
+          className="overlay-backdrop"
         >
-          <section className="w-full max-w-lg animate-fade-in rounded-2xl border border-border bg-card p-6 shadow-2xl">
+          <section className="overlay-panel overlay-panel--auto w-full max-w-lg p-6 animate-fade-in">
             <div className="flex items-start justify-between gap-4">
               <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
                 {dialog === "ios" ? (

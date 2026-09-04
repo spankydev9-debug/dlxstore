@@ -15,6 +15,8 @@ import { FoodVendorControls } from "../../../components/admin/FoodVendorControls
 import { CouponControls } from "../../../components/admin/CouponControls";
 import { SupportInbox } from "../../../components/admin/SupportInbox";
 import { InternalChat } from "../../../components/admin/InternalChat";
+import { StatCard } from "../../../components/admin/StatCard";
+import { formatMoney } from "../../../lib/format";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category, StoreSettings } from "../../../types";
 import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
@@ -485,41 +487,40 @@ function AdminDashboardContent() {
                 <div className="space-y-8">
                   {/* Metrics grid */}
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-2">
-                      <div className="flex justify-between items-center text-muted-foreground">
-                        <span className="text-xs font-bold uppercase tracking-wider">Chiffre d'Affaires</span>
-                        <TrendingUp className="h-4 w-4 text-emerald-500" />
-                      </div>
-                      <p className="text-2xl font-extrabold text-foreground">{totalRevenue} $</p>
-                      <p className="text-[10px] text-muted-foreground">Basé uniquement sur les commandes livrées (COD)</p>
-                    </div>
+                    <StatCard
+                      label="Chiffre d'Affaires"
+                      value={formatMoney(totalRevenue)}
+                      icon={TrendingUp}
+                      iconClassName="h-4 w-4 text-emerald-500"
+                      hint="Basé uniquement sur les commandes livrées (COD)"
+                    />
 
-                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-2">
-                      <div className="flex justify-between items-center text-muted-foreground">
-                        <span className="text-xs font-bold uppercase tracking-wider">Commandes Totales</span>
-                        <ShoppingBag className="h-4 w-4 text-primary" />
-                      </div>
-                      <p className="text-2xl font-extrabold text-foreground">{orders.length}</p>
-                      <p className="text-[10px] text-muted-foreground">{pendingOrdersCount} commande(s) en attente</p>
-                    </div>
+                    <StatCard
+                      label="Commandes Totales"
+                      value={orders.length}
+                      icon={ShoppingBag}
+                      iconClassName="h-4 w-4 text-primary"
+                      hint={`${pendingOrdersCount} commande(s) en attente`}
+                    />
 
-                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-2">
-                      <div className="flex justify-between items-center text-muted-foreground">
-                        <span className="text-xs font-bold uppercase tracking-wider">Acheteurs Actifs</span>
-                        <Users className="h-4 w-4 text-blue-500" />
-                      </div>
-                      <p className="text-2xl font-extrabold text-foreground">{customersCount}</p>
-                      <p className="text-[10px] text-muted-foreground">Clients avec numéro de téléphone unique</p>
-                    </div>
+                    <StatCard
+                      label="Acheteurs Actifs"
+                      value={customersCount}
+                      icon={Users}
+                      iconClassName="h-4 w-4 text-blue-500"
+                      hint="Clients avec numéro de téléphone unique"
+                    />
 
-                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-2 bg-amber-500/5 border-amber-500/20">
-                      <div className="flex justify-between items-center text-amber-600 dark:text-amber-400">
-                        <span className="text-xs font-bold uppercase tracking-wider">Stock Critique</span>
-                        <AlertTriangle className="h-4 w-4" />
-                      </div>
-                      <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{lowStockProducts.length}</p>
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400">Articles ayant ≤ 3 unités</p>
-                    </div>
+                    <StatCard
+                      label="Stock Critique"
+                      value={lowStockProducts.length}
+                      icon={AlertTriangle}
+                      cardClassName="bg-amber-500/5 border-amber-500/20"
+                      iconClassName="h-4 w-4 text-amber-600 dark:text-amber-400"
+                      valueClassName="text-amber-600 dark:text-amber-400"
+                      hintClassName="text-amber-600 dark:text-amber-400"
+                      hint="Articles ayant ≤ 3 unités"
+                    />
                   </div>
 
                   {/* SVG Chart */}

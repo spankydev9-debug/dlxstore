@@ -107,6 +107,7 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
   letter-spacing: -0.01em; /* Tighter, more editorial typography */
   /* Mobile viewport and safe-area fixes */
+  min-height: 100vh; /* Fallback for browsers without dvh support */
   min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
   /* Global insets: top/bottom safe areas are applied per-component (sticky header,
      main content, mobile menu drawer, footer) so no stray gaps appear below the page
@@ -115,6 +116,98 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   overflow-x: hidden;
+}
+
+html {
+  /* Normalize automatic font-size inflation on legacy iOS WebViews. This does
+     NOT disable pinch-to-zoom; it only prevents unexpected text scaling.
+     The 1:1 "natural scale" is guaranteed by the viewport config anyway. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+ * Primary overlay system (Shared by Support chat, install/language prompts).
+ *
+ * Viewport hierarchy:
+ *   viewport (fixed, covers the full layout viewport INCLUDING safe areas)
+ *   -> safe-area-aware outer container (backdrop padding uses env(insets))
+ *   -> stable header / close area            (shrink-0, inside the panel)
+ *   -> scrollable content area               (flex-1 min-h-0 overflow-y-auto)
+ *   -> safe-area-aware input/footer          (above the backdrop bottom inset)
+ *
+ * The panel is sized against the backdrop's content box, so it can never extend
+ * beyond the usable viewport on iPhone (Dynamic Island/notch top, home-indicator
+ * bottom, left/right insets). Sizing is derived from env() + 100%, never from
+ * arbitrary pixel offsets.
+ */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end; /* Mobile: bottom sheet */
+  justify-content: center;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    calc(env(safe-area-inset-bottom, 0px) + 0.75rem)
+    env(safe-area-inset-left, 0px);
+  background: rgb(0 0 0 / 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 640px) {
+  .overlay-backdrop {
+    align-items: center; /* Desktop: centered modal */
+    padding: 1.5rem;
+  }
+}
+
+.overlay-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.35);
+}
+
+@media (min-width: 640px) {
+  .overlay-panel {
+    height: auto; /* Content-sized on desktop */
+    max-height: min(80vh, calc(100dvh - 3rem));
+  }
+}
+
+/* Variant for content modals (install steps, language picker): the panel only
+   grows to its content and scrolls internally instead of pinning to full height
+   on mobile. */
+.overlay-panel--auto {
+  height: auto;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/*
+ * Prevent iOS auto-zoom on input focus. iOS zooms in on form fields smaller
+ * than 16px when they receive focus, which makes a fixed-position support sheet
+ * look like "unexpected mobile scaling". Giving form controls a 16px font on
+ * phones removes that zoom without disabling pinch-to-zoom.
+ */
+@media (max-width: 48rem) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 /* Safe area utility classes */

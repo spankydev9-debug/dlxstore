@@ -30,6 +30,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ProductImage } from "./ProductImage";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
+import { useOverlay } from "../../context/OverlayContext";
 import { CustomerSupportChat } from "../chat/CustomerSupportChat";
 import { AvatarBadge } from "../account/AvatarBadge";
 
@@ -41,11 +42,15 @@ export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const { t } = useLanguage();
+  const { activeOverlay, closeOverlay, toggleOverlay } = useOverlay();
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Primary overlays are arbitrated by OverlayProvider: only one can be open at
+  // a time, and browser Back closes the active overlay first.
+  const isChatOpen = activeOverlay === "chat";
+  const isMobileMenuOpen = activeOverlay === "mobile-menu";
+
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -111,7 +116,7 @@ export default function Header() {
         
         {/* LOGO */}
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" onClick={() => closeOverlay()} className="flex items-center space-x-2">
             <span className="text-xl font-bold tracking-widest text-foreground sm:text-2xl uppercase">
               DLX<span className="text-primary font-light">STORE</span>
             </span>
@@ -119,13 +124,13 @@ export default function Header() {
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">{t.home}</Link>
-            <Link href="/shop" className="hover:text-foreground transition-colors">{t.shop}</Link>
-            <Link href="/food" className="hover:text-foreground transition-colors">{t.food}</Link>
-            <Link href="/partners" className="hover:text-foreground transition-colors">{t.shops}</Link>
-            <Link href="/partner" className="hover:text-foreground transition-colors">{t.partner}</Link>
-            <Link href="/about" className="hover:text-foreground transition-colors">{t.about}</Link>
-            <Link href="/contact" className="hover:text-foreground transition-colors">{t.contact}</Link>
+            <Link href="/" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.home}</Link>
+            <Link href="/shop" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.shop}</Link>
+            <Link href="/food" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.food}</Link>
+            <Link href="/partners" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.shops}</Link>
+            <Link href="/partner" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.partner}</Link>
+            <Link href="/about" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.about}</Link>
+            <Link href="/contact" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.contact}</Link>
           </nav>
         </div>
 
@@ -190,6 +195,7 @@ export default function Header() {
           {/* Cart Icon */}
           <Link
             href="/cart"
+            onClick={() => closeOverlay()}
             className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <ShoppingBag className="h-5 w-5" />
@@ -203,9 +209,10 @@ export default function Header() {
           {/* Chat Button */}
           {user && (
             <button
-              onClick={() => setIsChatOpen(!isChatOpen)}
+              onClick={() => toggleOverlay("chat")}
               className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               title={t.supportTitle}
+              aria-expanded={isChatOpen}
             >
               <MessageSquare className="h-5 w-5" />
               {chatUnreadCount > 0 && (
@@ -232,7 +239,7 @@ export default function Header() {
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border/80 bg-card p-4 shadow-xl animate-fade-in z-50">
+                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-border/80 bg-card p-4 shadow-xl animate-fade-in z-50">
                   <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-2">
                     <span className="font-semibold text-sm text-foreground">{t.notifications}</span>
                     {unreadCount > 0 && (
@@ -346,29 +353,44 @@ export default function Header() {
 
           {/* Mobile Menu Toggler */}
           <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            onClick={() => toggleOverlay("mobile-menu")}
             className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors md:hidden"
+            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      {/* Chat Modal */}
+      {/* Support Chat — one of the primary overlays arbitrated by OverlayProvider */}
       {isChatOpen && user && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-safe-area-inset-bottom backdrop-blur-sm sm:items-center sm:p-6 animate-fade-in">
-          <div className="w-full max-w-4xl max-h-[calc(100dvh-2rem)] sm:max-h-[80vh] animate-scale-in flex flex-col bg-card rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border p-4 shrink-0">
-              <h2 className="text-lg font-bold">{t.supportTitle}</h2>
+        <div
+          className="overlay-backdrop animate-fade-in"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeOverlay();
+          }}
+        >
+          <div
+            className="overlay-panel w-full max-w-4xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.supportTitle}
+          >
+            {/* Stable header / close — always reachable */}
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-4">
+              <h2 className="min-w-0 truncate text-lg font-bold">
+                {t.supportTitle}
+              </h2>
               <button
-                onClick={() => setIsChatOpen(false)}
-                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                onClick={() => closeOverlay()}
+                className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
+            {/* Scrollable conversation content */}
+            <div className="min-h-0 flex-1">
               <CustomerSupportChat />
             </div>
           </div>
@@ -377,7 +399,7 @@ export default function Header() {
 
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (
-        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain">
+        <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom max-h-[calc(100dvh-4rem-env(safe-area-inset-top))] overflow-y-auto overscroll-contain">
           {/* Mobile Search */}
           <form onSubmit={handleSearchSubmit} className="relative mb-4">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
@@ -393,31 +415,31 @@ export default function Header() {
           <nav className="flex flex-col space-y-3 font-medium text-sm text-muted-foreground">
             <Link 
               href="/" 
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => closeOverlay()}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
               {t.home}
             </Link>
             <Link 
               href="/shop" 
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => closeOverlay()}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
               {t.shop}
             </Link>
             <Link 
               href="/about" 
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => closeOverlay()}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
               {t.about}
             </Link>
-            <Link href="/food" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
-            <Link href="/partners" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.shops}</Link>
-            <Link href="/partner" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.partner}</Link>
+            <Link href="/food" onClick={() => closeOverlay()} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.food}</Link>
+            <Link href="/partners" onClick={() => closeOverlay()} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.shops}</Link>
+            <Link href="/partner" onClick={() => closeOverlay()} className="hover:text-foreground py-1 transition-colors border-b border-border/40">{t.partner}</Link>
             <Link 
               href="/contact" 
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => closeOverlay()}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
             >
               {t.contact}

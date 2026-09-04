@@ -196,7 +196,7 @@ export function ChatEmptyState({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-[320px] flex-col items-center justify-center px-6 text-center">
+    <div className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center px-6 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
         <MessageSquare className="h-6 w-6 text-muted-foreground" />
       </div>

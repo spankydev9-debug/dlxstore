@@ -6,6 +6,7 @@ import { CartProvider } from "../context/CartContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { ChatProvider } from "../context/ChatContext";
+import { OverlayProvider } from "../context/OverlayContext";
 import { StorefrontShell } from "../components/shared/StorefrontShell";
 import { PwaRegistration } from "../components/shared/PwaRegistration";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "../lib/site";
@@ -94,7 +95,9 @@ export default function RootLayout({
               <CartProvider>
                 <NotificationProvider>
                   <ChatProvider>
-                    <StorefrontShell>{children}</StorefrontShell>
+                    <OverlayProvider>
+                      <StorefrontShell>{children}</StorefrontShell>
+                    </OverlayProvider>
                   </ChatProvider>
                 </NotificationProvider>
               </CartProvider>
