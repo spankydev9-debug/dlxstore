@@ -60,6 +60,11 @@ export default function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
+  // Vertical space covered by the mobile virtual keyboard while Support is open.
+  // Populated from the actual VisualViewport geometry (not a guessed offset) so
+  // the composer stays above the keyboard on iOS/Android.
+  const [kbInset, setKbInset] = useState(0);
+
   // Load products for client-side search autocomplete
   useEffect(() => {
     getProducts().then(setAllProducts).catch(console.error);
@@ -95,6 +100,48 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Keep the Support composer above the virtual keyboard while chat is open.
+  // Uses the VisualViewport API (real browser geometry) so there are no guessed
+  // offsets. Only applied while a control inside the Support overlay is focused.
+  useEffect(() => {
+    if (!isChatOpen) {
+      setKbInset(0);
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let focusedInOverlay = false;
+
+    const update = () => {
+      if (!focusedInOverlay) {
+        setKbInset(0);
+        return;
+      }
+      const overlap = Math.max(
+        0,
+        Math.round(window.innerHeight - vv.height - vv.offsetTop)
+      );
+      setKbInset(overlap);
+    };
+    const onFocusChange = () => {
+      const el = document.activeElement;
+      focusedInOverlay =
+        !!el && el.closest && el.closest("[data-support-overlay]") !== null;
+      update();
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    document.addEventListener("focusin", onFocusChange);
+    document.addEventListener("focusout", onFocusChange);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      document.removeEventListener("focusin", onFocusChange);
+      document.removeEventListener("focusout", onFocusChange);
+    };
+  }, [isChatOpen]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -111,6 +158,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <header className="sticky top-0 z-40 w-full border-b border-border/40 glass pt-safe-area-inset-top">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
@@ -362,41 +410,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Support Chat — one of the primary overlays arbitrated by OverlayProvider */}
-      {isChatOpen && user && (
-        <div
-          className="overlay-backdrop animate-fade-in"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeOverlay();
-          }}
-        >
-          <div
-            className="overlay-panel w-full max-w-4xl"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t.supportTitle}
-          >
-            {/* Stable header / close — always reachable */}
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-4">
-              <h2 className="min-w-0 truncate text-lg font-bold">
-                {t.supportTitle}
-              </h2>
-              <button
-                onClick={() => closeOverlay()}
-                className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {/* Scrollable conversation content */}
-            <div className="min-h-0 flex-1">
-              <CustomerSupportChat />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Mobile Menu Drawer */}
       {isMobileMenuOpen && (
         <div className="border-b border-border bg-card py-4 px-6 md:hidden animate-fade-in pb-safe-area-inset-bottom max-h-[calc(100dvh-4rem-env(safe-area-inset-top))] overflow-y-auto overscroll-contain">
@@ -453,5 +466,47 @@ export default function Header() {
         </div>
       )}
     </header>
+
+    {/* Support Chat — rendered as a SIBLING of the glass <header>, never inside it.
+        The header's backdrop-filter creates a containing block that would confine
+        a position:fixed descendant to the ~64px header strip instead of the
+        viewport (this is why Support appeared off-screen on iPhone). Notifications
+        was never affected because it is position:absolute inside the header. */}
+    {isChatOpen && user && (
+      <div
+        data-support-overlay
+        className="overlay-backdrop animate-fade-in"
+        style={{ "--kb-offset": `${kbInset}px` } as React.CSSProperties}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeOverlay();
+        }}
+      >
+        <div
+          className="overlay-panel w-full max-w-4xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.supportTitle}
+        >
+          {/* Stable header / close — always reachable */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-4">
+            <h2 className="min-w-0 truncate text-lg font-bold">
+              {t.supportTitle}
+            </h2>
+            <button
+              onClick={() => closeOverlay()}
+              className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {/* Scrollable conversation content */}
+          <div className="min-h-0 flex-1">
+            <CustomerSupportChat />
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
