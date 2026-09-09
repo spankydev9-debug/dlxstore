@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  verification: {
+    google: "rDLfWrWhsGIOrBrggnaVJEkzdPSPWunULd-pUM-bR64",
+  },
   openGraph: {
     title: `${SITE_NAME} | ${SITE_TAGLINE}`,
     description: "A trusted digital marketplace for the Democratic Republic of Congo, with free delivery across Goma and cash on delivery.",
