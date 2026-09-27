@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Notification } from "../types";
 import { useAuth } from "./AuthContext";
 import { getNotifications, markAsRead as dbMarkAsRead } from "../services/db/notifications";
+import { isSupabaseConfigured, supabase } from "../services/db";
 
 type NotificationContextType = {
   notifications: Notification[];
@@ -20,7 +21,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
       return;
@@ -34,24 +35,50 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    refreshNotifications();
+    void refreshNotifications();
+  }, [refreshNotifications]);
 
-    // Check notifications periodically (mocking realtime triggers)
-    const interval = setInterval(() => {
-      if (user) {
-        // Fetch new ones
-        getNotifications(user.id).then(list => {
-          setNotifications(list);
-        }).catch(err => console.error("Error background loading notifications:", err));
-      }
-    }, 8000);
+  useEffect(() => {
+    const client = supabase;
+    if (!user || !isSupabaseConfigured || !client) return;
 
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    let pollingFallback: ReturnType<typeof setInterval> | undefined;
+    const startPollingFallback = () => {
+      if (pollingFallback) return;
+      pollingFallback = setInterval(() => {
+        void refreshNotifications();
+      }, 8000);
+    };
+
+    const channel = client
+      .channel(`dlxstore-notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void refreshNotifications();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") return;
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          startPollingFallback();
+        }
+      });
+
+    return () => {
+      if (pollingFallback) clearInterval(pollingFallback);
+      void client.removeChannel(channel);
+    };
+  }, [refreshNotifications, user]);
 
   const markAsRead = async (id: string) => {
     try {

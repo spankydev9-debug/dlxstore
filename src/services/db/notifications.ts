@@ -51,14 +51,7 @@ export async function createNotification(
   type: "order_status" | "low_stock" | "new_order"
 ): Promise<Notification> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("notifications")
-      .insert([{ user_id: userId, title, message, type, is_read: false }])
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message || "An error occurred.");
-    return data;
+    throw new Error("Notifications must be created by an authorized server-side workflow.");
   }
 
   // Local Storage Fallback

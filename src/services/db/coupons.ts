@@ -63,6 +63,34 @@ export async function validateCoupon(code: string, subtotal: number, isReturning
   const normalized = code.toUpperCase().trim();
   if (!normalized) return null;
 
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.rpc("quote_coupon", {
+      p_code: normalized,
+      p_subtotal: subtotal,
+    });
+    if (!error) {
+      const quote = (data ?? [])[0];
+      if (!quote) return null;
+      return {
+        coupon: {
+          ...quote,
+          max_uses: undefined,
+          used_count: 0,
+          audience: "all",
+          campaign_id: undefined,
+          active: true,
+          created_at: "",
+        } as Coupon,
+        discount: Number(quote.discount),
+      };
+    }
+    // The compatibility fallback keeps the current production schema working
+    // until the accompanying migration is explicitly applied.
+    if (error.code !== "PGRST202") {
+      throw new Error(error.message || "Unable to validate coupon.");
+    }
+  }
+
   const coupons = await getCoupons(true);
   const coupon = coupons.find((c) => c.code.toUpperCase() === normalized);
   if (!coupon || !coupon.active) return null;
@@ -78,17 +106,14 @@ export async function validateCoupon(code: string, subtotal: number, isReturning
 }
 
 export async function incrementCouponUsage(code: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    throw new Error("Coupon usage is recorded atomically when the order is created.");
+  }
+
   const coupons = await getCoupons(true);
   const coupon = coupons.find((c) => c.code.toUpperCase() === code.toUpperCase().trim());
   if (!coupon) return;
 
-  if (isSupabaseConfigured && supabase) {
-    await supabase
-      .from("coupons")
-      .update({ used_count: coupon.used_count + 1 })
-      .eq("id", coupon.id);
-    return;
-  }
   if (!isDemoMode) return;
   await updateCoupon(coupon.id, { used_count: coupon.used_count + 1 });
 }
