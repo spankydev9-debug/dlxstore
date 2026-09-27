@@ -305,6 +305,14 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'Profiles are already friends';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.friend_requests
+    WHERE status = 'pending'
+      AND sender_id = p_recipient_id
+      AND recipient_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'A friend request from this profile is already pending';
+  END IF;
   INSERT INTO public.friend_requests (sender_id, recipient_id)
   VALUES (auth.uid(), p_recipient_id)
   ON CONFLICT (sender_id, recipient_id) WHERE status = 'pending'
