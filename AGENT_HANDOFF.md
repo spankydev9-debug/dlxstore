@@ -1,7 +1,7 @@
 # AGENT_HANDOFF.md
 
 Canonical handoff contract for every agent working on DLXSTORE.
-Last updated: 2026-09-28. Owner: Lead / Architect agent.
+Last updated: 2026-09-30 (Devin continuation). Owner: Lead / Architect agent.
 
 ---
 
@@ -21,17 +21,18 @@ a commerce + messaging + social + AI ecosystem. See `ROADMAP.md`.
 
 ---
 
-## 2. Current Git state (verified 2026-09-28)
+## 2. Current Git state (verified 2026-09-30)
 
 | | |
 |---|---|
-| Working branch | `mobile-ux-hardening` @ `a9876be` (2026-09-09) |
-| `main` | `bb81f9d` (2026-08-23) — **20 commits behind, not an ancestor** |
+| Working branch | `mobile-ux-hardening` @ `5ebd513` (2026-09-30 Devin continuation) |
+| `main` | `bb81f9d` (2026-08-23) — **commits behind, not an ancestor** |
 | Merge base | `d409409` (2026-08-23) "chore: finalize verified DLXSTORE production release" |
-| Working tree | Clean except 2 untracked backup SQL files (intentionally not committed) |
+| Working tree | Clean (backup SQL files tracked in .gitignore) |
 | Production deploy | `dpl_GnugoNYDwBzefawAkQjhy8r5vrrF`, built from **`mobile-ux-hardening`** |
 | Production alias | `https://dlxstore-flax.vercel.app` |
 | Stashes | 3 exist and **must be preserved** — see section 6 |
+| Devin packages | 6 commits (6d8c0be, 5e3e600, b67743f, e86f570, 481c8bb, 5ebd513) |
 
 **There is no canonical branch.** Production ships from a feature branch.
 Full analysis: `docs/BRANCH_STRATEGY.md`.
