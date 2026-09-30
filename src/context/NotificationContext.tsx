@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Notification } from "../types";
 import { useAuth } from "./AuthContext";
-import { getNotifications, markAsRead as dbMarkAsRead } from "../services/db/notifications";
+import { getNotifications, markAsRead as dbMarkAsRead, markAllAsRead as dbMarkAllAsRead, deleteNotification as dbDeleteNotification } from "../services/db/notifications";
 import { isSupabaseConfigured, supabase } from "../services/db";
 
 type NotificationContextType = {
@@ -11,6 +11,8 @@ type NotificationContextType = {
   unreadCount: number;
   isLoading: boolean;
   markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
   refreshNotifications: () => Promise<void>;
 };
 
@@ -91,6 +93,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      await dbMarkAllAsRead(user.id);
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error("Error marking all notifications as read:", err);
+    }
+  };
+
+  const deleteNotif = async (id: string) => {
+    try {
+      await dbDeleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -100,6 +121,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         unreadCount,
         isLoading,
         markAsRead,
+        markAllAsRead,
+        deleteNotification: deleteNotif,
         refreshNotifications
       }}
     >
