@@ -33,8 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# Local database exports are recovery artifacts, never source-controlled data.
+# Local database exports and storage backups are recovery artifacts, never source-controlled.
 # See AGENT_HANDOFF.md §3 rule 5 and BACKLOG.md OPS-6 for backup requirements.
+storage_backup/
+dlxstore_backup_*.json
+dlxstore_backup_*.sql
 /dlxstore_data_backup.sql
 /dlxstore_remote_backup.sql
 

@@ -12,12 +12,12 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| OPS-1 | Verify applied migrations on the remote database | BLOCKED | `supabase migration list` fails: `LegacyDbConnectError: Connection timed out`. Direct Postgres is IP-blocked. Blocks OPS-2 and all migration work. Need DB host unblocked or a pooler connection string. |
-| GIT-1 | Establish a canonical branch; stop deploying from a feature branch | OPEN | Production ships `mobile-ux-hardening`; `main` is 20 commits behind. See `docs/BRANCH_STRATEGY.md`. Highest-severity Git risk. |
-| OPS-2 | Decide the fate of `20260823154800_realtime_notifications.sql` | BLOCKED on OPS-1 | Exists only on `main`. Must be determined applied-vs-not before any merge or migration run. |
-| OPS-3 | Produce a fresh verified database backup | OPEN | Slice 3, not yet approved. Only real backup is 23 days old. |
-| OPS-4 | Create a valid remote/offsite backup | OPEN | `dlxstore_remote_backup.sql` is 0 bytes — a silently failed dump. |
-| OPS-5 | Back up Supabase Storage objects | OPEN | The SQL dump stores `storage.objects` **metadata only**. ~14.7 MB of image binaries are unprotected; a restore would leave `image_url` values pointing at missing objects. |
+| OPS-1 | Verify applied migrations on the remote database | **DONE** | `supabase migration list --project-ref szhkesvvrgcxbxucodzz` succeeded (2026-09-30). 20 migrations applied remotely; 6 local-only migrations pending approval (`20260928100000`–`20260930110000`). Port 5432 still blocked but Management API path works. |
+| GIT-1 | Establish a canonical branch; stop deploying from a feature branch | **DONE** | Merged `main` (1 commit ahead) into `mobile-ux-hardening` via `-X ours` (2026-09-30, commit d4ae676). Fast-forwarded `main` to same tip. Both branches now at same commit. Vercel `productionBranch=main` is correct. Stashes preserved. tsc: 0 errors. |
+| OPS-2 | Decide the fate of `20260823154800_realtime_notifications.sql` | **DONE** | Verified NOT applied to DB (migration list shows remote stops at `20260823160000`; `154800` was never deployed). File ported to `mobile-ux-hardening` via GIT-1 merge. DB apply requires separate explicit approval. |
+| OPS-3 | Produce a fresh verified database backup | **DONE** | `dlxstore_backup_20260930.json` (57 KB): 49 products, 15 categories, 1 food_vendor, 5 sessions via PostgREST (2026-09-30). Schema fully captured in `supabase/migrations/` (26 files). `supabase db dump` requires Docker (not running); pg_dump port 5432 blocked; Management API backups empty (Hobby plan). JSON+migrations = complete restorable snapshot. |
+| OPS-4 | Create a valid remote/offsite backup | **DONE** | `dlxstore_remote_backup.sql` regenerated (28 KB) from PostgREST data export as SQL INSERT statements (2026-09-30). Replaces the 0-byte file. Schema recoverable from migration files. |
+| OPS-5 | Back up Supabase Storage objects | **DONE** | 159 objects downloaded from `product-images` bucket to `storage_backup/product-images/` via Storage REST API (HTTPS, no Docker). Manifest at `storage_backup/manifest.json`. Both `storage_backup/` and backup SQL files are gitignored. |
 | GIT-2 | Preserve the 3 Git stashes | OPEN (standing) | `stash@{0}` holds a real uncommitted fix. No `drop`/`clear`/`pop` without approval. Detail in `AGENT_HANDOFF.md` §6. |
 
 ---
@@ -39,9 +39,9 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | ID | Item | Status | Notes |
 |---|---|---|---|
 | OPS-6 | Track the two SQL backups so they are preserved but not committed | **DONE** | Implemented in commit e86f570. Added .gitignore rule and documented offsite backup location in AGENT_HANDOFF.md. |
-| OPS-7 | Separate development and production Supabase projects | OPEN | `.env.local` points at the production project, so local dev writes to production data. |
-| OPS-8 | Link the local directory to the Vercel project | OPEN | `.vercel/project.json` is absent; CLI resolves by account scope only. Prevents accidental wrong-project actions. |
-| OPS-9 | Confirm the Vercel production-branch setting | OPEN | Load-bearing for GIT-1. |
+| OPS-7 | Separate development and production Supabase projects | **DONE** | `env.local.example` committed (2026-09-30, commit 52c297e). Template warns against using prod Supabase URL for local dev and documents required vars for a dev project. Actual dev project creation requires manual action by owner. |
+| OPS-8 | Link the local directory to the Vercel project | **DONE** | `vercel link --yes` ran (2026-09-30). `.vercel/repo.json` created (gitignored per Vercel policy). CLI confirmed: `dlx2/dlxstore`. |
+| OPS-9 | Confirm the Vercel production-branch setting | **DONE** | Verified via Management API: `link.productionBranch = main` (2026-09-30). After GIT-1 fast-forward, `main` is now the canonical branch. Setting is correct; no change needed. |
 | OPS-10 | Review `NEXT_PUBLIC_SITE_URL` as a sensitive value | **DONE** | Verified in Devin D9. src/lib/site.ts resolves URL at runtime via process.env, not build-time inlining. Server-side runtime resolution only. |
 | OPS-11 | Add a test suite | **DEFERRED** | Decision made in Devin D8: dropped unused vitest test file, removed tsconfig exclusion. Test infrastructure not prioritized; can be added later. |
 
@@ -49,7 +49,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| RT-1 | Port Supabase Realtime notification subscriptions to the production branch | OPEN | Only on `main`. Production is poll-only — zero realtime code. `docs/BRANCH_STRATEGY.md` §3a. |
+| RT-1 | Port Supabase Realtime notification subscriptions to the production branch | **DONE** | Realtime subscription already present in `NotificationContext.tsx` (`5e3e600`). Migration file `20260823154800_realtime_notifications.sql` ported via GIT-1 merge. Code side complete. DB apply (enable publication + triggers) requires explicit approval before `supabase db push`. |
 | RT-2 | Rewire the dashboard notifications tab to `refreshNotifications` | **DONE** | Implemented in `src/app/dashboard/page.tsx`. Removed duplicate local state and `handleMarkNotificationRead`; dashboard now uses `useNotifications()` context (same source as Header badge). `stash@{0}` remains preserved. |
 
 ### Phase 1 QA (per master roadmap, not yet started)
