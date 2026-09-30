@@ -42,7 +42,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | OPS-7 | Separate development and production Supabase projects | OPEN | `.env.local` points at the production project, so local dev writes to production data. |
 | OPS-8 | Link the local directory to the Vercel project | OPEN | `.vercel/project.json` is absent; CLI resolves by account scope only. Prevents accidental wrong-project actions. |
 | OPS-9 | Confirm the Vercel production-branch setting | OPEN | Load-bearing for GIT-1. |
-| OPS-10 | Review `NEXT_PUBLIC_SITE_URL` as a sensitive value | OPEN | Sensitive values are not inlined at build time. It resolves server-side at runtime today. Avoid depending on build-time inlining. |
+| OPS-10 | Review `NEXT_PUBLIC_SITE_URL` as a sensitive value | **DONE** | Verified in Devin D9. src/lib/site.ts resolves URL at runtime via process.env, not build-time inlining. Server-side runtime resolution only. |
 | OPS-11 | Add a test suite | **DEFERRED** | Decision made in Devin D8: dropped unused vitest test file, removed tsconfig exclusion. Test infrastructure not prioritized; can be added later. |
 
 ### Realtime notifications
@@ -50,7 +50,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | ID | Item | Status | Notes |
 |---|---|---|---|
 | RT-1 | Port Supabase Realtime notification subscriptions to the production branch | OPEN | Only on `main`. Production is poll-only — zero realtime code. `docs/BRANCH_STRATEGY.md` §3a. |
-| RT-2 | Rewire the dashboard notifications tab to `refreshNotifications` | OPEN | This is exactly what `stash@{0}` contains. The context already exposes the function; the dashboard still uses the old `getNotifications()` path. |
+| RT-2 | Rewire the dashboard notifications tab to `refreshNotifications` | **DONE** | Implemented in `src/app/dashboard/page.tsx`. Removed duplicate local state and `handleMarkNotificationRead`; dashboard now uses `useNotifications()` context (same source as Header badge). `stash@{0}` remains preserved. |
 
 ### Phase 1 QA (per master roadmap, not yet started)
 

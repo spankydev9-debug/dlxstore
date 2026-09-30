@@ -7,10 +7,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { getOrders } from "../../services/db/orders";
 import { getWishlist, removeFromWishlist } from "../../services/db/wishlist";
-import { getNotifications, markAsRead } from "../../services/db/notifications";
+import { useNotifications } from "../../context/NotificationContext";
 import { updateProfile } from "../../services/auth";
 import { getMyRewardsSummary, recordShareEvent } from "../../services/db/rewards";
-import { Order, Product, Notification, RewardsSummary } from "../../types";
+import { Order, Product, RewardsSummary } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { languages } from "../../lib/i18n";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
@@ -47,7 +47,7 @@ function DashboardContent() {
   // States
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, markAsRead: handleMarkNotificationRead, refreshNotifications } = useNotifications();
   const [isLoading, setIsLoading] = useState(true);
   const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [rewardsLoading, setRewardsLoading] = useState(false);
@@ -92,8 +92,7 @@ function DashboardContent() {
           const wish = await getWishlist(user.id);
           setWishlist(wish);
         } else if (activeTab === "notifications") {
-          const nots = await getNotifications(user.id);
-          setNotifications(nots);
+          await refreshNotifications();
         } else if (activeTab === "addresses") {
           // Load address
           const savedAddr = localStorage.getItem(`dlxstore_address_${user.id}`);
@@ -182,16 +181,7 @@ function DashboardContent() {
     }
   };
 
-  const handleMarkNotificationRead = async (id: string) => {
-    try {
-      await markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, is_read: true } : n))
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
+
 
   if (isAuthLoading || !user) {
     return (
