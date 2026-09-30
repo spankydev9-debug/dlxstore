@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { type CSSProperties, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import {
   getProductImageFallback,
   resolveProductImageUrl,
@@ -28,6 +29,7 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
   const fallbackReason = failedSrc === resolvedSrc
     ? "load_failed"
     : validation.isAllowed ? undefined : validation.reason;
+  const isFallback = fallbackReason !== undefined;
 
   const shared = {
     alt,
@@ -35,9 +37,38 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     priority,
     style,
     onError: () => setFailedSrc(resolvedSrc),
-    "data-dlx-image-state": fallbackReason ? "fallback" : "ready",
+    "data-dlx-image-state": isFallback ? "fallback" : "ready",
     "data-dlx-image-reason": fallbackReason,
   };
+
+  // Observable broken-image state: when image is in fallback, show visual indicator
+  if (isFallback) {
+    return (
+      <div 
+        className="flex items-center justify-center bg-muted border border-border"
+        style={fill ? { position: 'absolute', inset: 0, ...style } : { width: width || 400, height: height || 400, ...style }}
+        data-dlx-fallback-visual="true"
+      >
+        <div className="flex flex-col items-center gap-2 p-4 text-center">
+          <AlertCircle className="h-8 w-8 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {fallbackReason === "load_failed" ? "Image unavailable" : "Invalid image source"}
+          </span>
+        </div>
+        {/* Hidden Image for accessibility/SEO */}
+        <Image 
+          src={currentSrc} 
+          fill={fill} 
+          width={fill ? undefined : (width || 400)} 
+          height={fill ? undefined : (height || 400)} 
+          sizes={sizes || "100vw"} 
+          {...shared}
+          className="sr-only"
+          style={{ position: 'absolute' }}
+        />
+      </div>
+    );
+  }
 
   if (fill) {
     return <Image src={currentSrc} fill sizes={sizes || "100vw"} {...shared} />;
