@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { Category } from "../../types";
 import { createCategory, deleteCategory, getCategories, reorderCategories, updateCategory } from "../../services/db/products";
 import { uploadProductImage } from "../../services/db/storage";
+import { validateProductImageUrl } from "../../lib/product-image";
 
 function slugify(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -42,7 +43,10 @@ export function CategoryControls() {
     if (!file) return;
     setIsSaving(true);
     try {
-      setImageUrl(await uploadProductImage(file));
+      const uploadedUrl = await uploadProductImage(file);
+      const validation = validateProductImageUrl(uploadedUrl);
+      if (!validation.isAllowed) throw new Error("L'image téléversée n'est pas compatible avec l'affichage DLX.");
+      setImageUrl(validation.url);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Le téléversement a échoué.");
     } finally {

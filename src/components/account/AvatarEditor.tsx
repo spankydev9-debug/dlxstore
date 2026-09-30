@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { getMyAvatar, saveMyAvatar } from "../../services/db/avatar";
+import type { CustomerAvatar } from "../../types";
 import {
   AvatarAttributes,
   avatarOptionGroups,
@@ -11,6 +12,7 @@ import {
   normalizeAvatarAttributes,
 } from "../../lib/avatar";
 import { AvatarVisual } from "./AvatarVisual";
+import { VisualStudio } from "./VisualStudio";
 import { Check, Pencil, RefreshCw, Save, Sparkles, UserCircle } from "lucide-react";
 
 const AVATAR_UPDATE_EVENT = "dlxstore-avatar-updated";
@@ -49,6 +51,7 @@ export function AvatarEditor() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [attributes, setAttributes] = useState<AvatarAttributes>(defaultAvatarAttributes);
+  const [savedAvatar, setSavedAvatar] = useState<CustomerAvatar | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasExistingAvatar, setHasExistingAvatar] = useState(false);
@@ -72,16 +75,20 @@ export function AvatarEditor() {
     getMyAvatar(user.id)
       .then((avatar) => {
         if (avatar && avatar.attributes) {
-          setAttributes(normalizeAvatarAttributes(avatar.attributes));
+          const normalizedAttributes = normalizeAvatarAttributes(avatar.attributes);
+          setAttributes(normalizedAttributes);
+          setSavedAvatar({ ...avatar, attributes: normalizedAttributes });
           setHasExistingAvatar(true);
           setIsEditing(false);
         } else {
+          setSavedAvatar(null);
           setHasExistingAvatar(false);
           setIsEditing(false);
         }
       })
       .catch((err) => {
         console.error("Error loading avatar:", err);
+        setSavedAvatar(null);
         setHasExistingAvatar(false);
         setIsEditing(true);
       })
@@ -115,7 +122,11 @@ export function AvatarEditor() {
     setSuccessMessage("");
     setErrorMessage("");
     try {
-      await saveMyAvatar(user.id, attributes);
+      const avatar = await saveMyAvatar(user.id, attributes);
+      setSavedAvatar({
+        ...avatar,
+        attributes: normalizeAvatarAttributes(avatar.attributes),
+      });
       setSuccessMessage(t.avatarSaved);
       setHasExistingAvatar(true);
       setIsEditing(false);
@@ -216,6 +227,8 @@ export function AvatarEditor() {
             </div>
           ))}
         </div>
+
+        {user && savedAvatar && <VisualStudio user={user} avatar={savedAvatar} />}
       </div>
     );
   }

@@ -33,6 +33,10 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Local database exports are recovery artifacts, never source-controlled data.
+/dlxstore_data_backup.sql
+/dlxstore_remote_backup.sql
+
 # vercel
 .vercel
 

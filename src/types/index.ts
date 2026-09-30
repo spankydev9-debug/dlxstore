@@ -308,8 +308,12 @@ export interface InventoryHistoryEntry {
 // DLX Chat
 // ---------------------------------------------------------------------------
 
-export type ConversationType = "customer_support" | "internal";
+export type ConversationType = "customer_support" | "internal" | "group";
 export type ConversationStatus = "open" | "resolved" | "closed";
+export type UserPresenceStatus = "online" | "away" | "offline";
+export type MessageStatusType = "sent" | "delivered" | "read";
+export type MediaType = "image" | "video" | "audio" | "document" | "sticker";
+export type MemberRole = "admin" | "moderator" | "member";
 
 /** A participant surfaced through list_my_conversations for identity/context. */
 export interface ConversationParticipantInfo {
@@ -318,6 +322,15 @@ export interface ConversationParticipantInfo {
   role: UserRole;
   phone?: string | null;
   email?: string | null;
+  presence?: UserPresenceInfo | null;
+  last_read_at?: string | null;
+  last_delivered_at?: string | null;
+  member_role?: MemberRole | null;
+}
+
+export interface UserPresenceInfo {
+  status: UserPresenceStatus;
+  last_seen_at: string;
 }
 
 export interface Conversation {
@@ -333,6 +346,10 @@ export interface Conversation {
   updated_at: string;
   unread_count: number;
   participants: ConversationParticipantInfo[];
+  is_group?: boolean;
+  group_avatar_url?: string | null;
+  group_description?: string | null;
+  group_admin_id?: string | null;
 }
 
 export interface ConversationMessage {
@@ -345,6 +362,80 @@ export interface ConversationMessage {
   created_at: string;
   edited_at?: string | null;
   deleted_at?: string | null;
+  reactions?: MessageReaction[];
+  media?: MessageMedia[];
+  status?: MessageStatus[];
+  is_pinned?: boolean;
+  pinned_at?: string | null;
+  pinned_by?: string | null;
+  pinned_by_name?: string | null;
+  pinned_note?: string | null;
+}
+
+export interface MessageReaction {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: string;
+  user_name?: string;
+}
+
+export interface MessageMedia {
+  id: string;
+  message_id: string;
+  media_type: MediaType;
+  file_url: string;
+  file_name?: string;
+  file_size?: number;
+  mime_type?: string;
+  thumbnail_url?: string;
+  width?: number;
+  height?: number;
+  duration_seconds?: number;
+  created_at: string;
+}
+
+export interface MessageStatus {
+  message_id: string;
+  user_id: string;
+  status: MessageStatusType;
+  updated_at: string;
+}
+
+export interface TypingIndicator {
+  conversation_id: string;
+  user_id: string;
+  is_typing: boolean;
+  last_updated_at: string;
+  user_name?: string;
+}
+
+export interface PinnedMessage {
+  conversation_id: string;
+  message_id: string;
+  pinned_by: string;
+  pinned_by_name?: string;
+  pinned_at: string;
+  note?: string;
+}
+
+export interface ForwardedMessage {
+  id: string;
+  original_message_id: string;
+  forwarded_message_id: string;
+  created_at: string;
+}
+
+export interface ChatRealtimeData {
+  conversation_id: string;
+  conversation_type: string;
+  conversation_title?: string;
+  conversation_status: string;
+  last_message_at?: string;
+  participants: ConversationParticipantInfo[];
+  typing_users: TypingIndicator[];
+  pinned_messages: PinnedMessage[];
+  unread_count: number;
 }
 
 // ---------------------------------------------------------------------------

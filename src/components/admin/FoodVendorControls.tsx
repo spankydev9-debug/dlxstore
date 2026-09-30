@@ -15,6 +15,7 @@ import {
   deleteFoodCategory,
 } from "../../services/db/food";
 import { DRC_PROVINCES } from "../../lib/drc-geography";
+import { validateProductImageUrl } from "../../lib/product-image";
 
 function slugify(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -75,6 +76,16 @@ export function FoodVendorControls() {
     const trimmedName = name.trim();
     const trimmedSlug = slug.trim();
     if (!trimmedName || !trimmedSlug) return;
+    const imageValidation = imageUrl.trim() ? validateProductImageUrl(imageUrl) : null;
+    const bannerValidation = bannerImageUrl.trim() ? validateProductImageUrl(bannerImageUrl) : null;
+    if (imageValidation && !imageValidation.isAllowed) {
+      setNotice("L'image du restaurant doit être une image DLX/Supabase, Unsplash, ou un chemin local autorisé.");
+      return;
+    }
+    if (bannerValidation && !bannerValidation.isAllowed) {
+      setNotice("La bannière doit être une image DLX/Supabase, Unsplash, ou un chemin local autorisé.");
+      return;
+    }
     setIsSaving(true);
     try {
       const payload = {
@@ -85,8 +96,8 @@ export function FoodVendorControls() {
         city: city.trim() || undefined,
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
-        image_url: imageUrl.trim() || undefined,
-        banner_image_url: bannerImageUrl.trim() || undefined,
+        image_url: imageValidation?.url || undefined,
+        banner_image_url: bannerValidation?.url || undefined,
         is_24_7: is247,
         is_featured: isFeatured,
         minimum_order_amount: minimumOrderAmount !== "" ? Number(minimumOrderAmount) : undefined,

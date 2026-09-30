@@ -38,10 +38,10 @@ CREATE INDEX IF NOT EXISTS messages_reply_to_idx
 
 CREATE TABLE IF NOT EXISTS public.message_reactions (
   message_id UUID NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
-  profile_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   emoji TEXT NOT NULL CHECK (char_length(emoji) BETWEEN 1 AND 32),
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
-  PRIMARY KEY (message_id, profile_id, emoji)
+  PRIMARY KEY (message_id, user_id, emoji)
 );
 
 CREATE INDEX IF NOT EXISTS message_reactions_message_idx
@@ -138,14 +138,14 @@ BEGIN
 
   DELETE FROM public.message_reactions
   WHERE message_id = p_message_id
-    AND profile_id = auth.uid()
+    AND user_id = auth.uid()
     AND emoji = v_emoji;
 
   IF FOUND THEN
     RETURN FALSE;
   END IF;
 
-  INSERT INTO public.message_reactions (message_id, profile_id, emoji)
+  INSERT INTO public.message_reactions (message_id, user_id, emoji)
   VALUES (p_message_id, auth.uid(), v_emoji);
   RETURN TRUE;
 END;
