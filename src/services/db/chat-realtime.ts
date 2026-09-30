@@ -40,7 +40,8 @@ export async function isRealtimeChatAvailable(): Promise<boolean> {
     // `user_presence` is created by the realtime migration and is readable by any
     // authenticated principal, so it is a good liveness signal for that schema.
     const { error } = await supabase.from("user_presence").select("user_id").limit(1);
-    realtimeSchemaState = error ? "unavailable" : "available";
+    // Treat PGRST errors (missing table/column, RLS refusal) as unavailable
+    realtimeSchemaState = (error?.code === "PGRST202" || error?.code === "PGRST205" || error?.code === "42P01" || error?.code === "42703") ? "unavailable" : (error ? "unavailable" : "available");
   } catch {
     realtimeSchemaState = "unavailable";
   }
@@ -51,6 +52,22 @@ export async function isRealtimeChatAvailable(): Promise<boolean> {
 /** Clears the cached probe result (call after a migration is applied). */
 export function resetRealtimeChatAvailability(): void {
   realtimeSchemaState = "unknown";
+}
+
+/**
+ * Returns true if the error indicates the realtime schema is unavailable
+ * (missing table, missing column, or RLS refusal). This allows graceful degradation
+ * when migrations are not yet applied.
+ */
+function isRealtimeSchemaError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const codeMatch = error.code === "PGRST202" 
+    || error.code === "PGRST205" 
+    || error.code === "42P01" 
+    || error.code === "42703";
+  const messageMatch = error.message?.includes("does not exist") 
+    || (error.message?.includes("column") && error.message?.includes("does not exist"));
+  return codeMatch || messageMatch || false;
 }
 
 // ---------------------------------------------------------------------------
@@ -66,7 +83,10 @@ export async function updateUserPresence(
       p_status: status,
       p_device_id: deviceId,
     });
-    if (error) throw new Error(error.message || "Unable to update presence.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to update presence.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -93,7 +113,10 @@ export async function getUserPresence(userId: string): Promise<{
       .single();
 
     if (error) {
-      // Return offline if no presence record exists
+      // Return offline if table doesn't exist or no presence record
+      if (isRealtimeSchemaError(error)) {
+        return { status: "offline", last_seen_at: new Date().toISOString() };
+      }
       return { status: "offline", last_seen_at: new Date().toISOString() };
     }
     
@@ -131,7 +154,10 @@ export async function setTypingStatus(
       p_conversation_id: conversationId,
       p_is_typing: isTyping,
     });
-    if (error) throw new Error(error.message || "Unable to update typing status.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to update typing status.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -156,7 +182,11 @@ export async function getTypingIndicators(
       .eq("is_typing", true)
       .gt("last_updated_at", new Date(Date.now() - 10000).toISOString()); // Last 10 seconds
 
-    if (error) return [];
+    if (error) {
+      // Return empty if table doesn't exist (migration not applied)
+      if (isRealtimeSchemaError(error)) return [];
+      return [];
+    }
     
     // Enrich with user names
     const enrichedIndicators = await Promise.all(
@@ -218,7 +248,10 @@ export async function addMessageReaction(
       p_message_id: messageId,
       p_emoji: emoji,
     });
-    if (error) throw new Error(error.message || "Unable to add reaction.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to add reaction.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -243,7 +276,10 @@ export async function removeMessageReaction(
       p_message_id: messageId,
       p_emoji: emoji,
     });
-    if (error) throw new Error(error.message || "Unable to remove reaction.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to remove reaction.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -266,7 +302,11 @@ export async function getMessageReactions(
       .eq("message_id", messageId)
       .order("created_at", { ascending: true });
 
-    if (error) return [];
+    if (error) {
+      // Return empty if table doesn't exist (migration not applied)
+      if (isRealtimeSchemaError(error)) return [];
+      return [];
+    }
     
     // Enrich with user names
     const enrichedReactions = await Promise.all(
@@ -321,7 +361,10 @@ export async function updateMessageStatus(
       p_message_id: messageId,
       p_status: status,
     });
-    if (error) throw new Error(error.message || "Unable to update message status.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to update message status.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -345,7 +388,11 @@ export async function getMessageStatuses(
       .select("message_id, user_id, status, updated_at")
       .eq("message_id", messageId);
 
-    if (error) return [];
+    if (error) {
+      // Return empty if table doesn't exist (migration not applied)
+      if (isRealtimeSchemaError(error)) return [];
+      return [];
+    }
     return data as MessageStatus[];
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -490,7 +537,10 @@ export async function pinMessage(
       p_message_id: messageId,
       p_note: note,
     });
-    if (error) throw new Error(error.message || "Unable to pin message.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to pin message.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -516,7 +566,10 @@ export async function unpinMessage(
       p_conversation_id: conversationId,
       p_message_id: messageId,
     });
-    if (error) throw new Error(error.message || "Unable to unpin message.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error && !isRealtimeSchemaError(error)) {
+      throw new Error(error.message || "Unable to unpin message.");
+    }
     return;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
@@ -539,7 +592,11 @@ export async function getPinnedMessages(
       .eq("conversation_id", conversationId)
       .order("pinned_at", { ascending: false });
 
-    if (error) return [];
+    if (error) {
+      // Return empty if table doesn't exist (migration not applied)
+      if (isRealtimeSchemaError(error)) return [];
+      return [];
+    }
     
     // Enrich with user names
     const enrichedPins = await Promise.all(
@@ -615,11 +672,18 @@ export async function forwardMessage(
     
     if (sendError) throw new Error("Unable to forward message.");
     
-    // Record the forward relationship
-    await supabase.from("forwarded_messages").insert({
-      original_message_id: originalMessageId,
-      forwarded_message_id: forwardedMessage.id,
-    });
+    // Record the forward relationship - degrade gracefully if table doesn't exist
+    try {
+      await supabase.from("forwarded_messages").insert({
+        original_message_id: originalMessageId,
+        forwarded_message_id: forwardedMessage.id,
+      });
+    } catch (insertError) {
+      // Ignore if forwarded_messages table doesn't exist (migration not applied)
+      if (!isRealtimeSchemaError(insertError as any)) {
+        console.warn("Failed to record forward relationship:", insertError);
+      }
+    }
     
     return forwardedMessage;
   }
@@ -708,7 +772,23 @@ export async function getConversationWithRealtimeData(
       { p_conversation_id: conversationId }
     );
     
-    if (error) throw new Error(error.message || "Unable to load conversation data.");
+    // Gracefully degrade if RPC doesn't exist (migration not applied)
+    if (error) {
+      if (isRealtimeSchemaError(error)) {
+        // Return basic data when realtime RPC is unavailable
+        return {
+          conversation_id: conversationId,
+          conversation_type: "customer_support",
+          conversation_status: "open",
+          last_message_at: new Date().toISOString(),
+          participants: [],
+          typing_users: [],
+          pinned_messages: [],
+          unread_count: 0,
+        };
+      }
+      throw new Error(error.message || "Unable to load conversation data.");
+    }
     return data;
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
