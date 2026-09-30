@@ -521,15 +521,15 @@ export function OnlineStatusBadge({
   
   const statusConfig = {
     online: {
-      label: "Online",
+      label: t.chatOnline,
       className: "text-emerald-600 border-emerald-600/30 bg-emerald-600/10",
     },
     away: {
-      label: "Away",
+      label: t.chatAway,
       className: "text-amber-600 border-amber-600/30 bg-amber-600/10",
     },
     offline: {
-      label: lastSeen ? `Last seen ${formatRelativeTime(lastSeen)}` : "Offline",
+      label: lastSeen ? `Last seen ${formatRelativeTime(lastSeen)}` : t.chatOffline,
       className: "text-muted-foreground border-border bg-muted",
     },
   }[status];

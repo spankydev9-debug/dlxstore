@@ -132,6 +132,8 @@ const fr = {
   chatNoMessagesBody: "Ce client n'a pas encore envoyé de message.",
   chatMyAvatar: "Mon Avatar DLX",
   chatMyAvatarBody: "Personnalisez votre avatar pour représenter votre identité sur DLXSTORE.",
+  chatOnline: "En ligne",
+  chatAway: "Absent",
   // Homepage
   heroPremiumDelivery: "Livraison premium dans tout Goma",
   heroTitle: "Achetez Malin.",
@@ -486,6 +488,8 @@ const en: typeof fr = {
   chatNoMessagesBody: "This customer hasn't sent any messages yet.",
   chatMyAvatar: "My DLX Avatar",
   chatMyAvatarBody: "Customize your avatar to represent your identity on DLXSTORE.",
+  chatOnline: "Online",
+  chatAway: "Away",
   // Homepage
   heroPremiumDelivery: "Premium delivery throughout Goma",
   heroTitle: "Shop Smart.",
@@ -841,6 +845,8 @@ const sw: typeof fr = {
   chatNoMessagesBody: "Mteja huyu hajatuma ujumbe bado.",
   chatMyAvatar: "Avatar Yangu ya DLX",
   chatMyAvatarBody: "Geuza avatar yako kuwakilisha utambulisho wako kwenye DLXSTORE.",
+  chatOnline: "Mtandaoni",
+  chatAway: "Nje",
   // Footer
   footerFreeDelivery: "Usafiri wa Bure",
   footerFreeDeliveryDesc: "Usafiri wa bure unahakikishwa katika jiji la Goma mpango mlango wako.",
@@ -1196,6 +1202,8 @@ const ln: typeof fr = {
   chatNoMessagesBody: "Mokɔ́mbɔ óyo atómí ujumbe tɛ́ sika.",
   chatMyAvatar: "Avatar ya Ngai ya DLX",
   chatMyAvatarBody: "Sɔ́kɔ́ avatar ya nyɔn mpo na kotámbisa utambulisi wa nyɔn na DLXSTORE.",
+  chatOnline: "Na internet",
+  chatAway: "Mbala",
   // Footer
   footerFreeDelivery: "Kotámbisa ya Bure",
   footerFreeDeliveryDesc: "Kotámbisa ya bare ekangamí mbala na mbala na Goma mobimba kuna mlango ya nyɔn.",
@@ -1551,6 +1559,8 @@ const tl: typeof fr = {
   chatNoMessagesBody: "Mukaji eyi atomidi ujumbe tadi luka.",
   chatMyAvatar: "Avatar Ya Ngai ya DLX",
   chatMyAvatarBody: "Sangana avatar lue mpo ku kutambisa butambulishi bue mu DLXSTORE.",
+  chatOnline: "Mu internet",
+  chatAway: "Kadi",
   // Homepage
   heroPremiumDelivery: "Kutambula ya premium na Goma yina",
   heroTitle: "Sumba Kwa Akili.",
@@ -1865,7 +1875,9 @@ const kg: typeof fr = {
   chatCreateDiscussion: "Vanga nsangu", chatCancel: "Sekula", chatLaunchDiscussion: "Yadula nsangu",
   chatLaunchDiscussionBody: "Sonika nsangu ya ntete samu na nsangu yayi ya kati.", chatResolve: "Zengula", chatAddMember: "Tuadisa muntu",
   chatNoMessages: "Kadi nsangu.", chatNoMessagesBody: "Bikwiti kayedi kadi nsangu sika.", chatMyAvatar: "Avatar Yangu ya DLX",
-  chatMyAvatarBody: "Bongola avatar yaku samu na kutala nkumbu yaku na DLXSTORE.", avatarGroupLabels: { style: "Lolenge", build: "Nitu", height: "Lutompo", skinTone: "Langa ya lususu", hairStyle: "Nsuki", hairColor: "Langa ya nsuki", clothingSize: "Nene ya bilele", facePreset: "Kumona kwa meso" },
+  chatMyAvatarBody: "Bongola avatar yaku samu na kutala nkumbu yaku na DLXSTORE.",
+  chatOnline: "Kukatuka",
+  chatAway: "Kukatuka kitoko", avatarGroupLabels: { style: "Lolenge", build: "Nitu", height: "Lutompo", skinTone: "Langa ya lususu", hairStyle: "Nsuki", hairColor: "Langa ya nsuki", clothingSize: "Nene ya bilele", facePreset: "Kumona kwa meso" },
   avatarCreateTitle: "Avatar Yaku ya DLX",
   avatarCreateBody: "Sala nitu yaku ya kumonika na DLXSTORE. Kima kawonso kibanguluka — kumona kusadilwa ntangu yawonso.",
   avatarCreateCta: "Sala avatar yami",
