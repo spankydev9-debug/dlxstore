@@ -476,7 +476,11 @@ AS $$
       p.full_name ILIKE ('%' || p_query || '%')
       OR p.username ILIKE ('%' || p_query || '%')
     )
-    AND p.is_active = true
+    -- No profiles.is_active filter: that column never existed and was deliberately
+    -- removed by 20260903000000_fix_chat_profiles_is_active.sql. There is no
+    -- account-deactivation column on profiles; is_private is a user-controlled
+    -- privacy preference and is NOT a substitute. The guards below apply in full
+    -- without this predicate.
     -- Blocking has to be symmetric (the helper checks both directions), and a
     -- block must actually remove someone from search results -- otherwise the
     -- block feature shipped in this same migration is trivially defeated by
@@ -530,7 +534,11 @@ AS $$
   ) mutual ON true
   WHERE
     p.id <> auth.uid()
-    AND p.is_active = true
+    -- No profiles.is_active filter: that column never existed and was deliberately
+    -- removed by 20260903000000_fix_chat_profiles_is_active.sql. There is no
+    -- account-deactivation column on profiles; is_private is a user-controlled
+    -- privacy preference and is NOT a substitute. The guards below apply in full
+    -- without this predicate.
     AND NOT EXISTS (
       SELECT 1 FROM public.friendships f
       WHERE (f.profile_low_id = auth.uid() AND f.profile_high_id = p.id)

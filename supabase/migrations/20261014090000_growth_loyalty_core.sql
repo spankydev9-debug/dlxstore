@@ -31,7 +31,7 @@
 -- 1. Loyalty tiers
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.loyalty_tiers (
-  id                    UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                    UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   code                  TEXT    NOT NULL UNIQUE
                                   CHECK (code IN ('bronze', 'silver', 'gold', 'vip')),
   label                 TEXT    NOT NULL,
@@ -92,7 +92,7 @@ ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = timezone('u
 -- 3. Points ledger (append-only truth) + cached balance
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.points_ledger (
-  id           UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id   UUID    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   delta        INTEGER NOT NULL CHECK (delta <> 0),
   reason       TEXT    NOT NULL CHECK (reason IN (
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS public.referral_codes (
 );
 
 CREATE TABLE IF NOT EXISTS public.referrals (
-  id            UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   referrer_id   UUID    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   referee_id    UUID    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   referral_code TEXT    NOT NULL,
@@ -169,7 +169,7 @@ COMMENT ON COLUMN public.profiles.birthday_month IS
 -- 5. Flash sales
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.flash_sales (
-  id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   name             TEXT    NOT NULL,
   slug             TEXT    NOT NULL UNIQUE,
   tagline          TEXT,
@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS public.flash_sale_products (
 -- 6. Bundles
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.product_bundles (
-  id             UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   name           TEXT    NOT NULL,
   slug           TEXT    NOT NULL UNIQUE,
   description    TEXT,
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS public.product_bundles (
 );
 
 CREATE TABLE IF NOT EXISTS public.bundle_items (
-  id         UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   bundle_id  UUID    NOT NULL REFERENCES public.product_bundles(id) ON DELETE CASCADE,
   product_id UUID    NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
   quantity   INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
@@ -220,7 +220,7 @@ CREATE INDEX IF NOT EXISTS bundle_items_bundle_idx ON public.bundle_items (bundl
 -- 7. Campaigns + personalised promotions
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.campaigns (
-  id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   name             TEXT    NOT NULL,
   slug             TEXT    NOT NULL UNIQUE,
   description      TEXT,
@@ -241,7 +241,7 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
 CREATE INDEX IF NOT EXISTS campaigns_window_idx ON public.campaigns (is_active, starts_at, ends_at);
 
 CREATE TABLE IF NOT EXISTS public.personalized_promotions (
-  id               UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id      UUID    REFERENCES public.campaigns(id) ON DELETE CASCADE,
   profile_id       UUID    REFERENCES public.profiles(id) ON DELETE CASCADE,
   segment          TEXT    NOT NULL DEFAULT 'all'
@@ -267,7 +267,7 @@ CREATE INDEX IF NOT EXISTS personalized_promotions_segment_idx
 -- 8. Abandoned-cart recovery
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.abandoned_carts (
-  id           UUID    PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id   UUID    NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   items        JSONB   NOT NULL,
   subtotal     NUMERIC NOT NULL CHECK (subtotal >= 0),

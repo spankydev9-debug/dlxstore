@@ -156,7 +156,7 @@ $$;
 -- 3. Templates
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.message_templates (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   template_key  TEXT NOT NULL CHECK (template_key ~ '^[a-z0-9_]+\.[a-z0-9_]+$'),
   channel       TEXT NOT NULL CHECK (channel IN ('in_app', 'whatsapp', 'email')),
   locale        TEXT NOT NULL CHECK (locale IN ('fr', 'en', 'sw', 'ln', 'tl', 'kg')),
@@ -184,7 +184,7 @@ CREATE POLICY "Admins manage templates"
 -- 4. The outbox
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.message_outbox (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   channel            TEXT NOT NULL CHECK (channel IN ('in_app', 'whatsapp', 'email')),
   template_key       TEXT NOT NULL,
   locale             TEXT NOT NULL CHECK (locale IN ('fr', 'en', 'sw', 'ln', 'tl', 'kg')),
