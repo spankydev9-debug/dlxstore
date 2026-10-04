@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { Language, languages, translate } from "../lib/i18n";
+import { setMyMessageLocale } from "../services/db/messaging";
 
 const LANGUAGE_STORAGE_KEY = "dlxstore_language";
 const LANGUAGE_CHANGE_EVENT = "dlxstore-language-change";
@@ -50,6 +51,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = useCallback((next: Language) => {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
     window.dispatchEvent(new Event(LANGUAGE_CHANGE_EVENT));
+
+    // Best-effort mirror onto `profiles.preferred_locale` so order confirmations
+    // arrive in the language the customer actually picked.
+    //
+    // This is deliberately fire-and-forget and never allowed to reject:
+    // localStorage stays the single source of truth for the UI, so an anonymous
+    // visitor (no session, RPC denies), an offline visitor, or a backend error
+    // must not break switching language. The unhandled rejection is swallowed
+    // here deliberately -- the user's screen has already changed correctly and
+    // the failure is not actionable by them.
+    void setMyMessageLocale(next).catch(() => undefined);
   }, []);
 
   const value = useMemo(() => ({

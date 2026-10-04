@@ -1,7 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Product } from "../types";
+import { useAuth } from "./AuthContext";
+import { markCartRecovered, trackAbandonedCart } from "../services/db/loyalty";
 
 export interface CartItem {
   id: string; // unique item representation: productId + size + color
@@ -28,6 +30,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const raw = localStorage.getItem("dlxstore_cart");
@@ -103,6 +106,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => {
     setItems([]);
+    // Whether the cart emptied because the order completed or because the
+    // customer changed their mind, it is no longer an abandoned cart.
+    void markCartRecovered();
   };
 
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -113,6 +119,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   
   const deliveryFee = 0; // Free delivery always
   const total = subtotal;
+
+  // Abandoned-cart recovery (Phase 11). Debounced and sign-in gated so that
+  // browsing does not generate a write per render, and anonymous visitors
+  // never create rows. Failures are swallowed on purpose: recovery is a
+  // marketing feature and must never interrupt shopping.
+  const trackedRef = useRef<string>("");
+  useEffect(() => {
+    if (!mounted || !user || items.length === 0 || subtotal <= 0) return;
+
+    const payload = items.map((item) => ({
+      id: item.product.id,
+      qty: item.quantity,
+      size: item.selectedSize ?? null,
+      color: item.selectedColor ?? null,
+    }));
+    const signature = JSON.stringify(payload);
+    if (signature === trackedRef.current) return;
+    trackedRef.current = signature;
+
+    const timer = setTimeout(() => {
+      void trackAbandonedCart(payload, subtotal);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [items, subtotal, mounted, user]);
 
   return (
     <CartContext.Provider

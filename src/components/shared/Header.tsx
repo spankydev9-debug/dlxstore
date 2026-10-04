@@ -14,6 +14,7 @@ import {
   ShoppingBag, 
   Search, 
   User, 
+  Flame,
   Bell, 
   Menu, 
   X, 
@@ -24,20 +25,23 @@ import {
   LayoutDashboard,
   Heart,
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  Store
 } from "lucide-react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ProductImage } from "./ProductImage";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
+import { useStreakContext } from "../../context/StreakContext";
 import { useOverlay } from "../../context/OverlayContext";
 import { CustomerSupportChat } from "../chat/CustomerSupportChat";
 import { AvatarBadge } from "../account/AvatarBadge";
 
 export default function Header() {
   const { user, signOut } = useAuth();
+  const { streak } = useStreakContext();
   const { cartCount } = useCart();
-  const { unreadCount, notifications, markAsRead } = useNotifications();
+  const { unreadCount, notifications, markAsRead, markAllAsRead, deleteReadNotifications, activeChannel, setActiveChannel } = useNotifications();
   const { unreadCount: chatUnreadCount } = useChat();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
@@ -174,8 +178,10 @@ export default function Header() {
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-muted-foreground">
             <Link href="/" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.home}</Link>
             <Link href="/shop" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.shop}</Link>
+            <Link href="/discover" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.discoverTab}</Link>
             <Link href="/food" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.food}</Link>
             <Link href="/partners" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.shops}</Link>
+            <Link href="/studio" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.studio}</Link>
             <Link href="/partner" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.partner}</Link>
             <Link href="/about" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.about}</Link>
             <Link href="/contact" onClick={() => closeOverlay()} className="hover:text-foreground transition-colors">{t.contact}</Link>
@@ -287,21 +293,83 @@ export default function Header() {
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-border/80 bg-card p-4 shadow-xl animate-fade-in z-50">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-2">
+                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-border/80 bg-card shadow-xl animate-fade-in z-50">
+                  <div className="flex items-center justify-between border-b border-border/40 p-3">
                     <span className="font-semibold text-sm text-foreground">{t.notifications}</span>
                     {unreadCount > 0 && (
-                      <span className="text-xs text-muted-foreground">{unreadCount} {t.unreadLabel}</span>
+                      <button
+                        onClick={async () => {
+                          await markAllAsRead();
+                        }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {t.markAllRead}
+                      </button>
                     )}
                   </div>
 
-                  <div className="max-h-60 overflow-y-auto space-y-3">
+                  <div className="border-b border-border/40 px-3 py-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      <button
+                        onClick={() => setActiveChannel(null)}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                          activeChannel === null
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {t.all}
+                      </button>
+                      <button
+                        onClick={() => setActiveChannel('orders')}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                          activeChannel === 'orders'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {t.orders}
+                      </button>
+                      <button
+                        onClick={() => setActiveChannel('social')}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                          activeChannel === 'social'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {t.social}
+                      </button>
+                      <button
+                        onClick={() => setActiveChannel('messages')}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                          activeChannel === 'messages'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {t.messages}
+                      </button>
+                      <button
+                        onClick={() => setActiveChannel('rewards')}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                          activeChannel === 'rewards'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {t.rewards}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto p-3 space-y-2">
                     {notifications.length === 0 ? (
                       <p className="text-center text-xs text-muted-foreground py-4">{t.noNotifications}</p>
                     ) : (
                       notifications.slice(0, 5).map((n) => (
-                        <div 
-                          key={n.id} 
+                        <div
+                          key={n.id}
                           className={`flex flex-col text-xs p-2 rounded-lg transition-colors cursor-pointer ${n.is_read ? 'hover:bg-muted' : 'bg-muted/40 border-l-2 border-primary hover:bg-muted'}`}
                           onClick={() => markAsRead(n.id)}
                         >
@@ -314,14 +382,22 @@ export default function Header() {
                       ))
                     )}
                   </div>
-                  <div className="border-t border-border/40 pt-2 mt-2 text-center">
-                    <Link 
-                      href="/dashboard?tab=notifications" 
+                  <div className="border-t border-border/40 p-3 flex justify-between items-center">
+                    <Link
+                      href="/dashboard?tab=notifications"
                       onClick={() => setIsNotificationsOpen(false)}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
                       {t.viewAllNotifications}
                     </Link>
+                    <button
+                      onClick={async () => {
+                        await deleteReadNotifications();
+                      }}
+                      className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      {t.clearRead}
+                    </button>
                   </div>
                 </div>
               )}
@@ -336,6 +412,7 @@ export default function Header() {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center gap-1 sm:gap-2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
+                  <StreakPip count={streak?.current_count ?? 0} />
                   <AvatarBadge user={user} />
                 </button>
 
@@ -365,6 +442,27 @@ export default function Header() {
                       >
                         <User className="h-4 w-4 text-muted-foreground" />
                         {t.myAccount}
+                      </Link>
+                      <Link
+                        href="/dashboard?tab=streak"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Flame className="h-4 w-4 text-orange-500" />
+                        {t.streakTitle}
+                        {(streak?.current_count ?? 0) > 0 ? (
+                          <span className="ml-auto rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
+                            {streak?.current_count}
+                          </span>
+                        ) : null}
+                      </Link>
+                      <Link
+                        href="/partner/dashboard"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Store className="h-4 w-4 text-muted-foreground" />
+                        {t.sellerDashboardTitle}
                       </Link>
                       <Link
                         href="/dashboard?tab=wishlist"
@@ -441,6 +539,13 @@ export default function Header() {
               {t.shop}
             </Link>
             <Link 
+              href="/discover"
+              onClick={() => closeOverlay()}
+              className="hover:text-foreground py-1 transition-colors border-b border-border/40"
+            >
+              {t.discoverTab}
+            </Link>
+            <Link
               href="/about" 
               onClick={() => closeOverlay()}
               className="hover:text-foreground py-1 transition-colors border-b border-border/40"
@@ -508,5 +613,25 @@ export default function Header() {
       </div>
     )}
     </>
+  );
+}
+
+/**
+ * Compact streak counter in the header bar.
+ *
+ * Rendered from the shared (non-breakpoint-gated) header row, so desktop and
+ * mobile get an identical control with no duplicate implementation. Hides itself
+ * at zero so a customer who has not started a streak sees no clutter.
+ */
+function StreakPip({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="flex items-center gap-0.5 rounded-full bg-orange-500/15 px-2 py-0.5 text-[11px] font-extrabold text-orange-600 dark:text-orange-400"
+      title="Streak"
+    >
+      <Flame className="h-3 w-3" />
+      {count}
+    </span>
   );
 }

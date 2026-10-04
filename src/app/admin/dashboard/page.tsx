@@ -9,41 +9,52 @@ import { getOrders, updateOrderStatus } from "../../../services/db/orders";
 import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
 import { BusinessControls } from "../../../components/admin/BusinessControls";
+import { VisualStudioReview } from "../../../components/admin/VisualStudioReview";
+import { CatalogAssistant } from "../../../components/admin/CatalogAssistant";
 import { SessionControls } from "../../../components/admin/SessionControls";
 import { PartnerControls } from "../../../components/admin/PartnerControls";
+import { MarketplaceConsole } from "../../../components/admin/MarketplaceConsole";
 import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
 import { CouponControls } from "../../../components/admin/CouponControls";
+import { NotificationBroadcast } from "../../../components/admin/NotificationBroadcast";
 import { SupportInbox } from "../../../components/admin/SupportInbox";
 import { InternalChat } from "../../../components/admin/InternalChat";
+import { ReportModeration } from "../../../components/admin/ReportModeration";
 import { StatCard } from "../../../components/admin/StatCard";
+import { AnalyticsDashboard } from "../../../components/admin/AnalyticsDashboard";
+import { MessageCenter } from "../../../components/admin/MessageCenter";
 import { formatMoney } from "../../../lib/format";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { Product, Order, Delivery, Profile, InventoryHistoryEntry, OrderItem, OrderStatus, Category, StoreSettings } from "../../../types";
 import { removeProductImage, uploadProductImage } from "../../../services/db/storage";
 import { getStoreSettings } from "../../../services/db/settings";
 import { defaultStoreSettings } from "../../../lib/store-config";
-import { 
-  BarChart3, 
-  ShoppingBag, 
-  Users, 
-  Package, 
-  Truck, 
-  AlertTriangle, 
-  History, 
+import {
+  BarChart3,
+  ShoppingBag,
+  Users,
+  Package,
+  Truck,
+  AlertTriangle,
+  History,
   Settings,
   LayoutGrid,
   Store,
   UtensilsCrossed,
   TicketPercent,
-  Plus, 
-  Edit2, 
-  Trash2, 
-  FileSpreadsheet, 
-  Printer, 
+  Plus,
+  Edit2,
+  Trash2,
+  FileSpreadsheet,
+  Printer,
   ArrowLeft,
   TrendingUp,
   X,
-  MessageSquare
+  MessageSquare,
+  Banknote,
+  Wand2,
+  Sparkles,
+  Bell
 } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -425,10 +436,15 @@ function AdminDashboardContent() {
     { key: "inventory", label: "Gestion Stock", icon: History },
     { key: "sessions", label: "Collections", icon: LayoutGrid },
     { key: "partners", label: "Partenaires", icon: Store },
+    { key: "marketplace", label: "Marketplace", icon: Banknote },
     { key: "food", label: "DLX Food", icon: UtensilsCrossed },
     { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
+    { key: "notifications", label: "Notifications", icon: Bell },
+    { key: "reports", label: "Abuse Reports", icon: AlertTriangle },
     { key: "support", label: "Support Client", icon: MessageSquare },
     { key: "internal", label: "Chat Interne", icon: Users },
+    { key: "visuals", label: "Visuels IA", icon: Wand2 },
+    { key: "catalog-ai", label: "Assistant Catalogue", icon: Sparkles },
     { key: "business", label: "Configuration", icon: Settings }
   ];
 
@@ -581,6 +597,10 @@ function AdminDashboardContent() {
                       </ul>
                     </div>
                   )}
+
+                  {/* P12 — business intelligence (revenue, profit, retention,
+                      best/slow sellers, categories, delivery, turnover) */}
+                  <AnalyticsDashboard />
                 </div>
               )}
 
@@ -886,9 +906,26 @@ function AdminDashboardContent() {
 
               {activeTab === "partners" && <PartnerControls />}
 
+              {/* MARKETPLACE / VENDOR PAYOUTS */}
+              {activeTab === "marketplace" && <MarketplaceConsole />}
+
               {activeTab === "food" && <FoodVendorControls />}
 
               {activeTab === "coupons" && <CouponControls />}
+
+              {activeTab === "notifications" && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Diffusion de Notifications</h3>
+                  <NotificationBroadcast />
+                  <MessageCenter />
+                </div>
+              )}
+
+              {activeTab === "reports" && (
+                <div className="space-y-6">
+                  <ReportModeration />
+                </div>
+              )}
 
               {activeTab === "support" && (
                 <div className="space-y-6">
@@ -903,6 +940,10 @@ function AdminDashboardContent() {
                   <InternalChat />
                 </div>
               )}
+
+              {activeTab === "visuals" && <VisualStudioReview />}
+
+              {activeTab === "catalog-ai" && <CatalogAssistant />}
 
               {activeTab === "business" && <BusinessControls />}
 

@@ -43,7 +43,12 @@ function writeMockShopProducts(products: ShopProduct[]) {
 
 export async function getPartnerShops(options: { includeInactive?: boolean } = {}): Promise<PartnerShop[]> {
   if (isSupabaseConfigured && supabase) {
-    let query = supabase.from("vendors").select("*").order("created_at", { ascending: false });
+    // `vendors` carries payout_account_ref, payment_info and contact details, and
+    // row-level security cannot filter columns. anon therefore has no grant on the
+    // table at all and the storefront must read vendor_public_cards instead.
+    // includeInactive is an admin-only view of the full table.
+    const source = options.includeInactive ? "vendors" : "vendor_public_cards";
+    let query = supabase.from(source).select("*").order("created_at", { ascending: false });
     if (!options.includeInactive) query = query.eq("status", "active");
     const { data, error } = await query;
     if (error) {
@@ -59,7 +64,7 @@ export async function getPartnerShops(options: { includeInactive?: boolean } = {
 
 export async function getPartnerShopBySlug(slug: string): Promise<PartnerShop | null> {
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase.from("vendors").select("*").eq("slug", slug).maybeSingle();
+    const { data, error } = await supabase.from("vendor_public_cards").select("*").eq("slug", slug).maybeSingle();
     if (error) {
       if (isTableMissing(error)) return null;
       throw new Error(error.message || "An error occurred.");
@@ -68,6 +73,24 @@ export async function getPartnerShopBySlug(slug: string): Promise<PartnerShop | 
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
   return readMockPartnerShops().find((s) => s.slug === slug) ?? null;
+}
+
+/**
+ * Public seller card by vendor id. Product pages hold `products.vendor_id` and
+ * need the seller name without a second slug lookup, so this reads the same
+ * safe projection rather than reaching for the `vendors` base table.
+ */
+export async function getPartnerShopById(id: string): Promise<PartnerShop | null> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.from("vendor_public_cards").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      if (isTableMissing(error)) return null;
+      throw new Error(error.message || "An error occurred.");
+    }
+    return (data as PartnerShop) ?? null;
+  }
+  if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
+  return readMockPartnerShops().find((s) => s.id === id) ?? null;
 }
 
 export async function createPartnerShop(fields: Partial<PartnerShopFields>): Promise<PartnerShop> {

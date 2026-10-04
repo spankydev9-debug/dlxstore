@@ -1,9 +1,55 @@
-const CACHE = "dlxstore-shell-v3";
+const CACHE = "dlxstore-shell-v4";
 const SHELL = ["/", "/offline"];
+const STATIC_CACHE = "dlxstore-static-v4";
+
+// Anything under these prefixes is per-account. We never write it to a cache and
+// never serve it from one: the old version cached every same-origin navigation,
+// so a signed-in /dashboard document stayed on disk and was replayed offline to
+// whoever used the device next. Failing closed here matters more than saving bytes.
+//
+// This list must be extended when a private route is added.
+const PRIVATE_PREFIXES = [
+  "/dashboard",
+  "/partner",
+  "/admin",
+  "/auth",
+  "/chat",
+  "/cart",
+  "/checkout",
+  "/account",
+  "/orders",
+  "/api",
+];
+
+function isPrivate(pathname) {
+  return PRIVATE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function isContentHashedStatic(url) {
+  // Next fingerprints everything under /_next/static, so a cached copy can never
+  // go stale. Same-origin only: Supabase Storage images stay network-first so the
+  // verified image pipeline keeps behaving exactly as it does today.
+  return (
+    url.origin === self.location.origin &&
+    url.pathname.startsWith("/_next/static/")
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL))
+    caches
+      .open(CACHE)
+      // addAll is atomic: one 404 and the whole install fails. Each entry is
+      // cached individually so a missing shell page cannot break registration.
+      .then((cache) =>
+        Promise.all(
+          SHELL.map((url) =>
+            cache.add(new Request(url, { cache: "reload" })).catch(() => undefined)
+          )
+        )
+      )
   );
 });
 
@@ -16,13 +62,14 @@ self.addEventListener("activate", (event) => {
         .then((keys) =>
           Promise.all(
             keys
-              .filter((key) => key.startsWith("dlxstore-") && key !== CACHE)
+              .filter((key) => key.startsWith("dlxstore-") && ![CACHE, STATIC_CACHE].includes(key))
               .map((key) => caches.delete(key))
           )
         ),
     ])
   );
 });
+
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
@@ -32,11 +79,29 @@ self.addEventListener("message", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
+  const url = new URL(request.url);
 
-  if (
-    request.method !== "GET" ||
-    new URL(request.url).origin !== location.origin
-  ) {
+  if (request.method !== "GET" || url.origin !== location.origin) {
+    return;
+  }
+
+  // Fingerprinted build output: cache-first. This is the actual offline/perf win
+  // and it cannot serve stale bytes, because a content change changes the path.
+  if (isContentHashedStatic(url)) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const response = await fetch(request);
+        if (response.ok) cache.put(request, response.clone());
+        return response;
+      })
+    );
+    return;
+  }
+
+  // Per-account routes stay network-only in both directions.
+  if (isPrivate(url.pathname)) {
     return;
   }
 
@@ -48,13 +113,23 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    fetch(request).catch(() =>
-      caches.match(request).then(
-        (response) => response || caches.match("/offline")
+    fetch(request)
+      .then((response) => {
+        // Only successful documents are stored; opaque/5xx responses are not.
+        if (response.ok && response.type === "basic") {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request).then(
+          (response) => response || caches.match("/offline")
+        )
       )
-    )
   );
 });
+
 
 // Push Notification Support
 self.addEventListener("push", (event) => {

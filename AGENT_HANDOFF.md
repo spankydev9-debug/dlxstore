@@ -1,7 +1,24 @@
 # AGENT_HANDOFF.md
 
 Canonical handoff contract for every agent working on DLXSTORE.
-Last updated: 2026-09-30 (Devin continuation). Owner: Lead / Architect agent.
+Last updated: 2026-10-04 (production-readiness audit). Owner: Lead / Architect agent.
+
+---
+
+> ## ⚠️ Current state — supersedes the git/region tables below
+>
+> Read this first. The rest of this file predates 2026-09-30 and its branch figures are stale.
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `main` @ `e760c09` (the `mobile-ux-hardening` branch and `main @ bb81f9d` referenced below are historical) |
+> | P9–P16 status | complete and locally verified — see `docs/CHECKPOINT-P14-MARKETPLACE.md`, `-P15-MOBILE-PWA.md`, `-P16-PERFORMANCE.md` |
+> | **Production deploy state** | **not deployed.** Production runs an older build; `/discover`, `/studio`, `/partner/dashboard` return 404 |
+> | **Production DB state** | **missing 37 of 40 read-only RPCs** the app calls. Do not assume a live feature works because it is merged |
+> | Measured deploy region | `cpt1` (Cape Town), **not** `iad1` — see `docs/CHECKPOINT-P16-PERFORMANCE.md`. The `iad1` figure below is wrong |
+> | Latest audit | `docs/CHECKPOINT-PRODUCTION-READINESS.md` — go-live checklist, 9 live browser defects, accepted risks |
+>
+> Go-live requires **both** applying the pending P6–P16 migrations **and** deploying. Neither was done.
 
 ---
 
@@ -119,7 +136,15 @@ Agents may hand work to each other. A handoff must always carry the 8-point repo
 | Storage | Verified | 109/109 active product images return HTTP 200 |
 | RLS on public reads | Verified | categories 15, sessions 5, products 49 rows return 200 |
 | `/_next/image` optimizer | Verified | 200 `image/jpeg` for Supabase and Unsplash sources |
-| Service worker | Verified clean | `public/sw.js` never intercepts image requests |
+| Service worker | Verified clean | `public/sw.js` never intercepts image requests; cache-first applies only to same-origin `/_next/static/**` |
+| Image optimizer | Verified, measured | `/_next/image` TTFB 111 ms vs 109 ms for a static file on the same origin; warm p50 **3.9 ms**, 107/107 images 200. Region is `cpt1` (Cape Town), not `iad1` |
+| P10 Safety & privacy | Complete | `docs/CHECKPOINT-P10-SAFETY-PRIVACY.md` |
+| P11 Growth & loyalty | Complete | `docs/CHECKPOINT-P11-GROWTH-LOYALTY.md` |
+| P12 Analytics / BI | Complete | `docs/CHECKPOINT-P12-ANALYTICS-BI.md` |
+| P13 Communication & marketing | Complete, local verified | `docs/CHECKPOINT-P13-COMMUNICATION-MARKETING.md` |
+| P14 Marketplace | Complete, local verified | `docs/CHECKPOINT-P14-MARKETPLACE.md` — 97 SQL assertions; **no live seller or payout yet** |
+| P15 Mobile / PWA | Complete, runtime verified | `docs/CHECKPOINT-P15-MOBILE-PWA.md` — installability never audited in a real browser |
+| P16 Performance / SEO / infra | **Partially complete** | `docs/CHECKPOINT-P16-PERFORMANCE.md` — the 0.7–2.7 s/image figure does **not** indicate a pipeline defect; Core Web Vitals, bundle attribution and RUM still open |
 | Production branch strategy | **UNRESOLVED** | See `docs/BRANCH_STRATEGY.md` |
 | Remote backup | **INVALID** | `dlxstore_remote_backup.sql` is 0 bytes |
 | Applied-migration audit | **UNKNOWN** | Cannot verify; DB connection IP-blocked |

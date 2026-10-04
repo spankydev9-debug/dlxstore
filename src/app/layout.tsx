@@ -4,6 +4,7 @@ import { ThemeProvider } from "../components/shared/ThemeProvider";
 import { AuthProvider } from "../context/AuthContext";
 import { CartProvider } from "../context/CartContext";
 import { NotificationProvider } from "../context/NotificationContext";
+import { StreakProvider } from "../context/StreakContext";
 import { LanguageProvider } from "../context/LanguageContext";
 import { ChatProvider } from "../context/ChatContext";
 import { OverlayProvider } from "../context/OverlayContext";
@@ -39,6 +40,16 @@ export const metadata: Metadata = {
     title: SITE_NAME,
     description: "A trusted digital marketplace for the DRC with free delivery across Goma.",
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    // iOS ignores the web manifest entirely: without these, "Add to Home Screen"
+    // produces a Safari-chrome shortcut with a white icon instead of a standalone
+    // app. /apple-icon is served by src/app/apple-icon.tsx.
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport = {
@@ -97,11 +108,13 @@ export default function RootLayout({
             <AuthProvider>
               <CartProvider>
                 <NotificationProvider>
-                  <ChatProvider>
+                  <StreakProvider>
+                    <ChatProvider>
                     <OverlayProvider>
                       <StorefrontShell>{children}</StorefrontShell>
-                    </OverlayProvider>
-                  </ChatProvider>
+                      </OverlayProvider>
+                    </ChatProvider>
+                  </StreakProvider>
                 </NotificationProvider>
               </CartProvider>
             </AuthProvider>

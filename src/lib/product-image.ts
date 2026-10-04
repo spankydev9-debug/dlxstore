@@ -61,3 +61,27 @@ export function isOptimizableImageUrl(url: string): boolean {
 export function getProductImageFallback(): string {
   return PLACEHOLDER;
 }
+
+/**
+ * Next 16 serves `/_next/image` only for widths on its `deviceSizes` +
+ * `imageSizes` allowlists; anything else answers **HTTP 400**, not a resized image.
+ * Measured against production (2026-10-03): w=400 and w=100 → 400, while
+ * w=384 → 200. A non-allowlisted width therefore renders as a broken image with no
+ * build-time or type error.
+ *
+ * Snapping keeps any explicit width on the allowlist instead of silently 400ing.
+ * Keep these two lists in sync with `next.config.ts` images settings.
+ */
+const ALLOWED_IMAGE_WIDTHS = [
+  32, 48, 64, 96, 128, 256, 384, // imageSizes
+  640, 750, 828, 1080, 1200, 1920, 2048, 3840, // deviceSizes
+] as const;
+
+export function snapToAllowedImageWidth(width: number): number {
+  if (!Number.isFinite(width) || width <= 0) return 384;
+  if ((ALLOWED_IMAGE_WIDTHS as readonly number[]).includes(width)) return width;
+  // Nearest allowed width, preferring the smaller one on a tie so we never upscale.
+  return ALLOWED_IMAGE_WIDTHS.reduce((best, allowed) =>
+    Math.abs(allowed - width) < Math.abs(best - width) ? allowed : best
+  );
+}

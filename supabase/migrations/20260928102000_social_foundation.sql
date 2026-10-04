@@ -171,58 +171,79 @@ AS $$
   );
 $$;
 
+DROP POLICY IF EXISTS "Users can read their own social relationships" ON public.follows;
 CREATE POLICY "Users can read their own social relationships" ON public.follows
   FOR SELECT USING (follower_id = auth.uid() OR following_id = auth.uid());
+DROP POLICY IF EXISTS "Users can follow from their own account" ON public.follows;
 CREATE POLICY "Users can follow from their own account" ON public.follows
   FOR INSERT WITH CHECK (follower_id = auth.uid());
+DROP POLICY IF EXISTS "Users can unfollow from their own account" ON public.follows;
 CREATE POLICY "Users can unfollow from their own account" ON public.follows
   FOR DELETE USING (follower_id = auth.uid());
 
+DROP POLICY IF EXISTS "Participants can read friend requests" ON public.friend_requests;
 CREATE POLICY "Participants can read friend requests" ON public.friend_requests
   FOR SELECT USING (sender_id = auth.uid() OR recipient_id = auth.uid());
+DROP POLICY IF EXISTS "Users can send their own friend requests" ON public.friend_requests;
 CREATE POLICY "Users can send their own friend requests" ON public.friend_requests
   FOR INSERT WITH CHECK (sender_id = auth.uid());
+DROP POLICY IF EXISTS "Participants can update friend requests" ON public.friend_requests;
 CREATE POLICY "Participants can update friend requests" ON public.friend_requests
   FOR UPDATE USING (sender_id = auth.uid() OR recipient_id = auth.uid())
   WITH CHECK (sender_id = auth.uid() OR recipient_id = auth.uid());
 
+DROP POLICY IF EXISTS "Friends can read their friendships" ON public.friendships;
 CREATE POLICY "Friends can read their friendships" ON public.friendships
   FOR SELECT USING (profile_low_id = auth.uid() OR profile_high_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users manage their own blocks" ON public.profile_blocks;
 CREATE POLICY "Users manage their own blocks" ON public.profile_blocks
   FOR ALL USING (blocker_id = auth.uid()) WITH CHECK (blocker_id = auth.uid());
+DROP POLICY IF EXISTS "Users manage their own restrictions" ON public.profile_restrictions;
 CREATE POLICY "Users manage their own restrictions" ON public.profile_restrictions
   FOR ALL USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+DROP POLICY IF EXISTS "Users manage their close-friends list" ON public.close_friends;
 CREATE POLICY "Users manage their close-friends list" ON public.close_friends
   FOR ALL USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Story viewers can read allowed active stories" ON public.stories;
 CREATE POLICY "Story viewers can read allowed active stories" ON public.stories
   FOR SELECT USING (public.can_view_story(id));
+DROP POLICY IF EXISTS "Users create their own stories" ON public.stories;
 CREATE POLICY "Users create their own stories" ON public.stories
   FOR INSERT WITH CHECK (profile_id = auth.uid());
+DROP POLICY IF EXISTS "Users manage their own stories" ON public.stories;
 CREATE POLICY "Users manage their own stories" ON public.stories
   FOR UPDATE USING (profile_id = auth.uid()) WITH CHECK (profile_id = auth.uid());
+DROP POLICY IF EXISTS "Users delete their own stories" ON public.stories;
 CREATE POLICY "Users delete their own stories" ON public.stories
   FOR DELETE USING (profile_id = auth.uid());
 
+DROP POLICY IF EXISTS "Story owners and viewers can read viewers" ON public.story_viewers;
 CREATE POLICY "Story owners and viewers can read viewers" ON public.story_viewers
   FOR SELECT USING (
     viewer_id = auth.uid() OR EXISTS (
       SELECT 1 FROM public.stories s WHERE s.id = story_viewers.story_id AND s.profile_id = auth.uid()
     )
   );
+DROP POLICY IF EXISTS "Allowed users record their own story view" ON public.story_viewers;
 CREATE POLICY "Allowed users record their own story view" ON public.story_viewers
   FOR INSERT WITH CHECK (viewer_id = auth.uid() AND public.can_view_story(story_id));
 
+DROP POLICY IF EXISTS "Story owners and allowed viewers read reactions" ON public.story_reactions;
 CREATE POLICY "Story owners and allowed viewers read reactions" ON public.story_reactions
   FOR SELECT USING (public.can_view_story(story_id));
+DROP POLICY IF EXISTS "Allowed users react as themselves" ON public.story_reactions;
 CREATE POLICY "Allowed users react as themselves" ON public.story_reactions
   FOR INSERT WITH CHECK (profile_id = auth.uid() AND public.can_view_story(story_id));
+DROP POLICY IF EXISTS "Users remove their own reactions" ON public.story_reactions;
 CREATE POLICY "Users remove their own reactions" ON public.story_reactions
   FOR DELETE USING (profile_id = auth.uid());
 
+DROP POLICY IF EXISTS "Story owners and allowed viewers read mentions" ON public.story_mentions;
 CREATE POLICY "Story owners and allowed viewers read mentions" ON public.story_mentions
   FOR SELECT USING (public.can_view_story(story_id));
+DROP POLICY IF EXISTS "Story owners can create mentions" ON public.story_mentions;
 CREATE POLICY "Story owners can create mentions" ON public.story_mentions
   FOR INSERT WITH CHECK (EXISTS (
     SELECT 1 FROM public.stories s WHERE s.id = story_mentions.story_id AND s.profile_id = auth.uid()

@@ -9,6 +9,7 @@ ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Anyone can read active coupons for validation" ON public.coupons;
 DROP POLICY IF EXISTS "Admins can manage coupons" ON public.coupons;
 
+DROP POLICY IF EXISTS "Admins manage coupons" ON public.coupons;
 CREATE POLICY "Admins manage coupons"
   ON public.coupons FOR ALL
   USING (public.is_admin())

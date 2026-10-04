@@ -6,6 +6,7 @@ import { AlertCircle } from "lucide-react";
 import {
   getProductImageFallback,
   resolveProductImageUrl,
+  snapToAllowedImageWidth,
   validateProductImageUrl,
 } from "../../lib/product-image";
 
@@ -31,6 +32,11 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     : validation.isAllowed ? undefined : validation.reason;
   const isFallback = fallbackReason !== undefined;
 
+  // Next 16 answers 400 for any width outside deviceSizes+imageSizes, so an
+  // arbitrary caller width has to be snapped before it reaches the optimizer.
+  const renderedWidth = snapToAllowedImageWidth(width || 400);
+  const renderedHeight = snapToAllowedImageWidth(height || 400);
+
   const shared = {
     alt,
     className,
@@ -46,7 +52,7 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     return (
       <div 
         className="flex items-center justify-center bg-muted border border-border"
-        style={fill ? { position: 'absolute', inset: 0, ...style } : { width: width || 400, height: height || 400, ...style }}
+        style={fill ? { position: 'absolute', inset: 0, ...style } : { width: renderedWidth, height: renderedHeight, ...style }}
         data-dlx-fallback-visual="true"
       >
         <div className="flex flex-col items-center gap-2 p-4 text-center">
@@ -59,8 +65,8 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
         <Image 
           src={currentSrc} 
           fill={fill} 
-          width={fill ? undefined : (width || 400)} 
-          height={fill ? undefined : (height || 400)} 
+          width={fill ? undefined : renderedWidth}
+          height={fill ? undefined : renderedHeight}
           sizes={sizes || "100vw"} 
           {...shared}
           className="sr-only"
@@ -74,5 +80,5 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     return <Image src={currentSrc} fill sizes={sizes || "100vw"} {...shared} />;
   }
 
-  return <Image src={currentSrc} width={width || 400} height={height || 400} sizes={sizes} {...shared} />;
+  return <Image src={currentSrc} width={renderedWidth} height={renderedHeight} sizes={sizes} {...shared} />;
 }

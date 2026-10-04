@@ -1,4 +1,9 @@
 
+-- 'admin' must be single-quoted: "admin" is an identifier reference, so this
+-- function raised `column "admin" does not exist` and ABORTED the whole migration
+-- file at this line. Everything below it in the file -- including the
+-- partner_applications.applicant_id column and its RLS policies -- had therefore
+-- never been applied to any database. Fixed in P14.
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -8,7 +13,7 @@ STABLE
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = "admin"
+    WHERE id = auth.uid() AND role = 'admin'
   );
 $$;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;

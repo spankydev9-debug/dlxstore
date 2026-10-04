@@ -5,6 +5,42 @@ evidence and rules live in `AGENT_HANDOFF.md` and `docs/`.
 
 ---
 
+## Phase numbering: roadmap phases vs. checkpoint P-series
+
+Two numbering schemes are in use. They are **not** interchangeable, which has caused
+repeated confusion and incorrect completion claims.
+
+- **Roadmap phases** — the `## Phase N` headings in this file. Phase 15 is Notifications,
+  Phase 16 is Safety & privacy, Phase 21 is Mobile/PWA, Phase 22 is Performance/SEO/infra.
+- **Checkpoint P-series** — the implementation sequence recorded in
+  `docs/CHECKPOINT-P*.md`. `P6`–`P10` are Social commerce, Discover, AI Assistant,
+  Notifications, Safety & privacy respectively. `F1`–`F5` are the earlier feature phases.
+
+Mapping for the completed and remaining work, **agreed 2026-10-03**:
+
+| P-series | Roadmap phase | State |
+|---|---|---|
+| P6 | 11 Social commerce | built, migration unapplied |
+| P7 | 13 Discover | built, migration unapplied |
+| P8 | 14 AI Assistant | built, AI provider unconfigured |
+| P9 | 15 Notifications | complete |
+| P10 | 16 Safety & privacy | complete |
+| **P11** | **17 Growth & loyalty** | complete, local verified |
+| **P12** | **18 Analytics & business intelligence** | complete, local verified |
+| **P13** | **19 Communication & marketing** | complete, local verified; live WhatsApp unverified; `tl`/`kg`/`ln` strings need native-speaker review |
+| **P14** | **20 Scale the business** (marketplace) | complete, local verified; no live seller or payout yet; `tl`/`kg`/`ln` strings need native-speaker review |
+| **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
+| **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; Core Web Vitals + PERF-4 still open |
+| **Audit** | **Production readiness (P9–P16)** | local code production-ready; **production is not deployed** — 37 read-only RPCs missing and 9 live browser defects. Go-live requires migration + deploy approval. See `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
+
+Roadmap Phase 12 (DLX Profiles) has no separate P-series entry; the profile, privacy and
+identity surfaces it describes were delivered inside P6 and P10.
+
+Note that finishing P16 means finishing **both** P15 (Mobile/PWA) and P16
+(Performance/SEO/infra). Both must be genuinely implemented and verified.
+
+---
+
 ## Vision
 
 DLXSTORE evolves from a local ecommerce storefront into a complete ecosystem.
@@ -146,11 +182,22 @@ fashion/editorial.
 
 ## Phase 5 — AI catalog automation
 
-Not started. Supplier uploads material; AI suggests title, description, category,
-subcategory, tags, color, size, keywords, SEO title, SEO description, alt text, price
-range, attributes. Human approves everything.
+**Pipeline built, activation blocked** — see `docs/CHECKPOINT-F2-AI-CATALOG.md`.
+Supplier uploads material; AI suggests title, description, category, subcategory,
+tags, color, size, keywords, SEO title, SEO description, alt text, attributes.
+Human approves everything.
 
 **AI suggests → human approves → product publishes.**
+
+Status: database draft/review/apply layer, admin review UI and admin-only API routes
+are implemented and build clean. The AI provider itself is not yet integrated, so
+today's suggestions come from a deterministic local fallback that is explicitly
+labelled as *not* AI. Enriches an existing product; product creation stays in the
+admin form.
+
+**Deliberate deviation:** price range is excluded even though listed above. AI
+never suggests a price in any form — not even an advisory range. Price, stock and
+availability remain operator-owned.
 
 ---
 
@@ -188,17 +235,49 @@ disappearing media, rich presence.
 
 ## Phase 8 — DLX Friend system
 
-Not started. Add friend, accept, decline, remove, block, mute, restrict, close friends,
-followers, following, suggestions, user search. Identity: username, profile URL, QR
-sharing, picture, bio.
+**Core friend graph built, activation blocked** — see `docs/CHECKPOINT-F3-FRIENDS.md`.
+
+Done: accept, decline, remove friend, cancel a sent request, friends / followers /
+following lists, friend-request notifications, `useFriends` hook, dashboard tab,
+6-language i18n. Built on the already-applied `20260928102000_social_foundation`
+tables and RPCs; `20261004090000_friend_graph_core.sql` adds only the missing
+remove/cancel writes, the read RPCs, and the notification triggers.
+
+Not started: block/unblock UI, **mute (no table exists anywhere)**, restrict,
+close friends, user search, friend suggestions, and identity (username, profile
+URL, QR sharing, picture, bio). Search and suggestions are the practical blocker
+for sending requests in the first place.
+
+Note: `profiles` RLS is self-or-admin, so every social read goes through a narrow
+`SECURITY DEFINER` RPC rather than reopening the table.
 
 ---
 
 ## Phase 9 — DLX Streaks
 
-Not started. Milestones 3/7/30/100/365 days. Counter, reminders, expiration, recovery,
-milestone celebrations, badges, statistics. Badges: New Streak, 7 Days, 30 Days,
-100 Days, 365 Days.
+**Built, activation blocked** — see `docs/CHECKPOINT-F4-STREAKS.md`.
+
+Done: daily counter with hard break and preserved history, milestones 3/7/30/100/365
+with in-app milestone notifications, badges (New Streak, 7, 30, 100, 365 Days),
+statistics, in-app "keep it going" reminder, dashboard streak panel, shared header
+counter and account-menu entry, 6-language i18n.
+
+Design decisions: any authenticated activity advances the streak once per
+Africa/Kinshasa calendar day, so there is no check-in button to forget; a missed day
+resets the counter while `longest_count`, `total_active_days` and earned milestones
+are permanent. Reminders are in-app only and computed on read — this project has no
+scheduler (no pg_cron anywhere) and the web-push subscription route does not exist.
+
+Not started: leaderboards, streak freezes/grace days, streak sharing to social,
+admin analytics, and any push or email notification.
+
+Security follow-up from local Postgres verification:
+`20261007090000_revoke_internal_helper_grants.sql` closes an over-broad `EXECUTE`
+grant class inherited from the rewards schema, where several `SECURITY DEFINER`
+helpers taking an identity argument had no internal auth guard and were reachable
+by an anonymous caller. See `docs/CHECKPOINT-F4-STREAKS.md` §10. Open decision:
+`get_shop_stats` still exposes per-shop revenue to any caller because the app calls
+it from the browser.
 
 ---
 
@@ -213,7 +292,9 @@ Pants $15, View Product".
 
 ## Phase 11 — Social commerce
 
-Not started. Share products with friends, share to stories, tag products, share outfits,
+**Status: BUILT (2026-10-03).** See `docs/CHECKPOINT-P6-SOCIAL-COMMERCE.md`. Migration
+`20261008090000_social_commerce_core.sql` verified against local Postgres; awaiting production
+application. Share products with friends, share to stories, tag products, share outfits,
 share carts, ask for opinions, react, vote, recommend. "Which one should I get?" — black
 vs white, friends vote, buy now.
 
@@ -229,15 +310,20 @@ Master, DLX OG, VIP, Top Reviewer. Users control visibility.
 
 ## Phase 13 — DLX Discover
 
-Not started — delayed until moderation, ranking, storage, and performance foundations
-exist. Feed combining stories, videos, products, community. Sections: trending, fashion,
+**Status: BUILT (2026-10-03).** See `docs/CHECKPOINT-P7-DISCOVER.md`. Migration
+`20261009090000_discover_recent_and_trending.sql` verified against local Postgres; awaiting
+production application. Was originally deferred until moderation, ranking, storage and
+performance foundations exist. Feed combining stories, videos, products, community. Sections: trending, fashion,
 new arrivals, community, DLX creators, products, Goma, Gisenyi.
 
 ---
 
 ## Phase 14 — DLX AI Assistant
 
-Not started. AI inside Chat. "Find me black pants under $20" → searches actual inventory.
+**Status: BUILT (2026-10-03).** See `docs/CHECKPOINT-P8-AI-ASSISTANT.md`. Migration
+`20261010090000_ai_shopping_assistant.sql` verified against local Postgres; grounded
+retrieval works, awaiting production application and AI provider configuration.
+AI inside Chat. "Find me black pants under $20" → searches actual inventory.
 "What goes with these?" → recommends actually-available products. "Is medium available?"
 → checks actual inventory. "Where's my order?" → checks the actual order.
 
@@ -249,35 +335,59 @@ availability.**
 
 ## Phase 15 — Notifications
 
-Not started. Unified: new message, friend request/accepted, story reaction/reply,
-mention, streak, product shared, order update, promotion, reward, new drop, low-stock
-admin alert. Users choose what they receive.
+**Status: COMPLETE (2026-10-03).** See `docs/CHECKPOINT-P9-NOTIFICATIONS.md`.
+
+Unified notification center with channel-based preferences, admin broadcast, and full i18n support across 6 languages. Migration `20261012090000_notification_center.sql` is ready for production application.
 
 ---
 
 ## Phase 16 — Safety & privacy
 
-Not started. User controls: block, report, mute, restrict, message requests, privacy
-settings, story visibility, close friends, who can message/follow/interact. Platform:
-spam protection, abuse reporting, content moderation, admin moderation, account
-restrictions, suspicious activity detection, media moderation, report review.
+**Status: COMPLETE (2026-10-03).** See `docs/CHECKPOINT-P10-SAFETY-PRIVACY.md`.
+
+User controls: block, report, mute, restrict, close friends, privacy settings, story visibility, profile search, friend suggestions, admin moderation. Migration `20261013090000_safety_privacy_ui.sql` verified against local Postgres (including idempotent re-application); awaiting production application.
+
+**Security review found and fixed three defects in the initial build:**
+- `admin_get_reports` was `SECURITY DEFINER` with no admin guard, so any signed-in customer
+  could read every abuse report. Now guarded by `public.is_admin()`.
+- `search_profiles` did not exclude blocked users, defeating the block feature shipped in
+  the same migration. Now filters symmetrically via `social_profiles_are_blocked`.
+- The migration was not idempotent (`CREATE POLICY` without `DROP POLICY IF EXISTS`);
+  re-application failed. Also fixed a reserved-word CTE (`window`) and anon-grant leaks in
+  the Phase 13 Discover migration, which previously made it unappliable.
 
 ---
 
 ## Phase 17 — Growth & loyalty
 
-Not started. Rewards, points, loyalty levels, shopping/streak/referral/birthday rewards,
-VIP benefits. Referral system, promo codes, coupons, flash sales, bundles, discounts,
-abandoned-cart recovery, campaigns, personalised promotions.
+**Status: BUILT (2026-10-03).** See `docs/CHECKPOINT-P11-GROWTH-LOYALTY.md`. Migration
+`20261014090000_growth_loyalty_core.sql` verified against local Postgres, including a
+21-case behavioural matrix; awaiting production application.
+
+Points with an append-only ledger, bronze/silver/gold/VIP tiers with real benefits, referral
+system, flash sales, bundles, campaigns, personalised promotions and abandoned-cart recovery.
+Promo codes and coupons were already delivered in `20260818190600` and
+`20260902120000_dlx_rewards_foundation.sql` and are extended rather than duplicated.
+
+**Verification found five real defects** that `tsc`, ESLint and `next build` could not see —
+most importantly the order triggers were `AFTER UPDATE` only, so orders inserted directly as
+`delivered` never awarded points, and the admin RPCs were revoked but never granted.
 
 ---
 
 ## Phase 18 — Analytics & business intelligence
 
-Not started. Revenue, orders, AOV, conversion, best and slow sellers, category
-performance, retention, repeat customers, delivery performance, inventory turnover,
-profit, margins. AI answers real questions — what sold best, what isn't moving, which
-category earned most, what to restock. **Answers must come from actual DLX data.**
+Complete, locally verified. Revenue, orders, AOV, best and slow sellers, category
+performance, retention and repeat customers, delivery performance, inventory turnover,
+profit and margins are all computed in SQL by admin-gated `SECURITY DEFINER` RPCs.
+Cost of goods was added (`products.cost_price`) so margin is real rather than
+assumed, and margin is reported only over the revenue whose cost is actually
+recorded, alongside `cost_coverage_percent`. Unrecorded cost yields `NULL`, never a
+fabricated zero. Conversion is reported only over the measured funnel
+(signup → order → repeat); DLXSTORE does not track traffic, so no visitor-to-order
+rate is invented. `admin_business_facts` is the only surface the assistant may
+quote, so a business answer can only come from actual DLX data.
+See `docs/CHECKPOINT-P12-ANALYTICS-BI.md`.
 
 ---
 
@@ -291,17 +401,41 @@ customer action → appropriate automated communication across DLX + WhatsApp.
 
 ## Phase 20 — Scale the business
 
-Not started. Goma → Gisenyi → other markets. Multiple delivery zones, warehouses,
-suppliers, sellers. Seller onboarding, seller dashboards, seller inventory, marketplace
+**Status: complete and locally verified (2026-10-03).** See
+`docs/CHECKPOINT-P14-MARKETPLACE.md`.
+
+Goma → Gisenyi → other markets. Multiple delivery zones, warehouses, suppliers,
+sellers. Seller onboarding, seller dashboards, seller inventory, marketplace
 commissions. DLX becomes a marketplace, not only its own inventory.
+
+Delivered: seller applications approved into real shops · per-seller order splitting ·
+commission frozen at sale and settled through an auditable ledger · seller dashboard
+(orders, payouts, warehouses + stock allocation, suppliers, profile) · admin console
+for approvals, payouts and the commission journal · seller attribution on product pages.
+
+Verified locally: 97 SQL assertions, 0 failed · `tsc`/lint/build clean. **Not**
+verified: any live seller, live payout, or browser E2E — the full auth stack is not
+running.
 
 ---
 
 ## Phase 21 — Mobile / PWA
 
-Not started. Don't rush native apps. First: perfect mobile web, PWA, push notifications,
+**Status: complete and runtime-verified (2026-10-03).** See
+`docs/CHECKPOINT-P15-MOBILE-PWA.md`.
+
+Don't rush native apps. First: perfect mobile web, PWA, push notifications,
 installable experience, mobile performance. Evaluate native iOS/Android only once the
 product and business justify it.
+
+Delivered: installable manifest (scope, id, shortcuts, maskable icon) · generated
+192/512/maskable/apple icons · iOS standalone support · cache-first fingerprinted
+build assets · offline shell that no longer caches signed-in pages · push notification
+icons that previously 404'd.
+
+Fixed en route: the app could not actually install (single 512px icon, no scope/id), and
+the service worker cached `/dashboard` to disk and replayed it offline after sign-out.
+Mobile *performance* remains open work under Phase 22.
 
 ---
 
@@ -315,9 +449,25 @@ reliability success, not a rebuild target.
 | Image performance | PERF-1 Supabase transformation/loader strategy · PERF-2 optimizer latency · PERF-3 sizing, lazy loading, responsive, first paint |
 | Other | PERF-4 Core Web Vitals, caching, bundle, DB queries, realtime, storage, accessibility, SEO, structured data |
 
-**Known OpenCode finding:** cold-cache image latency reaches roughly **0.7–2.7 s/image**
-from the `iad1` Vercel region while the audience is in Goma, DRC. Treated as a
-performance optimisation opportunity, **not** an image reliability bug.
+**Resolved 2026-10-03** — see `docs/CHECKPOINT-P16-PERFORMANCE.md`. The reported
+**0.7–2.7 s/image was measured and does not indicate a pipeline defect.** The image
+optimizer's server time is indistinguishable from a static file on the same origin
+(TTFB 111 ms vs 109 ms), and warm requests are **3.9–4.2 ms p50** across all 107
+catalog images. The cost is network RTT plus a ~500 ms Vercel cold start on first touch.
+The `iad1` attribution was wrong: both deployments report `x-vercel-id: cpt1` (Cape
+Town). 107/107 images still return 200.
+
+What was fixed instead: `ProductImage` defaulted to `width={400}`, which is not on
+Next 16's allowlist and returned **HTTP 400** on 5 call sites. Widths are now snapped
+to the nearest allowlisted value.
+
+Rejected on evidence: capping `deviceSizes` (the apparent 100x large-width penalty was
+a cache-thrash artifact — 4.3 ms in isolation — and the cap would have regressed 7 real
+images) and AVIF (20% smaller but ~900 ms per image vs 4.6 ms).
+
+**Still open:** Core Web Vitals, per-route bundle attribution, page byte budget, RUM from
+real Goma sessions. Nothing has been measured *from* DRC — see the checkpoint's
+limitations.
 
 ---
 

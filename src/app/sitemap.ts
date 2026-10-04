@@ -6,6 +6,7 @@ import { getPartnerShops } from "../services/db/partner-shops";
 const STATIC_PATHS = [
   { path: "", priority: 1, changeFrequency: "weekly" as const },
   { path: "/shop", priority: 0.8, changeFrequency: "daily" as const },
+  { path: "/discover", priority: 0.7, changeFrequency: "daily" as const },
   { path: "/food", priority: 0.7, changeFrequency: "daily" as const },
   { path: "/partners", priority: 0.7, changeFrequency: "weekly" as const },
   { path: "/about", priority: 0.5, changeFrequency: "monthly" as const },

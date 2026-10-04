@@ -36,10 +36,12 @@ DROP POLICY IF EXISTS "Authenticated users can insert notifications" ON public.n
 DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
 DROP POLICY IF EXISTS "Users can delete their own notifications" ON public.notifications;
 
+DROP POLICY IF EXISTS "Notification recipients and admins can read" ON public.notifications;
 CREATE POLICY "Notification recipients and admins can read"
   ON public.notifications FOR SELECT
   USING (user_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "Notification recipients can mark their own notifications read" ON public.notifications;
 CREATE POLICY "Notification recipients can mark their own notifications read"
   ON public.notifications FOR UPDATE
   USING (user_id = auth.uid())

@@ -9,6 +9,7 @@ import { Product, Category } from "../../types";
 import { Star, Search, SlidersHorizontal, RotateCcw, PackageX } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { ProductImage } from "../../components/shared/ProductImage";
+import { SocialRecommendationsRail } from "../../components/product/SocialRecommendationsRail";
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -165,6 +166,13 @@ function ShopContent() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* Social recommendations. Hidden entirely when there is no social signal,
+          and never shown alongside an active search or filter, where it would
+          contradict what the customer actually asked for. */}
+      {!search && !selectedCategory && !selectedSession && !minPrice && !maxPrice ? (
+        <SocialRecommendationsRail />
+      ) : null}
+
       {/* Title */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">{t.shopTitle}</h1>

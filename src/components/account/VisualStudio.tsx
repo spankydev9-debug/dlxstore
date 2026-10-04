@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  CircleSlash,
   Clock3,
   ImageIcon,
   LockKeyhole,
@@ -36,11 +37,13 @@ const statusLabels: Record<VisualJob["status"], string> = {
   processing: "En cours",
   completed: "Résultat prêt",
   failed: "Échec",
+  canceled: "Annulé",
 };
 
 function StatusIcon({ status }: { status: VisualJob["status"] }) {
   if (status === "completed") return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
   if (status === "failed") return <AlertCircle className="h-4 w-4 text-destructive" />;
+  if (status === "canceled") return <CircleSlash className="h-4 w-4 text-muted-foreground" />;
   return <Clock3 className="h-4 w-4 text-amber-500" />;
 }
 

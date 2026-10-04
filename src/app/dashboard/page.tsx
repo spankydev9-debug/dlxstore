@@ -5,20 +5,31 @@ import Link from "next/link";
 import { ProductImage } from "../../components/shared/ProductImage";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { useNotifications } from "../../context/NotificationContext";
 import { getOrders } from "../../services/db/orders";
 import { getWishlist, removeFromWishlist } from "../../services/db/wishlist";
-import { updateProfile } from "../../services/auth";
+import { updateMyProfile, updatePrivacySettings } from "../../services/db/safety";
 import { getMyRewardsSummary, recordShareEvent } from "../../services/db/rewards";
 import { Order, Product, RewardsSummary } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { languages } from "../../lib/i18n";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { AvatarEditor } from "../../components/account/AvatarEditor";
+import { FriendsPanel } from "../../components/account/FriendsPanel";
+import { StoriesPanel } from "../../components/account/StoriesPanel";
+import { MySharesPanel } from "../../components/account/MySharesPanel";
+import { ShoppingAssistantPanel } from "../../components/account/ShoppingAssistantPanel";
+import { StreakPanel } from "../../components/account/StreakPanel";
+import { LoyaltyPanel } from "../../components/account/LoyaltyPanel";
+import { MessagingPreferences } from "../../components/account/MessagingPreferences";
+import { NotificationCenter } from "../../components/account/NotificationCenter";
 import {
   ShoppingBag,
   Heart,
   Bell,
+  Users,
+  Flame,
+  Images,
+  Bot,
   MapPin,
   Settings,
   LogOut,
@@ -33,6 +44,7 @@ import {
   Copy,
   Check,
   Star,
+  Crown,
 } from "lucide-react";
 
 function DashboardContent() {
@@ -47,7 +59,6 @@ function DashboardContent() {
   // States
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<Product[]>([]);
-  const { notifications, markAsRead: handleMarkNotificationRead, refreshNotifications } = useNotifications();
   const [isLoading, setIsLoading] = useState(true);
   const [rewards, setRewards] = useState<RewardsSummary | null>(null);
   const [rewardsLoading, setRewardsLoading] = useState(false);
@@ -65,7 +76,15 @@ function DashboardContent() {
   // Profile Form States
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Privacy Settings States
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [allowMessagesFrom, setAllowMessagesFrom] = useState("everyone");
+  const [allowFollowsFrom, setAllowFollowsFrom] = useState("everyone");
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
 
   // Sync Tab
   useEffect(() => {
@@ -85,14 +104,35 @@ function DashboardContent() {
       if (!user) return;
       setIsLoading(true);
       try {
+        // Load profile data once
+        if (fullName === "" && user.full_name) {
+          setFullName(user.full_name);
+        }
+        if (phone === "" && user.phone) {
+          setPhone(user.phone);
+        }
+        if (username === "" && user.username) {
+          setUsername(user.username);
+        }
+        if (bio === "" && user.bio) {
+          setBio(user.bio);
+        }
+        if (user.is_private !== undefined) {
+          setIsPrivate(user.is_private);
+        }
+        if (user.allow_messages_from) {
+          setAllowMessagesFrom(user.allow_messages_from);
+        }
+        if (user.allow_follows_from) {
+          setAllowFollowsFrom(user.allow_follows_from);
+        }
+
         if (activeTab === "orders") {
           const ords = await getOrders(user.id);
           setOrders(ords);
         } else if (activeTab === "wishlist") {
           const wish = await getWishlist(user.id);
           setWishlist(wish);
-        } else if (activeTab === "notifications") {
-          await refreshNotifications();
         } else if (activeTab === "addresses") {
           // Load address
           const savedAddr = localStorage.getItem(`dlxstore_address_${user.id}`);
@@ -160,7 +200,7 @@ function DashboardContent() {
     if (!user) return;
     setIsSavingProfile(true);
     try {
-      await updateProfile(user.id, { full_name: fullName, phone });
+      await updateMyProfile(fullName, phone, username || null, bio || null);
       await refreshUser();
       alert(t.profileUpdated);
     } catch (err) {
@@ -168,6 +208,22 @@ function DashboardContent() {
       alert(t.profileUpdateError);
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePrivacy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsSavingPrivacy(true);
+    try {
+      await updatePrivacySettings(isPrivate, allowMessagesFrom, allowFollowsFrom);
+      await refreshUser();
+      alert("Privacy settings updated");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update privacy settings");
+    } finally {
+      setIsSavingPrivacy(false);
     }
   };
 
@@ -197,9 +253,16 @@ function DashboardContent() {
     { key: "orders", label: t.myOrders, icon: ShoppingBag },
     { key: "wishlist", label: t.wishlist, icon: Heart },
     { key: "notifications", label: t.notifications, icon: Bell },
+    { key: "friends", label: t.friendsTab, icon: Users },
+    { key: "stories", label: t.storiesTab, icon: Images },
+    { key: "assistant", label: t.assistantTab, icon: Bot },
+    { key: "shares", label: t.socialMyShares, icon: Share2 },
+    { key: "streak", label: t.streakTitle, icon: Flame },
     { key: "addresses", label: t.savedAddresses, icon: MapPin },
     { key: "avatar", label: t.avatarSettings, icon: UserCircle },
     { key: "rewards", label: t.rewardsTab, icon: Gift },
+    { key: "loyalty", label: t.loyaltyTab, icon: Crown },
+    { key: "privacy", label: t.privacyTab, icon: Lock },
     { key: "language", label: t.languageSettings, icon: Settings },
     { key: "settings", label: t.profileSettings, icon: User },
   ];
@@ -354,29 +417,50 @@ function DashboardContent() {
               {/* NOTIFICATIONS TAB */}
               {activeTab === "notifications" && (
                 <div className="space-y-6">
-                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.orderNotifications}</h3>
-                  {notifications.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-12">{t.noNotifications}</p>
-                  ) : (
-                    <div className="divide-y divide-border/40">
-                      {notifications.map((n) => (
-                        <div 
-                          key={n.id} 
-                          className={`py-4 first:pt-0 flex flex-col gap-1 cursor-pointer transition-colors ${n.is_read ? 'opacity-70' : 'bg-muted/10 border-l-2 border-primary pl-3'}`}
-                          onClick={() => handleMarkNotificationRead(n.id)}
-                        >
-                          <div className="flex justify-between items-center text-xs font-bold">
-                            <span className="text-foreground">{n.title}</span>
-                            <span className="text-[9px] text-muted-foreground font-medium">{new Date(n.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{n.message}</p>
-                          {!n.is_read && (
-                            <span className="text-[9px] font-bold text-primary pt-0.5">{t.markRead}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <NotificationCenter />
+                  <MessagingPreferences />
+                </div>
+              )}
+
+              {/* LOYALTY TAB */}
+              {activeTab === "loyalty" && (
+                <div className="space-y-4">
+                  <LoyaltyPanel />
+                </div>
+              )}
+
+              {/* STREAK TAB */}
+              {activeTab === "streak" && (
+                <div className="space-y-4">
+                  <StreakPanel />
+                </div>
+              )}
+
+              {/* FRIENDS TAB */}
+              {activeTab === "friends" && (
+                <div className="space-y-4">
+                  <FriendsPanel />
+                </div>
+              )}
+
+              {/* STORIES TAB */}
+              {activeTab === "stories" && (
+                <div className="space-y-4">
+                  <StoriesPanel />
+                </div>
+              )}
+
+              {/* ASSISTANT TAB */}
+              {activeTab === "assistant" && (
+                <div className="space-y-4">
+                  <ShoppingAssistantPanel />
+                </div>
+              )}
+
+              {/* SHARES TAB */}
+              {activeTab === "shares" && (
+                <div className="space-y-4">
+                  <MySharesPanel />
                 </div>
               )}
 
@@ -717,6 +801,68 @@ function DashboardContent() {
                 </div>
               )}
 
+              {activeTab === "privacy" && (
+                <div className="space-y-6">
+                  <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">Privacy Settings</h3>
+                  <form onSubmit={handleUpdatePrivacy} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Lock className="h-4 w-4" />
+                        Private Profile
+                      </label>
+                      <p className="text-[10px] text-muted-foreground mb-2">When enabled, only friends can see your profile and stories.</p>
+                      <select
+                        value={isPrivate ? "private" : "public"}
+                        onChange={(e) => setIsPrivate(e.target.value === "private")}
+                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                      >
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Phone className="h-4 w-4" />
+                        Who can send you messages
+                      </label>
+                      <select
+                        value={allowMessagesFrom}
+                        onChange={(e) => setAllowMessagesFrom(e.target.value)}
+                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                      >
+                        <option value="everyone">Everyone</option>
+                        <option value="followers">Followers only</option>
+                        <option value="none">No one</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Users className="h-4 w-4" />
+                        Who can follow you
+                      </label>
+                      <select
+                        value={allowFollowsFrom}
+                        onChange={(e) => setAllowFollowsFrom(e.target.value)}
+                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                      >
+                        <option value="everyone">Everyone</option>
+                        <option value="none">No one</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingPrivacy}
+                      className="inline-flex h-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold px-6 text-xs hover:bg-primary/95 transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {isSavingPrivacy ? "Saving..." : "Save Privacy Settings"}
+                    </button>
+                  </form>
+                </div>
+              )}
+
               {activeTab === "settings" && (
                 <div className="space-y-6">
                   <h3 className="font-bold text-lg text-foreground border-b border-border/40 pb-2">{t.personalInfo}</h3>
@@ -766,6 +912,38 @@ function DashboardContent() {
                         placeholder="Ex. +243 990 123 456"
                         className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
                       />
+                    </div>
+
+                    {/* Username */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <UserCircle className="h-4 w-4" />
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="@username"
+                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Optional. Allows others to find you.</p>
+                    </div>
+
+                    {/* Bio */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Star className="h-4 w-4" />
+                        Bio
+                      </label>
+                      <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Tell others about yourself..."
+                        rows={3}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground resize-none"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Optional. Brief description visible to others.</p>
                     </div>
 
                     <button

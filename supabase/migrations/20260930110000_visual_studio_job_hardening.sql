@@ -90,14 +90,17 @@ ALTER TABLE public.visual_job_assets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Customers manage their own try-on jobs" ON public.try_on_jobs;
 DROP POLICY IF EXISTS "Admins can read try-on jobs" ON public.try_on_jobs;
 
+DROP POLICY IF EXISTS "Customers read their own visual jobs" ON public.try_on_jobs;
 CREATE POLICY "Customers read their own visual jobs"
   ON public.try_on_jobs FOR SELECT
   USING (profile_id = auth.uid());
 
+DROP POLICY IF EXISTS "Admins read all visual jobs" ON public.try_on_jobs;
 CREATE POLICY "Admins read all visual jobs"
   ON public.try_on_jobs FOR SELECT
   USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Visual-job owners read their assets" ON public.visual_job_assets;
 CREATE POLICY "Visual-job owners read their assets"
   ON public.visual_job_assets FOR SELECT
   USING (EXISTS (

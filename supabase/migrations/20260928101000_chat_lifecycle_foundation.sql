@@ -67,6 +67,7 @@ CREATE INDEX IF NOT EXISTS message_attachments_message_idx
 ALTER TABLE public.message_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.message_attachments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Conversation members can read message reactions" ON public.message_reactions;
 CREATE POLICY "Conversation members can read message reactions"
   ON public.message_reactions FOR SELECT
   USING (
@@ -77,6 +78,7 @@ CREATE POLICY "Conversation members can read message reactions"
     )
   );
 
+DROP POLICY IF EXISTS "Conversation members can read message attachments" ON public.message_attachments;
 CREATE POLICY "Conversation members can read message attachments"
   ON public.message_attachments FOR SELECT
   USING (

@@ -40,6 +40,11 @@ dlxstore_backup_*.json
 dlxstore_backup_*.sql
 /dlxstore_data_backup.sql
 /dlxstore_remote_backup.sql
+# Supabase Storage export archives. Named dlxstore_<kind>_backup_<date>.tar.gz, so match on
+# both the project prefix and the date suffix. The 2026-09-30 archive was 25 MB of the public
+# product-images bucket and had no .gitignore entry, so `git add -A` would have committed it.
+dlxstore_*_backup_*.tar.gz
+dlxstore_*.tar.gz
 
 # vercel
 .vercel

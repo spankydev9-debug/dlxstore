@@ -1,6 +1,24 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
-**Current snapshot: §25 (2026-09-30 ~12:00 CAT) master roadmap audit.** Historical §0–§24 remain as prior audits and other agents’ package logs; where they disagree with §25, **§25 and the repository win**.
+> ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
+>
+> **Current state: `main` @ `e760c09`.** The `mobile-ux-hardening` @ `fa7c30a` snapshot in the §25 header is stale.
+>
+> | | |
+> |---|---|
+> | P9–P16 | complete and locally verified (P14 marketplace, P15 PWA, P16 performance) |
+> | Static gates | `tsc` exit 0 · `eslint` 0 errors / 137 warnings · `next build` success, 49 routes, 26/26 static gen · `git diff --check` clean |
+> | SQL | `p13_communication.sql` 64/64 · `p14_marketplace.sql` 97/97 (re-run after migration edits) |
+> | Migration idempotency | 44/45 re-apply on local DB; 5 files needed `DROP POLICY IF EXISTS` guards (now added) |
+> | Browser smoke | local build 94/96 (only failure = production DB missing an RPC); production 81/93 with **9 real defects** |
+> | **Production** | **old build + old database.** 37 read-only RPCs missing; service worker still caches private routes; notification icons 404; not installable |
+> | Full audit | **`docs/CHECKPOINT-PRODUCTION-READINESS.md`** |
+>
+> Two corrections to earlier sections: measured deploy region is **`cpt1`** (Cape Town), not `iad1`; and the image pipeline was **measured, not rebuilt** — the reported slow image loads were network RTT and cold start, not optimizer cost.
+>
+> Nothing was deployed and no production migration was applied. Both are production writes requiring explicit approval.
+
+**Current snapshot: §25 (2026-09-30 ~12:00 CAT) master roadmap audit.** Historical §0–§24 remain as prior audits and other agents' package logs; where they disagree with §25, **§25 and the repository win**.
 
 | | |
 |---|---|
@@ -133,6 +151,53 @@ Decision: **keep both files; retire nothing.** Optional cosmetic follow-up **F7*
 
 Next package: **P4 — R4 graceful degradation** (make the existing Support chat and `/chat` survive absent
 chat tables/RPCs; no schema, no DB contact).
+
+### P4–P15 — consolidation ✅ (2026-10-03)
+
+Packages P4–P13 were completed earlier and have their own checkpoints; the detail lives in
+`docs/CHECKPOINT-*.md`, not here. What follows is the state those packages left the tree in.
+
+| Package | Status | Checkpoint |
+|---|---|---|
+| P4–P9 | complete | `CHECKPOINT-P6`, `CHECKPOINT-P7`, `CHECKPOINT-P8`, `CHECKPOINT-P9` |
+| P10 Safety & privacy | complete | `CHECKPOINT-P10-SAFETY-PRIVACY.md` |
+| P11 Growth & loyalty | complete | `CHECKPOINT-P11-GROWTH-LOYALTY.md` |
+| P12 Analytics / BI | complete | `CHECKPOINT-P12-ANALYTICS-BI.md` |
+| P13 Communication & marketing | complete | `CHECKPOINT-P13-COMMUNICATION-MARKETING.md` |
+| **P14 Marketplace** | **complete, local verified** | `CHECKPOINT-P14-MARKETPLACE.md` |
+| **P15 Mobile / PWA** | **complete, runtime verified** | `CHECKPOINT-P15-MOBILE-PWA.md` |
+| **P16 Performance / SEO / infra** | **partial** | `CHECKPOINT-P16-PERFORMANCE.md` — pipeline measured, not rebuilt; Core Web Vitals still open |
+
+Final verification at P14/P15 close: `p14_marketplace.sql` 97 assertions passed / 0 failed ·
+`p13_communication.sql` 64 / 0 · both P14 migrations applied twice with no error ·
+`tsc --noEmit` exit 0 · `next build` exit 0 · ESLint 0 errors on touched files.
+
+**Three pre-existing migrations had never applied anywhere** — `is_admin()` used
+`role = "admin"` (double quotes = a column reference), so each aborted at line 13 and
+everything after it was missing, including
+`partner_applications.applicant_id` and its policies. Fixed in
+`20260816150230_security_hardening.sql`, `20260823132900_fix_order_rpc_and_partner_applications_rls.sql`
+and `20260823140000_final_dlxstore_customer_flow_fix.sql`.
+
+Two defects worth carrying forward, because both were invisible until tested:
+
+- The service worker cached **every** same-origin navigation, so a signed-in `/dashboard`
+  document was replayed offline to the next person using the device. Now fails closed on
+  a private-prefix list (`public/sw.js`).
+- `public/sw.js` hard-coded `/icons/*.png` that did not exist, so **every push
+  notification shipped a broken image**. Now generated (`src/app/icons/[file]/route.tsx`).
+
+P16 measured the image pipeline instead of rebuilding it, and the premise did not survive.
+The reported 0.7–2.7 s/image is network RTT plus a ~500 ms Vercel cold start, not
+transform cost: the optimizer's TTFB (111 ms) is indistinguishable from a static file on
+the same origin (109 ms), and warm requests run at 3.9 ms p50 with 107/107 images still
+200. The `iad1` attribution was wrong — both deployments report `cpt1` (Cape Town).
+
+What it did find was a reliability bug: `ProductImage` defaulted to `width={400}`, which
+is off Next 16's allowlist and returned HTTP 400 on 5 call sites. Widths are now snapped
+to the nearest allowlisted value. Two plausible optimisations were **rejected on
+measurement** — capping `deviceSizes` (a cache-thrash artifact that would have regressed
+7 real images) and AVIF (20% smaller, ~200x slower to encode).
 
 ---
 

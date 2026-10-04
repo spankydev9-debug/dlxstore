@@ -8,11 +8,14 @@ import { getProductReviews, addReview } from "../../../services/db/reviews";
 import { addToWishlist, removeFromWishlist, isInWishlist } from "../../../services/db/wishlist";
 import { useCart } from "../../../context/CartContext";
 import { useAuth } from "../../../context/AuthContext";
-import { Product, Review, StoreSettings } from "../../../types";
+import { Product, PartnerShop, Review, StoreSettings } from "../../../types";
+import { getPartnerShopById } from "../../../services/db/partner-shops";
 import { defaultStoreSettings } from "../../../lib/store-config";
 import { getStoreSettings } from "../../../services/db/settings";
 import { buildProductWhatsAppMessage, buildWhatsAppUrl, getWhatsAppBuyNumber } from "../../../lib/whatsapp";
-import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck } from "lucide-react";
+import { Star, Heart, ShoppingCart, MessageSquare, ShieldCheck, Truck, Shirt, Share2, Store } from "lucide-react";
+import { ProductShareSheet, SocialProofStrip } from "../../../components/product/SocialShare";
+import { recordProductView } from "../../../services/db/discover";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { useLanguage } from "../../../context/LanguageContext";
 import { absoluteUrl } from "../../../lib/site";
@@ -31,12 +34,14 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
+  const [seller, setSeller] = useState<PartnerShop | null>(null);
 
   // User selections
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [activeImage, setActiveImage] = useState("");
 
   // Review Form States
@@ -59,7 +64,18 @@ export default function ProductDetailPage() {
         }
         setProduct(prod);
         setActiveImage(prod.images[0]);
-        
+
+        // Seller attribution. DLX-owned stock (vendor_id NULL) has no seller and
+        // must not render an empty card. Best-effort: a missing seller must never
+        // take the product page down with it.
+        if (prod.vendor_id) {
+          void getPartnerShopById(prod.vendor_id)
+            .then((shop) => { if (shop) setSeller(shop); })
+            .catch(() => {});
+        } else {
+          setSeller(null);
+        }
+
         // Load reviews and related products
         const [revs, allProds] = await Promise.all([
           getProductReviews(prod.id),
@@ -74,6 +90,9 @@ export default function ProductDetailPage() {
         if (user) {
           const saved = await isInWishlist(user.id, prod.id);
           setIsSaved(saved);
+          // Records "continue where you left off" for Discover. Best-effort:
+          // a failure here must never block the product page.
+          void recordProductView(prod.id).catch(() => {});
         }
 
         // Set default size/color
@@ -240,6 +259,17 @@ export default function ProductDetailPage() {
           <div className="space-y-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{product.brand}</span>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{product.name}</h1>
+            {seller && (
+              <Link href={`/partners/${seller.slug}`}
+                className="mt-1 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted">
+                <Store className="h-3.5 w-3.5 text-primary" />
+                <span className="text-muted-foreground">{t.productSoldBy}</span>
+                <span className="underline decoration-primary/40 underline-offset-2">
+                  {seller.display_name?.trim() || seller.business_name}
+                </span>
+                <span className="text-primary">{t.productVisitStore}</span>
+              </Link>
+            )}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-0.5">
                 {[...Array(5)].map((_, i) => (
@@ -309,11 +339,21 @@ export default function ProductDetailPage() {
               </div>
             )}
 
+            {/* Virtual try-on entry point — deep links into the mannequin workspace
+                with this product pre-selected. Reuses /studio rather than
+                duplicating the studio UI on the product page. */}
+            <Link
+              href={`/studio?product=${product.id}`}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+            >
+              <Shirt className="h-4 w-4" />
+              Essayer sur mon mannequin
+            </Link>
+
             {/* Quantity Selector & Stock Indicator */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.quantity}</span>
-                <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t.quantity}</span>                <div className="flex items-center gap-1.5">
                   <span className={`h-2.5 w-2.5 rounded-full ${product.stock_quantity > 3 ? 'bg-emerald-500' : product.stock_quantity > 0 ? 'bg-amber-500' : 'bg-destructive'}`}></span>
                   <span className="text-xs text-muted-foreground">
                     {product.stock_quantity > 3 ? t.inStock : product.stock_quantity > 0 ? `${t.lowStock} (${product.stock_quantity} ${t.stockRemaining})` : t.outOfStock}
@@ -346,10 +386,22 @@ export default function ProductDetailPage() {
                   >
                     <Heart className={`h-5 w-5 ${isSaved ? 'fill-red-500' : ''}`} />
                   </button>
+
+                  {/* Share with a friend, or copy the product link */}
+                  <button
+                    onClick={() => setShareOpen(true)}
+                    aria-label={t.socialShareTitle}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+                  >
+                    <Share2 className="h-5 w-5" />
+                  </button>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Anonymous social proof: only rendered when there is real signal. */}
+          <SocialProofStrip productId={product.id} />
 
           {/* Action Buttons */}
           {product.stock_quantity > 0 ? (
@@ -536,6 +588,12 @@ export default function ProductDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Share sheet. Mounted once at the page root so it is not coupled to the
+          product column's responsive layout. */}
+      {shareOpen ? (
+        <ProductShareSheet product={product} onClose={() => setShareOpen(false)} />
+      ) : null}
 
     </div>
   );
