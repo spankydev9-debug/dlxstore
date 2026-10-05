@@ -231,3 +231,82 @@ export async function listStaffProfiles(): Promise<StaffProfile[]> {
   if (!isDemoMode) throw new Error(mockError());
   return [];
 }
+
+// ---------------------------------------------------------------------------
+// Person-to-person (direct) conversations
+// ---------------------------------------------------------------------------
+
+/**
+ * Open, or re-open, the 1-to-1 conversation with `profileId`.
+ *
+ * Backed by get_or_create_direct_conversation(), which is the only path that may
+ * write conversation_participants for a customer. It is idempotent: two calls
+ * for the same pair always resolve to the same conversation, including when they
+ * race (a unique index on dm_key settles it server-side).
+ *
+ * The server deliberately leaves conversations.title NULL for direct chats: the
+ * display name is the counterpart, which differs per viewer.
+ */
+export async function getOrCreateDirectConversation(
+  profileId: string
+): Promise<Conversation> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.rpc(
+      "get_or_create_direct_conversation",
+      { p_other_profile_id: profileId }
+    );
+    if (error) throw new Error(error.message || "Unable to start the conversation.");
+    return toClientConversation(data as Conversation);
+  }
+  if (!isDemoMode) throw new Error(mockError());
+  throw new Error(mockError());
+}
+
+export interface DiscoverableProfile {
+  profile_id: string;
+  full_name: string;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+/**
+ * Search people you can start a direct conversation with.
+ *
+ * search_profiles() already excludes the caller and anyone blocked in either
+ * direction, so no client-side filtering is needed for safety.
+ */
+export async function searchDiscoverableProfiles(
+  query: string,
+  limit: number = 20
+): Promise<DiscoverableProfile[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    if (!isDemoMode) throw new Error(mockError());
+    return [];
+  }
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const { data, error } = await supabase.rpc("search_profiles", {
+    p_query: trimmed,
+    p_limit: limit,
+  });
+  if (error) throw new Error(error.message || "Unable to search for people.");
+  return (data ?? []) as DiscoverableProfile[];
+}
+
+/**
+ * The other person in a conversation, or null when the caller is not a participant.
+ *
+ * list_my_conversations() orders participants by `(p.id = v_uid) DESC`, which puts
+ * the caller FIRST -- participants[0] is you, not your counterpart. Always resolve
+ * the counterpart by filtering on profile_id.
+ */
+export function getCounterpart(
+  conversation: Pick<Conversation, "participants">,
+  currentUserId: string | null | undefined
+): Conversation["participants"][number] | null {
+  if (!currentUserId) return null;
+  return (
+    conversation.participants.find((p) => p.profile_id !== currentUserId) ?? null
+  );
+}

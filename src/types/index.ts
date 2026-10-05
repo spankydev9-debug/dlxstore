@@ -572,7 +572,11 @@ export interface InventoryHistoryEntry {
 // DLX Chat
 // ---------------------------------------------------------------------------
 
-export type ConversationType = "customer_support" | "internal" | "group";
+// "direct" is enforced by the conversations_type_check constraint widened in
+// 20261019090000_direct_chat.sql. "group" is declared for the group columns
+// (is_group / group_admin_id) but no code path creates one yet, so the database
+// still rejects it.
+export type ConversationType = "customer_support" | "internal" | "direct" | "group";
 export type ConversationStatus = "open" | "resolved" | "closed";
 export type UserPresenceStatus = "online" | "away" | "offline";
 export type MessageStatusType = "sent" | "delivered" | "read";

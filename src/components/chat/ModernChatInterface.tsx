@@ -8,17 +8,20 @@ import {
 } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useChat } from "../../context/ChatContext";
+import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { 
+import {
   MessageBubble, 
   MessageComposer, 
   TypingIndicatorDisplay,
   OnlineStatusBadge,
-  formatChatTime 
 } from "./EnhancedChatUi";
+import { ChatTimestamp } from "./chatTime";
+import { NewDirectConversationPanel } from "./NewDirectConversationPanel";
 
 export function ModernChatInterface() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const {
     conversations,
     activeConversation,
@@ -39,11 +42,15 @@ export function ModernChatInterface() {
     pinMessage,
     unpinMessage,
     refreshActiveConversationData,
+    startDirectConversation,
+    searchPeople,
+    counterpartOf,
   } = useChat();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread" | "support" | "internal">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "direct" | "support" | "internal">("all");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showNewChat, setShowNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +84,7 @@ export function ModernChatInterface() {
 
   const filteredConversations = conversations.filter((conv) => {
     if (filter === "unread" && conv.unread_count === 0) return false;
+    if (filter === "direct" && conv.type !== "direct") return false;
     if (filter === "support" && conv.type !== "customer_support") return false;
     if (filter === "internal" && conv.type !== "internal") return false;
     
@@ -162,7 +170,9 @@ export function ModernChatInterface() {
   const renderConversationItem = (conversation: Conversation) => {
     const isActive = conversation.id === activeConversation?.id;
     const hasUnread = conversation.unread_count > 0;
-    const lastParticipant = conversation.participants.find(p => p.profile_id !== "current-user");
+    // Resolve the other person by id. list_my_conversations orders participants
+    // with the caller first, so participants[0] is you, not your counterpart.
+    const counterpart = counterpartOf(conversation);
     
     return (
       <button
@@ -187,9 +197,11 @@ export function ModernChatInterface() {
                 isActive ? "text-primary-foreground" : "text-foreground"
               }`}
             >
-              {conversation.title || 
-                (conversation.type === "customer_support" ? "DLX Support" : 
-                 conversation.participants.map(p => p.full_name).filter(Boolean).join(", "))}
+              {conversation.title ||
+                (conversation.type === "customer_support"
+                  ? "DLX Support"
+                  : counterpart?.full_name ||
+                    conversation.participants.map(p => p.full_name).filter(Boolean).join(", "))}
             </p>
             {conversation.last_message_at && (
               <span
@@ -197,7 +209,7 @@ export function ModernChatInterface() {
                   isActive ? "text-primary-foreground/70" : "text-muted-foreground"
                 }`}
               >
-                {formatChatTime(conversation.last_message_at)}
+                <ChatTimestamp iso={conversation.last_message_at} />
               </span>
             )}
           </div>
@@ -235,11 +247,11 @@ export function ModernChatInterface() {
               </span>
             )}
             
-            {lastParticipant && (
+            {counterpart && (
               <OnlineStatusBadge
-                userId={lastParticipant.profile_id}
+                userId={counterpart.profile_id}
                 conversationId={conversation.id}
-                lastSeen={lastParticipant.presence?.last_seen_at}
+                lastSeen={counterpart.presence?.last_seen_at}
               />
             )}
           </div>
@@ -294,7 +306,7 @@ export function ModernChatInterface() {
               
               {/* Filters */}
               <div className="flex gap-1">
-                {(["all", "unread", "support", "internal"] as const).map((filterType) => (
+                {(["all", "unread", "direct", "support", "internal"] as const).map((filterType) => (
                   <button
                     key={filterType}
                     onClick={() => setFilter(filterType)}
@@ -310,6 +322,27 @@ export function ModernChatInterface() {
               </div>
             </div>
             
+            {/* New direct conversation */}
+            <div className="border-b border-border p-3">
+              {showNewChat ? (
+                <NewDirectConversationPanel
+                  onClose={() => setShowNewChat(false)}
+                  onStarted={(id) => {
+                    setShowNewChat(false);
+                    setActiveConversationId(id);
+                  }}
+                />
+              ) : (
+                <button
+                  onClick={() => setShowNewChat(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  New message
+                </button>
+              )}
+            </div>
+
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto p-2">
               {isLoading ? (
@@ -428,7 +461,10 @@ export function ModernChatInterface() {
                   <div key={message.id} data-message-id={message.id}>
                     <MessageBubble
                       message={message}
-                      isMine={message.sender_role === "customer"}
+                      /* Ownership is decided by sender_id, not sender_role: role is
+                         "customer" for every member of a 1-to-1 chat, so comparing
+                         the role right-aligned the other person's messages too. */
+                      isMine={message.sender_id === user?.id}
                       onReaction={(emoji) => handleReaction(message.id, emoji)}
                       onEdit={() => handleEditMessage(message.id)}
                       onDelete={() => handleDeleteMessage(message.id)}

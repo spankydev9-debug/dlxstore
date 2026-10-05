@@ -19,8 +19,12 @@ import {
   getConversations,
   getMessages,
   getOrCreateSupportConversation,
+  getOrCreateDirectConversation,
+  getCounterpart,
   markConversationRead,
+  searchDiscoverableProfiles,
   sendMessage as dbSendMessage,
+  type DiscoverableProfile,
 } from "../services/db/chat";
 import {
   isRealtimeChatAvailable,
@@ -60,6 +64,12 @@ type ChatContextType = {
   markDelivered: (messageId: string) => Promise<void>;
   // Conversation management
   openSupportConversation: (orderId?: string) => Promise<Conversation | null>;
+  /** Open (or re-open) the 1-to-1 conversation with another user. */
+  startDirectConversation: (profileId: string) => Promise<Conversation | null>;
+  /** People the caller may start a direct conversation with (self + blocked excluded). */
+  searchPeople: (query: string) => Promise<DiscoverableProfile[]>;
+  /** The other participant, resolved by id. Never index participants[0]: it is the caller. */
+  counterpartOf: (conversation: Conversation | null) => Conversation["participants"][number] | null;
   createInternalConversation: (
     title: string,
     participantIds: string[]
@@ -254,6 +264,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           () => {
             void refreshConversations();
           }
+        )
+        // A direct conversation is INSERTed, not UPDATEd, so without this the
+        // recipient never sees the new thread appear until a manual refresh.
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "conversations" },
+          () => {
+            void refreshConversations();
+          }
+        )
+        // Covers message edit / soft delete propagation.
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "messages" },
+          () => {
+            const activeId = activeRef.current;
+            if (activeId) {
+              void refreshMessages(activeId);
+            }
+          }
         );
 
       if (realtimeAvailable) {
@@ -323,6 +353,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }, 2000); // Check typing indicators every 2 seconds
     return () => clearInterval(interval);
   }, [user, activeConversationId, refreshTypingIndicators]);
+
+  // Safety net so a failed realtime channel degrades to polling instead of
+  // silently showing a stale inbox. Only active while the channel is not
+  // confirmed SUBSCRIBED, so a healthy realtime session costs nothing.
+  useEffect(() => {
+    if (!user || realtimeStatus === "connected") return;
+    const interval = setInterval(() => {
+      void refreshConversations();
+      const activeId = activeRef.current;
+      if (activeId) {
+        void refreshMessages(activeId);
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [user, realtimeStatus, refreshConversations, refreshMessages]);
 
   // Clean up typing timeout
   useEffect(() => {
@@ -472,6 +517,46 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [openConversation]
+  );
+
+  const startDirectConversation = useCallback(
+    async (profileId: string) => {
+      if (!user || !profileId) return null;
+      try {
+        const conversation = await getOrCreateDirectConversation(profileId);
+        // Upsert rather than blind-prepend: the RPC is idempotent, so this must
+        // not duplicate an existing row in the inbox.
+        setConversations((current) => {
+          const without = current.filter((c) => c.id !== conversation.id);
+          return [conversation, ...without];
+        });
+        await openConversation(conversation.id);
+        return conversation;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to start the conversation.");
+        return null;
+      }
+    },
+    [user, openConversation]
+  );
+
+  const searchPeople = useCallback(
+    async (query: string) => {
+      if (!user) return [];
+      try {
+        return await searchDiscoverableProfiles(query);
+      } catch (err) {
+        console.error("Error searching people:", err);
+        return [];
+      }
+    },
+    [user]
+  );
+
+  const counterpartOf = useCallback(
+    (conversation: Conversation | null) =>
+      conversation ? getCounterpart(conversation, user?.id) : null,
+    [user]
   );
 
   const addConversationParticipant = useCallback(
@@ -648,6 +733,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       markRead,
       markDelivered,
       openSupportConversation,
+      startDirectConversation,
+      searchPeople,
+      counterpartOf,
       createInternalConversation,
       addConversationParticipant,
       refreshConversations,
@@ -676,6 +764,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       messages,
       openConversation,
       openSupportConversation,
+      startDirectConversation,
+      searchPeople,
+      counterpartOf,
       realtimeStatus,
       refreshConversations,
       sendMessage,

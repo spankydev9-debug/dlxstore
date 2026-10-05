@@ -4,15 +4,12 @@ import { FormEvent, KeyboardEvent, useState } from "react";
 import { Clock, Send, MessageSquare, Wifi, WifiOff } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
+import { ChatTimestamp } from "./chatTime";
 
-export function formatChatTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return time;
-  return `${date.toLocaleDateString([], { day: "2-digit", month: "short" })} · ${time}`;
-}
+// Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
+// formatChatTime() directly during render reintroduces the hydration mismatch unless
+// the caller threads the useIsHydrated() value through.
+export { formatChatTime } from "./chatTime";
 
 export function MessageBubble({
   message,
@@ -45,7 +42,7 @@ export function MessageBubble({
           }`}
         >
           <Clock className="h-3 w-3" />
-          {formatChatTime(message.created_at)}
+          <ChatTimestamp iso={message.created_at} />
         </p>
       </div>
     </div>
@@ -144,7 +141,7 @@ export function ConversationListItem({
                 isActive ? "text-primary-foreground/70" : "text-muted-foreground"
               }`}
             >
-              {formatChatTime(conversation.last_message_at)}
+              <ChatTimestamp iso={conversation.last_message_at} />
             </span>
           )}
         </div>

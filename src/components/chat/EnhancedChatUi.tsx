@@ -10,30 +10,12 @@ import {
 import { ConversationMessage, TypingIndicator, MessageReaction } from "../../types";
 import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { ChatTimestamp, RelativeTimestamp, useHydrationSafeTime } from "./chatTime";
 
-export function formatChatTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return time;
-  return `${date.toLocaleDateString([], { day: "2-digit", month: "short" })} · ${time}`;
-}
-
-export function formatRelativeTime(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return formatChatTime(iso);
-}
+// Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
+// formatChatTime() directly during render reintroduces the hydration mismatch unless
+// the caller threads the useIsHydrated() value through.
+export { formatChatTime, formatRelativeTime } from "./chatTime";
 
 export function MessageStatusIndicator({ status }: { status: string }) {
   switch (status) {
@@ -161,7 +143,7 @@ export function MessageBubble({
             isMine ? "text-primary-foreground/70" : "text-muted-foreground"
           }`}>
             <Clock className="h-3 w-3" />
-            {formatChatTime(message.created_at)}
+            <ChatTimestamp iso={message.created_at} />
             
             {message.edited_at && (
               <span className="italic">(edited)</span>
@@ -519,6 +501,9 @@ export function OnlineStatusBadge({
     return () => clearInterval(interval);
   }, [lastSeen]);
   
+  // Time labels are wall-clock dependent, so they must be hydration-safe.
+  const { formatRelative } = useHydrationSafeTime();
+
   const statusConfig = {
     online: {
       label: t.chatOnline,
@@ -529,7 +514,7 @@ export function OnlineStatusBadge({
       className: "text-amber-600 border-amber-600/30 bg-amber-600/10",
     },
     offline: {
-      label: lastSeen ? `Last seen ${formatRelativeTime(lastSeen)}` : t.chatOffline,
+      label: lastSeen ? `Last seen ${formatRelative(lastSeen)}` : t.chatOffline,
       className: "text-muted-foreground border-border bg-muted",
     },
   }[status];
