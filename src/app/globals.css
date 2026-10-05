@@ -243,6 +243,14 @@ html {
 }
 
 /* Premium Animations */
+/* Slow vertical drift for the atmosphere motes in the /studio environment. */
+@keyframes dlx-drift {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  12%  { opacity: 0.45; }
+  88%  { opacity: 0.3; }
+  100% { transform: translate3d(6px, -180px, 0); opacity: 0; }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

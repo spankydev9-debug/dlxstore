@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, LockKeyhole, Sparkles } from "lucide-react";
+import { Loader2, LockKeyhole } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { getMyAvatar } from "../../services/db/avatar";
@@ -43,12 +43,8 @@ function MannequinStudioShell({ productParam }: { productParam?: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
-
-    if (!user) {
-      setLoading(false);
-      return;
-    }
 
     void (async () => {
       try {
@@ -66,26 +62,34 @@ function MannequinStudioShell({ productParam }: { productParam?: string }) {
     };
   }, [user]);
 
-  if (authLoading || loading) {
+  if (authLoading || (user && loading)) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-5xl items-center justify-center px-4">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#050506]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#d4af37]" />
       </main>
     );
   }
 
   if (!user) {
     return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center gap-4 px-4 text-center">
-        <LockKeyhole className="h-8 w-8 text-muted-foreground" />
-        <h1 className="text-xl font-semibold">Votre mannequin vous attend</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
+      <main className="relative flex min-h-[100dvh] w-full flex-col items-center justify-center gap-4 overflow-hidden bg-[#050506] px-4 text-center">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 40%, rgba(212,175,55,0.16), rgba(5,5,6,0) 62%)",
+          }}
+        />
+        <LockKeyhole className="h-8 w-8 text-[#d4af37]" />
+        <h1 className="relative text-xl font-semibold text-white">Votre mannequin vous attend</h1>
+        <p className="relative max-w-sm text-sm text-white/55">
           Connectez-vous pour créer votre mannequin DLXSTORE et essayer vos
           articles.
         </p>
         <Link
           href="/auth"
-          className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
+          className="relative inline-flex min-h-11 items-center rounded-xl bg-gradient-to-b from-[#e6c65a] to-[#c39c22] px-5 py-2 text-sm font-semibold text-black"
         >
           Se connecter
         </Link>
@@ -93,21 +97,7 @@ function MannequinStudioShell({ productParam }: { productParam?: string }) {
     );
   }
 
-  return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8">
-      <header className="mb-6 space-y-2">
-        <p className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
-          <Sparkles className="h-3.5 w-3.5" />
-          DLX AI Product Studio
-        </p>
-        <h1 className="text-2xl font-bold sm:text-3xl">Mon mannequin</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Votre mannequin personnel. Choisissez un article, modelez-le sur votre
-          avatar, et retrouvez tous vos essayages au même endroit.
-        </p>
-      </header>
-
-      <MannequinStudio user={user} avatar={avatar} initialProductId={productParam} />
-    </main>
-  );
+  // The studio is a full-bleed environment: the character owns the viewport and
+  // the component supplies its own header, so this shell adds no chrome of its own.
+  return <MannequinStudio user={user} avatar={avatar} initialProductId={productParam} />;
 }
