@@ -177,7 +177,14 @@ export function ModernChatInterface() {
     return (
       <button
         key={conversation.id}
-        onClick={() => setActiveConversationId(conversation.id)}
+        onClick={() => {
+          setActiveConversationId(conversation.id);
+          // On phones the sidebar is a full-width drawer, so opening a
+          // conversation must reveal the message pane behind it.
+          if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+            setIsSidebarOpen(false);
+          }
+        }}
         className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${
           isActive ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-muted"
         }`}
@@ -261,9 +268,10 @@ export function ModernChatInterface() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className={`${isSidebarOpen ? "w-80" : "w-0"} border-r border-border transition-all duration-300 flex flex-col`}>
+    <div className="flex h-dvh bg-background">
+      {/* Sidebar. On phones it is a full-width drawer that is mutually exclusive
+          with the conversation pane; from lg up it sits beside it. */}
+      <div className={`${isSidebarOpen ? "w-full lg:w-80" : "w-0 overflow-hidden"} shrink-0 border-r border-border bg-background transition-all duration-300 flex flex-col`}>
         {isSidebarOpen && (
           <>
             {/* Sidebar header */}
@@ -281,8 +289,9 @@ export function ModernChatInterface() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsSidebarOpen(false)}
-                    className="p-1 hover:bg-muted rounded"
+                    className="hidden h-9 w-9 items-center justify-center rounded hover:bg-muted lg:flex"
                     title="Hide sidebar"
+                    aria-label="Hide sidebar"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
@@ -310,11 +319,11 @@ export function ModernChatInterface() {
                   <button
                     key={filterType}
                     onClick={() => setFilter(filterType)}
-                    className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium capitalize ${
-                      filter === filterType
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
-                    }`}
+className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize sm:px-3 ${
+                        filter === filterType
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      }`}
                   >
                     {filterType}
                   </button>
@@ -330,6 +339,10 @@ export function ModernChatInterface() {
                   onStarted={(id) => {
                     setShowNewChat(false);
                     setActiveConversationId(id);
+                    // Reveal the message pane behind the full-width phone drawer.
+                    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+                      setIsSidebarOpen(false);
+                    }
                   }}
                 />
               ) : (
@@ -392,7 +405,7 @@ export function ModernChatInterface() {
       </div>
       
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${isSidebarOpen ? "hidden lg:flex" : "flex"} min-w-0 flex-1 flex-col`}>
         {/* Chat header */}
         {activeConversation ? (
           <>
@@ -402,9 +415,12 @@ export function ModernChatInterface() {
                   {!isSidebarOpen && (
                     <button
                       onClick={() => setIsSidebarOpen(true)}
-                      className="p-1 hover:bg-muted rounded"
+                      className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-muted"
+                      title="Back to conversations"
+                      aria-label="Back to conversations"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <ArrowLeft className="h-5 w-5 lg:hidden" />
+                      <MessageSquare className="hidden h-4 w-4 lg:block" />
                     </button>
                   )}
                   <div>

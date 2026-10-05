@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -14,6 +15,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
   ]),
   {
+    // Flat config resolves a plugin rule only when the plugin is registered in
+    // the same config object that sets the rule, so register it here.
+    plugins: { "react-hooks": reactHooks },
     rules: {
       // French text contains apostrophes — safe to allow in JSX
       "react/no-unescaped-entities": "off",

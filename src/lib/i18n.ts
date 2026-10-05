@@ -12,7 +12,7 @@ export type Language = (typeof languages)[number]["code"];
 const fr = {
   home: "Accueil", shop: "Boutique", shops: "Boutiques", studio: "Mon mannequin", food: "DLX Food", partner: "Devenir partenaire", about: "À propos", contact: "Contact",
   language: "Langue", chooseLanguage: "Choisissez votre langue", chooseLanguageBody: "Sélectionnez votre langue pour DLXSTORE.",
-  searchProducts: "Rechercher un produit à Goma…", searchGoma: "Rechercher à Goma…", changeTheme: "Changer de thème",
+  searchProducts: "Rechercher un produit à Goma…", searchGoma: "Rechercher à Goma…", changeTheme: "Changer de thème", menu: "Menu",
   launchTitle: "DLXSTORE arrive bientôt", launchBody: "Le futur marché numérique de la RDC se prépare.", explore: "Découvrir DLXSTORE", loading: "Chargement…",
   signIn: "Se connecter", createAccount: "Créer mon compte", authLoginBody: "Connectez-vous pour suivre vos commandes à Goma",
   authRegisterBody: "Créez votre compte client DLXSTORE", fullName: "Nom complet", emailAddress: "Adresse e-mail", phone: "Téléphone",
@@ -665,7 +665,7 @@ const fr = {
 const en: typeof fr = {
   home: "Home", shop: "Shop", shops: "Shops", studio: "Mannequin", food: "DLX Food", partner: "Become a partner", about: "About", contact: "Contact",
   language: "Language", chooseLanguage: "Choose your language", chooseLanguageBody: "Select your language for DLXSTORE.",
-  searchProducts: "Search for a product in Goma…", searchGoma: "Search in Goma…", changeTheme: "Change theme",
+  searchProducts: "Search for a product in Goma…", searchGoma: "Search in Goma…", changeTheme: "Change theme", menu: "Menu",
   launchTitle: "DLXSTORE is coming soon", launchBody: "The DRC's digital marketplace is getting ready.", explore: "Explore DLXSTORE", loading: "Loading…",
   signIn: "Sign in", createAccount: "Create my account", authLoginBody: "Sign in to track your Goma orders",
   authRegisterBody: "Create your DLXSTORE customer account", fullName: "Full name", emailAddress: "Email address", phone: "Phone",
@@ -1321,7 +1321,7 @@ const en: typeof fr = {
 const sw: typeof fr = {
   home: "Nyumbani", shop: "Duka", shops: "Maduka", studio: "Manekini", food: "DLX Chakula", partner: "Kuwa Mshirika", about: "Kuhusu", contact: "Wasiliana",
   language: "Lugha", chooseLanguage: "Chagua lugha yako", chooseLanguageBody: "Chagua lugha yako kwa DLXSTORE.",
-  searchProducts: "Tafuta bidhaa Goma…", searchGoma: "Tafuta Goma…", changeTheme: "Badilisha mandhari",
+  searchProducts: "Tafuta bidhaa Goma…", searchGoma: "Tafuta Goma…", changeTheme: "Badilisha mandhari", menu: "Menyu",
   launchTitle: "DLXSTORE inakuja karibu", launchBody: "Soko la kidijitali la DRC linajiandaa.", explore: "Gundua DLXSTORE", loading: "Inapakia…",
   signIn: "Ingia", createAccount: "Unda akaunti yangu", authLoginBody: "Ingia kufuatia oda zako Goma",
   authRegisterBody: "Unda akaunti yako ya mteja DLXSTORE", fullName: "Jina kamili", emailAddress: "Anwani ya barua pepe", phone: "Simu",
@@ -1977,7 +1977,7 @@ const sw: typeof fr = {
 const ln: typeof fr = {
   home: "Ekólo", shop: "Madúka", shops: "Madúka", studio: "Manekini", food: "DLX Biléi", partner: "Kokíwa Mbwete", about: "Mokandá", contact: "Kotámbwisa",
   language: "Lokótá", chooseLanguage: "Pɔn lokótá ya nyɔn", chooseLanguageBody: "Pɔn lokótá ya nyɔn mpo na DLXSTORE.",
-  searchProducts: "Kɔ́sɔkɔ biléi na Goma…", searchGoma: "Kɔ́sɔkɔ na Goma…", changeTheme: "Sɔ́kɔ́ngɔ́",
+  searchProducts: "Kɔ́sɔkɔ biléi na Goma…", searchGoma: "Kɔ́sɔkɔ na Goma…", changeTheme: "Sɔ́kɔ́ngɔ́", menu: "Menu",
   launchTitle: "DLXSTORE ekokí kokata", launchBody: "Sɔ́kɔ́ la DRC ekokí kobanda.", explore: "Kɔ́tɔ́ DLXSTORE", loading: "Ekopaki…",
   signIn: "Kínám", createAccount: "Sála kɔ́ntɔ na ngai", authLoginBody: "Kínám mpo na kútála magɛngɛ ya nyɔn na Goma",
   authRegisterBody: "Sála kɔ́ntɔ ya mokɔ́mbɔ ya DLXSTORE", fullName: "Nkómbó ya mobimba", emailAddress: "Adrésɛ ya email", phone: "Simu",
@@ -2633,7 +2633,7 @@ const ln: typeof fr = {
 const tl: typeof fr = {
   home: "Mukanda", shop: "Duka", shops: "Maduka", studio: "Manekini", food: "DLX Diedye", partner: "Kuwa Mwenze", about: "Kadi", contact: "Twanyanya",
   language: "Lutad", chooseLanguage: "Sangana lutad lue", chooseLanguageBody: "Sangana lutad lue mpo na DLXSTORE.",
-  searchProducts: "Sangana diedye Goma…", searchGoma: "Sangana Goma…", changeTheme: "Sangana mwindu",
+  searchProducts: "Sangana diedye Goma…", searchGoma: "Sangana Goma…", changeTheme: "Sangana mwindu", menu: "Menu",
   launchTitle: "DLXSTORE tudyi", launchBody: "Soko la DRC tudyi.", explore: "Sangana DLXSTORE", loading: "Kudiyi…",
   signIn: "Yena", createAccount: "Tanga akawunt lue", authLoginBody: "Yena mpo ku landa malongi lue Goma",
   authRegisterBody: "Tanga akawunt lue wa mukaji wa DLXSTORE", fullName: "Dijina dia kimbote", emailAddress: "Adrese ya email", phone: "Tshimbi",
@@ -3291,7 +3291,7 @@ const kg: typeof fr = {
   food: "DLX Bidia", partner: "Kuma mfwanani", about: "Kadi",
   contact: "Nsambukila", language: "Ndinga", chooseLanguage: "Sola ndinga yaku",
   chooseLanguageBody: "Sola ndinga yaku samu na DLXSTORE.", searchProducts: "Sosa diambu na Goma…", searchGoma: "Sosa na Goma…",
-  changeTheme: "Bongola nzayilu", launchTitle: "DLXSTORE kakwiza", launchBody: "Zandu ya kimfumu ya kivangu ya RDC yena ku bumbwa.",
+  changeTheme: "Bongola nzayilu", menu: "Menu", launchTitle: "DLXSTORE kakwiza", launchBody: "Zandu ya kimfumu ya kivangu ya RDC yena ku bumbwa.",
   explore: "Tala DLXSTORE", loading: "Ku londa…", signIn: "Kota",
   createAccount: "Vanga kontolo", authLoginBody: "Kota samu na ku landa malutumu maku na Goma", authRegisterBody: "Vanga kontolo yaku ya DLXSTORE",
   fullName: "Nkumbu ya mvimba", emailAddress: "Adilɛsi ya imeli", phone: "Lone",

@@ -167,9 +167,9 @@ export default function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
         {/* LOGO */}
-        <div className="flex items-center gap-8">
-          <Link href="/" onClick={() => closeOverlay()} className="flex items-center space-x-2">
-            <span className="text-xl font-bold tracking-widest text-foreground sm:text-2xl uppercase">
+        <div className="flex min-w-0 items-center gap-8">
+          <Link href="/" onClick={() => closeOverlay()} className="flex shrink-0 items-center space-x-2">
+            <span className="text-base font-bold tracking-widest text-foreground uppercase sm:text-xl lg:text-2xl">
               DLX<span className="text-primary font-light">STORE</span>
             </span>
           </Link>
@@ -189,7 +189,7 @@ export default function Header() {
         </div>
 
         {/* SEARCH BAR (Desktop) */}
-        <div ref={searchRef} className="relative hidden max-w-md flex-1 px-4 md:block">
+        <div ref={searchRef} className="relative hidden min-w-0 max-w-md flex-1 px-4 md:block">
           <form onSubmit={handleSearchSubmit} className="relative">
             <Search className="absolute top-2.5 left-3 h-4.5 w-4.5 text-muted-foreground" />
             <input
@@ -234,14 +234,17 @@ export default function Header() {
         </div>
 
         {/* CONTROLS */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <LanguageSwitcher />
+        <div className="flex min-w-0 shrink items-center gap-1 sm:space-x-4">
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
           
           {/* Theme Toggler */}
           <button
             onClick={toggleTheme}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:inline-flex"
             title={t.changeTheme}
+            aria-label={t.changeTheme}
           >
             {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
           </button>
@@ -250,7 +253,7 @@ export default function Header() {
           <Link
             href="/cart"
             onClick={() => closeOverlay()}
-            className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <ShoppingBag className="h-5 w-5" />
             {cartCount > 0 && (
@@ -264,8 +267,9 @@ export default function Header() {
           {user && (
             <button
               onClick={() => toggleOverlay("chat")}
-              className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="relative hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:flex"
               title={t.supportTitle}
+              aria-label={t.supportTitle}
               aria-expanded={isChatOpen}
             >
               <MessageSquare className="h-5 w-5" />
@@ -282,7 +286,9 @@ export default function Header() {
             <div ref={notificationsRef} className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="relative hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:flex"
+                aria-label={t.notifications}
+                aria-expanded={isNotificationsOpen}
               >
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
@@ -488,21 +494,22 @@ export default function Header() {
                 )}
               </>
             ) : (
-              <Link
-                href="/auth?mode=login"
-                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-colors"
-              >
-                Connexion
-              </Link>
+<Link
+                  href="/auth?mode=login"
+                  className="flex h-11 shrink-0 items-center rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-colors"
+                >
+                  Connexion
+                </Link>
             )}
           </div>
 
           {/* Mobile Menu Toggler */}
-          <button
-            onClick={() => toggleOverlay("mobile-menu")}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors md:hidden"
-            aria-expanded={isMobileMenuOpen}
-          >
+<button
+              onClick={() => toggleOverlay("mobile-menu")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors md:hidden"
+              aria-label={t.menu}
+              aria-expanded={isMobileMenuOpen}
+            >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
@@ -566,10 +573,75 @@ export default function Header() {
 
           {/* Download DLXSTORE (PWA install helper) */}
           <div className="pt-5">
-            <DownloadApp variant="drawer" />
+<DownloadApp variant="drawer" />
           </div>
-        </div>
-      )}
+
+            {/* On phones the bar cannot fit the support and notification controls
+                without pushing the menu button off-screen, so both live here. */}
+            {user && (
+              <div className="pt-5 sm:hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">{t.notifications}</span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={async () => { await markAllAsRead(); }}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      {t.markAllRead}
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 space-y-2">
+                  {notifications.length === 0 ? (
+                    <p className="py-2 text-xs text-muted-foreground">{t.noNotifications}</p>
+                  ) : (
+                    notifications.slice(0, 4).map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => markAsRead(n.id)}
+                        className={`cursor-pointer rounded-lg p-2 text-xs transition-colors ${n.is_read ? "bg-muted/40" : "bg-muted/40 border-l-2 border-primary"}`}
+                      >
+                        <div className="mb-1 flex items-center justify-between font-semibold text-foreground">
+                          <span>{n.title}</span>
+                          <span className="text-[9px] text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-muted-foreground">{n.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <Link
+                  href="/chat"
+                  onClick={() => closeOverlay()}
+                  className="mt-3 flex min-h-11 items-center gap-2 border-t border-border/40 pt-3 text-sm text-muted-foreground"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  {t.supportTitle}
+                  {chatUnreadCount > 0 && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                      {chatUnreadCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
+            )}
+
+            {/* Language + theme live here on phones, where the header bar cannot
+                fit them without overflowing and pushing the menu button off-screen. */}
+            <div className="flex items-center justify-between gap-3 pt-5 sm:hidden">
+              <LanguageSwitcher />
+              <button
+                onClick={toggleTheme}
+                className="flex h-11 min-w-11 items-center gap-2 rounded-full border border-border/80 px-3 text-xs font-semibold text-foreground"
+                title={t.changeTheme}
+                aria-label={t.changeTheme}
+              >
+                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                <span>{t.changeTheme}</span>
+              </button>
+            </div>
+          </div>
+        )}
     </header>
 
     {/* Support Chat — rendered as a SIBLING of the glass <header>, never inside it.
