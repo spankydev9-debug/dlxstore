@@ -16,7 +16,6 @@ import {
   Shirt,
   Store,
   Sun,
-  User,
   Users,
   X,
 } from "lucide-react";
@@ -281,10 +280,6 @@ export function AccountMoreDrawer() {
               <Row href="/dashboard?tab=notifications" onClick={done}>
                 <Bell className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                 {t.viewAllNotifications}
-              </Row>
-              <Row href="/support" onClick={done}>
-                <User className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-                {t.supportTitle}
               </Row>
             </>
           ) : null}

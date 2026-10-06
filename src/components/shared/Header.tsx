@@ -11,6 +11,8 @@ import { useTheme } from "./ThemeProvider";
 import { getProducts } from "../../services/db/products";
 import { Product } from "../../types";
 import {
+  Check,
+  Globe,
   ShoppingBag,
   Search,
   User,
@@ -27,6 +29,7 @@ import {
   Store,
 } from "lucide-react";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { languages } from "../../lib/i18n";
 import { ProductImage } from "./ProductImage";
 import { useLanguage } from "../../context/LanguageContext";
 import { useStreakContext } from "../../context/StreakContext";
@@ -74,7 +77,7 @@ export default function Header() {
   const { unreadCount: chatUnreadCount } = useChat();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { activeOverlay, closeOverlay, toggleOverlay } = useOverlay();
 
   // Primary overlays are arbitrated by OverlayProvider: only one can be open at
@@ -85,6 +88,7 @@ export default function Header() {
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -92,6 +96,7 @@ export default function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const langMenuRef = useRef<HTMLDivElement>(null);
 
   // Vertical space covered by the mobile virtual keyboard while Support is open.
   // Populated from the actual VisualViewport geometry (not a guessed offset).
@@ -116,6 +121,9 @@ export default function Header() {
       }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setIsLangMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -239,18 +247,54 @@ export default function Header() {
           </div>
 
           {/* CONTROLS */}
-          <div className="flex min-w-0 shrink items-center gap-1">
-            <div className="hidden lg:block">
+          <div className="flex min-w-0 shrink items-center gap-1 sm:gap-1.5">
+            {/* Language — full pill on pointers, compact globe+menu on phones so
+                the utility survives even at 320px without crowding the logo. */}
+            <span className="hidden md:inline-flex">
               <LanguageSwitcher />
-            </div>
+            </span>
+            <span ref={langMenuRef} className="relative md:hidden">
+              <button
+                onClick={() => setIsLangMenuOpen((open) => !open)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t.language}
+                aria-expanded={isLangMenuOpen}
+                title={t.language}
+              >
+                <Globe className="h-4 w-4" />
+              </button>
+
+              {isLangMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-border/80 bg-card p-1.5 shadow-xl animate-fade-in">
+                  {languages.map((item) => {
+                    const active = item.code === language;
+                    return (
+                      <button
+                        key={item.code}
+                        onClick={() => {
+                          setLanguage(item.code);
+                          setIsLangMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                          active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                        {active ? <Check className="h-4 w-4" /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </span>
 
             <button
               onClick={toggleTheme}
-              className={`${iconBtn} hidden lg:inline-flex`}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title={t.changeTheme}
               aria-label={t.changeTheme}
             >
-              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+              {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
 
             {/* Cart — kept in the shopping context at every breakpoint, with the

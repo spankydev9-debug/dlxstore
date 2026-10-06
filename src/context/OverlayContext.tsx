@@ -29,7 +29,7 @@ import React, {
  * neither can be mistaken for the other: search is a primary destination of the
  * mobile layout, the drawer is where secondary links live.
  */
-export type OverlayId = "chat" | "mobile-menu" | "mobile-search";
+export type OverlayId = "chat" | "mobile-menu" | "mobile-search" | "language";
 
 interface OverlayContextValue {
   activeOverlay: OverlayId | null;
