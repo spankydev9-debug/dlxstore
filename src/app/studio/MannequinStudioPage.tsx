@@ -33,11 +33,31 @@ export default function MannequinStudioPage() {
 function MannequinStudioRoute() {
   const searchParams = useSearchParams();
   const productParam = searchParams.get("product") ?? undefined;
+  const sizeParam = searchParams.get("size") ?? undefined;
+  const colorParam = searchParams.get("color") ?? undefined;
+  const lookParam = searchParams.get("look") ?? undefined;
 
-  return <MannequinStudioShell productParam={productParam} />;
+  return (
+    <MannequinStudioShell
+      productParam={productParam}
+      sizeParam={sizeParam}
+      colorParam={colorParam}
+      lookParam={lookParam}
+    />
+  );
 }
 
-function MannequinStudioShell({ productParam }: { productParam?: string }) {
+function MannequinStudioShell({
+  productParam,
+  sizeParam,
+  colorParam,
+  lookParam,
+}: {
+  productParam?: string;
+  sizeParam?: string;
+  colorParam?: string;
+  lookParam?: string;
+}) {
   const { user, isLoading: authLoading } = useAuth();
   const [avatar, setAvatar] = useState<CustomerAvatar | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,5 +119,14 @@ function MannequinStudioShell({ productParam }: { productParam?: string }) {
 
   // The studio is a full-bleed environment: the character owns the viewport and
   // the component supplies its own header, so this shell adds no chrome of its own.
-  return <MannequinStudio user={user} avatar={avatar} initialProductId={productParam} />;
+  return (
+    <MannequinStudio
+      user={user}
+      avatar={avatar}
+      initialProductId={productParam}
+      initialSize={sizeParam}
+      initialColor={colorParam}
+      initialLookId={lookParam}
+    />
+  );
 }

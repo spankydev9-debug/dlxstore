@@ -340,14 +340,14 @@ export default function ProductDetailPage() {
             )}
 
             {/* Virtual try-on entry point — deep links into the mannequin workspace
-                with this product pre-selected. Reuses /studio rather than
-                duplicating the studio UI on the product page. */}
+                with this product and its variant pre-selected. Reuses /studio
+                rather than duplicating the studio UI on the product page. */}
             <Link
-              href={`/studio?product=${product.id}`}
+              href={`/studio?product=${product.id}&size=${encodeURIComponent(selectedSize)}&color=${encodeURIComponent(selectedColor)}`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
             >
               <Shirt className="h-4 w-4" />
-              Essayer sur mon mannequin
+              {t.tryOnMyMannequin}
             </Link>
 
             {/* Quantity Selector & Stock Indicator */}

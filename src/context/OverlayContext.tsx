@@ -23,8 +23,13 @@ import React, {
  *    first (instead of navigating away), and
  *  - opening a new primary outlet automatically closes/replaces the previous one
  *    without leaving orphan history entries behind.
+ *
+ * `mobile-menu` is the *Account & More* drawer (secondary navigation) and
+ * `mobile-search` is the full-screen search surface. They are separate ids so
+ * neither can be mistaken for the other: search is a primary destination of the
+ * mobile layout, the drawer is where secondary links live.
  */
-export type OverlayId = "chat" | "mobile-menu";
+export type OverlayId = "chat" | "mobile-menu" | "mobile-search";
 
 interface OverlayContextValue {
   activeOverlay: OverlayId | null;

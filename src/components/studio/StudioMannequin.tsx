@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { Fragment, useId, useState } from "react";
 import { normalizeAvatarAttributes } from "../../lib/avatar";
 import type { AvatarAttributes } from "../../types";
 
@@ -203,27 +203,62 @@ const PRESENTATION_FALLBACK: Record<string, { base: string; shade: string }> = {
 
 export type StudioMannequinProps = {
   attributes: Partial<AvatarAttributes> | null | undefined;
-  /** Garment silhouette for the current selection. */
+  /** Garment silhouette for the current selection (single-garment mode). */
   garment?: GarmentKind;
-  /** Resolved fabric tone for the current colour selection. */
+  /** Resolved fabric tone for the current colour selection (single-garment mode). */
   fabric?: string | null;
   /** Real product photography, composited very subtly as fabric texture. */
   textureUrl?: string | null;
+  /**
+   * Multi-garment mode. When present, each entry is drawn in order as its own
+   * garment with its own silhouette, its own fabric tone and — critically — its
+   * own real product photograph clipped to that silhouette.
+   *
+   * Replaces `garment`/`fabric`/`textureUrl`; those remain for single-selection
+   * callers. `layers` wins whenever it is non-empty.
+   */
+  layers?: readonly MannequinLayer[];
   /** Highlights the "nothing selected" state without hiding the figure. */
   hasSelection?: boolean;
   className?: string;
 };
+
+/**
+ * One garment on the mannequin.
+ *
+ * `imageUrl` is a real `product_images` row. It is *clipped to the garment
+ * silhouette* — this is what "the actual product photography becomes the
+ * garment visual" means (decision D2). It is never regenerated, never
+ * upscaled, and never presented as an AI result: the studio renders a
+ * provenance caption alongside the figure.
+ */
+export type MannequinLayer = {
+  /** Unique within one render. Also used to build SVG ids, so keep it ASCII. */
+  id: string;
+  kind: GarmentKind;
+  fabric?: string | null;
+  imageUrl?: string | null;
+};
+
+/** Mask an id to characters that are safe inside an SVG id. */
+function safeId(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "");
+}
 
 export function StudioMannequin({
   attributes,
   garment = "top",
   fabric = null,
   textureUrl = null,
+  layers,
   hasSelection = false,
   className = "",
 }: StudioMannequinProps) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const a = normalizeAvatarAttributes(attributes);
+  // A photograph that fails to load must degrade to the fabric colour already
+  // painted underneath it — never to a broken image or a missing garment.
+  const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
 
   const skin = SKIN_HEX[a.skinTone] ?? "#c6823f";
   const hair = HAIR_HEX[a.hairColor] ?? "#141210";
@@ -232,12 +267,15 @@ export function StudioMannequin({
   const height = HEIGHT_SCALE[a.height] ?? 1;
   const fallback = PRESENTATION_FALLBACK[a.presentation] ?? PRESENTATION_FALLBACK.Casual;
 
-  const cloth = fabric ?? fallback.base;
-  const clothShade = fabric ?? fallback.shade;
+  // Single-selection callers collapse to a one-layer stack, so the rendering
+  // path below is the same for both modes.
+  const effectiveLayers: readonly MannequinLayer[] =
+    layers && layers.length > 0 ? layers : [{ id: "single", kind: garment, fabric, imageUrl: textureUrl }];
+
+  const primaryKind = effectiveLayers[0]?.kind ?? garment;
   // "none" (accessory / footwear) keeps the Avatar's own outfit instead of
   // inventing a garment silhouette we have no real reference for.
-  const worn: GarmentKind = garment === "none" ? "top" : garment;
-  const wearsProduct = garment !== "none";
+  const wearsProduct = effectiveLayers.some((layer) => layer.kind !== "none");
 
   // ---- Skeleton -----------------------------------------------------------
   const cx = 180;
@@ -319,46 +357,101 @@ export function StudioMannequin({
     );
   };
 
-  // ---- Garment ------------------------------------------------------------
-  const hemY = worn === "top" ? waistY - 6 : worn === "outerwear" ? hipY - 16 : crotchY + 26;
-  const garmentPath = () => {
-    const wide = worn === "outerwear" ? 1.1 : 1;
-    const sleeve = worn === "top" || worn === "outerwear" || worn === "full";
-    const gShoulderHalf = shoulderHalf * 1.02 + (wide - 1) * 24;
-    const sleeveEndY = sleeve ? waistY - 26 : shoulderY + 22;
-    const sleeveOut = gShoulderHalf + 12;
-    const sleeveIn = gShoulderHalf - 12;
-
-    const topPart =
-      `M ${cx - gShoulderHalf} ${shoulderY + 14}` +
-      ` C ${cx - gShoulderHalf} ${shoulderY - 8} ${cx - 36} ${shoulderY - 18} ${cx} ${shoulderY - 17}` +
-      ` C ${cx + 36} ${shoulderY - 18} ${cx + gShoulderHalf} ${shoulderY - 8} ${cx + gShoulderHalf} ${shoulderY + 14}` +
-      ` C ${cx + (waistR - cx)} ${chestY + 6} ${waistR + (wide - 1) * 8} ${waistY - 60} ${waistR + (wide - 1) * 8} ${hemY}` +
-      ` L ${waistL - (wide - 1) * 8} ${hemY}` +
-      ` C ${waistL - (wide - 1) * 8} ${waistY - 60} ${cx + (waistL - cx)} ${chestY + 6} ${cx - gShoulderHalf} ${shoulderY + 14} Z`;
-
-    if (!sleeve) return topPart;
-
-    const sleevePath = (side: -1 | 1) =>
-      `M ${cx + side * (gShoulderHalf - 6)} ${shoulderY + 6}` +
-      ` C ${cx + side * sleeveOut} ${shoulderY + 40} ${cx + side * sleeveOut} ${chestY + 10} ${cx + side * sleeveOut} ${sleeveEndY}` +
-      ` L ${cx + side * sleeveIn} ${sleeveEndY - 4}` +
-      ` C ${cx + side * sleeveIn} ${chestY + 30} ${cx + side * (gShoulderHalf - 16)} ${shoulderY + 30} ${cx + side * (gShoulderHalf - 6)} ${
-        shoulderY + 6
-      } Z`;
-
-    return { topPart, sleeveL: sleevePath(-1), sleeveR: sleevePath(1) };
+  // ---- Garment layers -----------------------------------------------------
+  type LayerGeom = {
+    /** Paths that make up this garment, in draw order. */
+    paths: string[];
+    /** Whether the silhouette has a torso part (drives neckline + folds). */
+    hasTop: boolean;
+    hemY: number;
+    /**
+     * The band this garment occupies, in viewBox units. Derived from the
+     * avatar's own skeleton (shoulder / hip / knee are functions of build,
+     * clothing size and height), so the photograph is placed against *this*
+     * body rather than against a fixed canvas.
+     */
+    y0: number;
+    y1: number;
+    x0: number;
+    bandW: number;
   };
 
-  const g = garmentPath();
-  const lowerPart =
-    worn === "dress" || worn === "full"
-      ? `M ${hipL - 4} ${hipY - 6} L ${hipR + 4} ${hipY - 6} L ${kneeR + 16} ${kneeY + 26} L ${kneeL - 16} ${kneeY + 26} Z`
-      : worn === "bottom"
-        ? `M ${hipL - 4} ${hipY - 10} L ${hipR + 4} ${hipY - 10} L ${kneeR + 6} ${kneeY + (a.height.includes("Grand") ? 30 : 4)} L ${
-            kneeL - 6
-          } ${kneeY + (a.height.includes("Grand") ? 30 : 4)} Z`
-        : null;
+  /**
+   * Build one garment's geometry from the avatar's own proportions.
+   *
+   * Only the parts the garment actually owns are produced: a pair of trousers
+   * returns a lower path and no torso, so a top can be layered beside it
+   * without two shirts fighting for the same pixels.
+   */
+  const buildLayer = (layer: MannequinLayer): LayerGeom | null => {
+    const worn: GarmentKind = layer.kind === "none" ? "top" : layer.kind;
+    const hasTop = worn !== "bottom";
+    const hasLower = worn === "dress" || worn === "full" || worn === "bottom";
+    if (!hasTop && !hasLower) return null;
+
+    const hemY = worn === "top" ? waistY - 6 : worn === "outerwear" ? hipY - 16 : crotchY + 26;
+    const paths: string[] = [];
+    const topHem = hemY;
+
+    const wide = worn === "outerwear" ? 1.1 : 1;
+    const gShoulderHalf = shoulderHalf * 1.02 + (wide - 1) * 24;
+    // Horizontal band for the photograph: the widest the garment actually
+    // reaches on this avatar. Narrower than a fixed canvas, so the photo is
+    // cropped close instead of being zoomed out into a small patch.
+    const halfW = hasTop ? gShoulderHalf + 34 : hipHalf + 38;
+    const x0 = cx - halfW;
+    const bandW = halfW * 2;
+
+    if (hasTop) {
+      const sleeve = worn === "top" || worn === "outerwear" || worn === "full";
+      const sleeveEndY = sleeve ? waistY - 26 : shoulderY + 22;
+      const sleeveOut = gShoulderHalf + 12;
+      const sleeveIn = gShoulderHalf - 12;
+
+      const topPart =
+        `M ${cx - gShoulderHalf} ${shoulderY + 14}` +
+        ` C ${cx - gShoulderHalf} ${shoulderY - 8} ${cx - 36} ${shoulderY - 18} ${cx} ${shoulderY - 17}` +
+        ` C ${cx + 36} ${shoulderY - 18} ${cx + gShoulderHalf} ${shoulderY - 8} ${cx + gShoulderHalf} ${shoulderY + 14}` +
+        ` C ${cx + (waistR - cx)} ${chestY + 6} ${waistR + (wide - 1) * 8} ${waistY - 60} ${waistR + (wide - 1) * 8} ${hemY}` +
+        ` L ${waistL - (wide - 1) * 8} ${hemY}` +
+        ` C ${waistL - (wide - 1) * 8} ${waistY - 60} ${cx + (waistL - cx)} ${chestY + 6} ${cx - gShoulderHalf} ${shoulderY + 14} Z`;
+      paths.push(topPart);
+
+      if (sleeve) {
+        const sleevePath = (side: -1 | 1) =>
+          `M ${cx + side * (gShoulderHalf - 6)} ${shoulderY + 6}` +
+          ` C ${cx + side * sleeveOut} ${shoulderY + 40} ${cx + side * sleeveOut} ${chestY + 10} ${cx + side * sleeveOut} ${sleeveEndY}` +
+          ` L ${cx + side * sleeveIn} ${sleeveEndY - 4}` +
+          ` C ${cx + side * sleeveIn} ${chestY + 30} ${cx + side * (gShoulderHalf - 16)} ${shoulderY + 30} ${
+            cx + side * (gShoulderHalf - 6)
+          } ${shoulderY + 6} Z`;
+        paths.push(sleevePath(-1), sleevePath(1));
+      }
+    }
+
+    let lowerHem = hemY;
+    if (hasLower) {
+      const longTall = a.height.includes("Grand") ? 30 : 4;
+      const lower =
+        worn === "dress" || worn === "full"
+          ? `M ${hipL - 4} ${hipY - 6} L ${hipR + 4} ${hipY - 6} L ${kneeR + 16} ${kneeY + 26} L ${kneeL - 16} ${kneeY + 26} Z`
+          : `M ${hipL - 4} ${hipY - 10} L ${hipR + 4} ${hipY - 10} L ${kneeR + 6} ${
+              kneeY + (worn === "bottom" ? longTall : 4)
+            } L ${kneeL - 6} ${kneeY + (worn === "bottom" ? longTall : 4)} Z`;
+      paths.push(lower);
+      lowerHem = kneeY + 34;
+    }
+
+    const y0 = hasTop ? shoulderY - 60 : hipY - 40;
+    const topY1 = hasTop ? topHem + 40 : 0;
+    const y1 = Math.max(hasTop ? topY1 : 0, hasLower ? lowerHem + 40 : 0);
+
+    return { paths, hasTop, hemY, y0, y1, x0, bandW };
+  };
+
+  const builtLayers = effectiveLayers
+    .map((layer) => ({ layer, geom: buildLayer(layer), key: `L${safeId(layer.id)}` }))
+    .filter((entry): entry is { layer: MannequinLayer; geom: LayerGeom; key: string } => entry.geom !== null);
 
   const hairStyle = a.hairStyle ?? "Court";
   const showBackHair = hairStyle === "Long" || hairStyle === "Tresses" || hairStyle === "Mi-long";
@@ -373,7 +466,7 @@ export function StudioMannequin({
       className={className}
       role="img"
       aria-label={`Mannequin DLX — ${a.presentation}, carrure ${a.build}, taille ${a.clothingSize}`}
-      data-garment={garment}
+      data-garment={primaryKind}
       data-wears-product={wearsProduct ? "true" : "false"}
       preserveAspectRatio="xMidYMax meet"
     >
@@ -385,12 +478,28 @@ export function StudioMannequin({
           <stop offset="100%" stopColor={skin} stopOpacity="0.34" />
         </linearGradient>
 
-        <linearGradient id={`${uid}-cloth`} x1="0.1" y1="0" x2="0.95" y2="1">
-          <stop offset="0%" stopColor={clothShade} />
-          <stop offset="38%" stopColor={cloth} />
-          <stop offset="78%" stopColor={cloth} stopOpacity="0.86" />
-          <stop offset="100%" stopColor={clothShade} stopOpacity="0.9" />
-        </linearGradient>
+        {/* One gradient + one clip path per garment layer. The gradient is the
+            fabric colour; the clip is what lets the real product photograph be
+            cropped to exactly this garment and nothing else. */}
+        {builtLayers.map(({ layer, geom, key }) => {
+          const base = layer.fabric ?? fallback.base;
+          const shade = layer.fabric ?? fallback.shade;
+          return (
+            <Fragment key={key}>
+              <linearGradient id={`${uid}-cloth-${key}`} x1="0.1" y1="0" x2="0.95" y2="1">
+                <stop offset="0%" stopColor={shade} />
+                <stop offset="38%" stopColor={base} />
+                <stop offset="78%" stopColor={base} stopOpacity="0.86" />
+                <stop offset="100%" stopColor={shade} stopOpacity="0.9" />
+              </linearGradient>
+              <clipPath id={`${uid}-clip-${key}`}>
+                {geom.paths.map((path, index) => (
+                  <path key={`${key}-${index}`} d={path} />
+                ))}
+              </clipPath>
+            </Fragment>
+          );
+        })}
 
         <linearGradient id={`${uid}-clothSheen`} x1="0" y1="0" x2="1" y2="0.4">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.24" />
@@ -426,21 +535,6 @@ export function StudioMannequin({
         <mask id={`${uid}-reflectMask`}>
           <rect x="0" y="0" width="360" height={Math.round(footY + 34)} fill={`url(#${uid}-reflectFade)`} />
         </mask>
-
-        <clipPath id={`${uid}-torsoClip`}>
-          <path d={torsoPath} />
-        </clipPath>
-
-        {g && typeof g === "object" ? (
-          <>
-            <clipPath id={`${uid}-sleeveLClip`}>
-              <path d={g.sleeveL} />
-            </clipPath>
-            <clipPath id={`${uid}-sleeveRClip`}>
-              <path d={g.sleeveR} />
-            </clipPath>
-          </>
-        ) : null}
       </defs>
 
       {/* ---- Environment: backlight halo + floor pool ---- */}
@@ -580,112 +674,117 @@ export function StudioMannequin({
           </g>
         )}
 
-        {/* ---- Garment ---- */}
-        <g>
-          {typeof g === "string" ? (
-            <path d={g} fill={`url(#${uid}-cloth)`} />
-          ) : (
-            <>
-              <path d={g.topPart} fill={`url(#${uid}-cloth)`} />
-              <path d={g.sleeveL} fill={`url(#${uid}-cloth)`} />
-              <path d={g.sleeveR} fill={`url(#${uid}-cloth)`} />
-            </>
-          )}
+        {/* ---- Garments, painted back to front ---- */}
+        {builtLayers.map(({ layer, geom, key }) => {
+          const bandHeight = Math.max(80, geom.y1 - geom.y0);
+          const tint = layer.fabric ?? fallback.base;
+          const hasPhoto = !!layer.imageUrl && layer.kind !== "none" && !failedPhotos[key];
+          return (
+            <g key={key} data-layer={key} data-kind={layer.kind}>
+              {/* 1. Fabric base. Painted first so the garment exists even if the
+                  photograph never loads, and so the customer's chosen colourway
+                  is always the true colour underneath. */}
+              {geom.paths.map((path, index) => (
+                <path key={`base-${index}`} d={path} fill={`url(#${uid}-cloth-${key})`} />
+              ))}
 
-          {lowerPart && <path d={lowerPart} fill={`url(#${uid}-cloth)`} opacity="0.95" />}
+              {/* 2. The real product photograph, clipped to exactly this
+                  garment's silhouette. This is the whole point of D2: actual
+                  `product_images` pixels on the mannequin — never regenerated,
+                  never upscaled, and captioned beside the figure as a photo
+                  rather than as a try-on. */}
+              {hasPhoto ? (
+                <g clipPath={`url(#${uid}-clip-${key})`}>
+                  <image
+                    href={layer.imageUrl as string}
+                    x={geom.x0}
+                    y={geom.y0}
+                    width={geom.bandW}
+                    height={bandHeight}
+                    preserveAspectRatio="xMidYMid slice"
+                    opacity="0.95"
+                    onError={() => setFailedPhotos((prev) => ({ ...prev, [key]: true }))}
+                  />
+                  {/* Selected colourway, held lightly over the photograph so the
+                      swatch the customer picked still reads as theirs without
+                      repainting the product's own colour. */}
+                  <rect
+                    x={geom.x0}
+                    y={geom.y0}
+                    width={geom.bandW}
+                    height={bandHeight}
+                    fill={tint}
+                    opacity="0.12"
+                    style={{ mixBlendMode: "multiply" }}
+                  />
+                  {/* Inner contour shadow: stroking the silhouette *inside* the
+                      clip darkens only the inward half of each stroke, so the
+                      garment turns away from the light at its edges instead of
+                      ending in a hard cut-out line. */}
+                  {geom.paths.map((path, index) => (
+                    <path
+                      key={`inner-${index}`}
+                      d={path}
+                      fill="none"
+                      stroke="#000"
+                      strokeOpacity="0.42"
+                      strokeWidth="8"
+                    />
+                  ))}
+                  {geom.paths.map((path, index) => (
+                    <path
+                      key={`inner2-${index}`}
+                      d={path}
+                      fill="none"
+                      stroke="#000"
+                      strokeOpacity="0.28"
+                      strokeWidth="3"
+                    />
+                  ))}
+                </g>
+              ) : null}
 
-          {/* Real product photography, used only as a faint fabric texture. */}
-          {textureUrl && wearsProduct ? (
-            <g opacity="0.3">
-              {typeof g === "string" ? (
-                <image
-                  href={textureUrl}
-                  x="0"
-                  y={shoulderY - 40}
-                  width="360"
-                  height={Math.max(160, hemY - shoulderY + 80)}
-                  preserveAspectRatio="xMidYMid slice"
-                  clipPath={`url(#${uid}-torsoClip)`}
-                  style={{ mixBlendMode: "overlay" }}
+              {/* 3. Lighting across the whole garment, photo or not. The sheen
+                  is what makes the surface read as cloth rather than as a
+                  filled shape: a bright shoulder, a dark hip. */}
+              {geom.paths.map((path, index) => (
+                <path key={`sheen-${index}`} d={path} fill={`url(#${uid}-clothSheen)`} />
+              ))}
+
+              {/* Folds follow the torso, so they move with the avatar's build. */}
+              {geom.hasTop ? (
+                <g stroke="#000" strokeOpacity="0.2" strokeWidth="1.4" fill="none" strokeLinecap="round">
+                  <path d={`M ${cx - 14} ${shoulderY + 20} C ${cx - 18} ${chestY + 20} ${cx - 12} ${waistY - 40} ${cx - 15} ${geom.hemY - 10}`} />
+                  <path d={`M ${cx + 16} ${shoulderY + 26} C ${cx + 20} ${chestY + 26} ${cx + 14} ${waistY - 30} ${cx + 17} ${geom.hemY - 14}`} />
+                  <path d={`M ${cx - shoulderHalf + 8} ${shoulderY + 30} C ${cx - shoulderHalf + 14} ${chestY} ${cx - 8} ${waistY - 46} ${cx - 4} ${geom.hemY - 6}`} />
+                </g>
+              ) : null}
+
+              {/* Gold contour — the lit edge of the garment. */}
+              {geom.paths.map((path, index) => (
+                <path
+                  key={`rim-${index}`}
+                  d={path}
+                  fill="none"
+                  stroke={`url(#${uid}-rim)`}
+                  strokeWidth="1.8"
                 />
-              ) : (
-                <>
-                  <image
-                    href={textureUrl}
-                    x="0"
-                    y={shoulderY - 40}
-                    width="360"
-                    height={Math.max(160, hemY - shoulderY + 80)}
-                    preserveAspectRatio="xMidYMid slice"
-                    clipPath={`url(#${uid}-torsoClip)`}
-                    style={{ mixBlendMode: "overlay" }}
-                  />
-                  <image
-                    href={textureUrl}
-                    x="0"
-                    y={shoulderY - 40}
-                    width="360"
-                    height={Math.max(160, hemY - shoulderY + 80)}
-                    preserveAspectRatio="xMidYMid slice"
-                    clipPath={`url(#${uid}-sleeveLClip)`}
-                    style={{ mixBlendMode: "overlay" }}
-                  />
-                  <image
-                    href={textureUrl}
-                    x="0"
-                    y={shoulderY - 40}
-                    width="360"
-                    height={Math.max(160, hemY - shoulderY + 80)}
-                    preserveAspectRatio="xMidYMid slice"
-                    clipPath={`url(#${uid}-sleeveRClip)`}
-                    style={{ mixBlendMode: "overlay" }}
-                  />
-                </>
-              )}
+              ))}
+
+              {geom.hasTop &&
+              (layer.kind === "top" || layer.kind === "outerwear" || layer.kind === "full") ? (
+                <path
+                  d={`M ${cx - 21} ${shoulderY - 14} Q ${cx} ${shoulderY + 16} ${cx + 21} ${shoulderY - 14}`}
+                  fill="none"
+                  stroke={layer.fabric ?? fallback.shade}
+                  strokeWidth="3.4"
+                  strokeLinecap="round"
+                  opacity="0.9"
+                />
+              ) : null}
             </g>
-          ) : null}
-
-          {/* Fabric sheen + rim light on the garment */}
-          {typeof g === "string" ? (
-            <path d={g} fill={`url(#${uid}-clothSheen)`} />
-          ) : (
-            <>
-              <path d={g.topPart} fill={`url(#${uid}-clothSheen)`} />
-              <path d={g.sleeveL} fill={`url(#${uid}-clothSheen)`} />
-              <path d={g.sleeveR} fill={`url(#${uid}-clothSheen)`} />
-            </>
-          )}
-          {lowerPart && <path d={lowerPart} fill={`url(#${uid}-clothSheen)`} />}
-
-          {/* Fold lines */}
-          <g stroke="#000" strokeOpacity="0.2" strokeWidth="1.4" fill="none" strokeLinecap="round">
-            <path d={`M ${cx - 14} ${shoulderY + 20} C ${cx - 18} ${chestY + 20} ${cx - 12} ${waistY - 40} ${cx - 15} ${hemY - 10}`} />
-            <path d={`M ${cx + 16} ${shoulderY + 26} C ${cx + 20} ${chestY + 26} ${cx + 14} ${waistY - 30} ${cx + 17} ${hemY - 14}`} />
-          </g>
-
-          {/* Gold contour on the garment edge */}
-          {typeof g === "string" ? (
-            <path d={g} fill="none" stroke={`url(#${uid}-rim)`} strokeWidth="1.8" />
-          ) : (
-            <>
-              <path d={g.topPart} fill="none" stroke={`url(#${uid}-rim)`} strokeWidth="1.8" />
-              <path d={g.sleeveL} fill="none" stroke={`url(#${uid}-rim)`} strokeWidth="1.6" />
-              <path d={g.sleeveR} fill="none" stroke={`url(#${uid}-rim)`} strokeWidth="1.6" />
-            </>
-          )}
-
-          {/* Neckline */}
-          {(worn === "top" || worn === "outerwear" || worn === "full") && (
-            <path
-              d={`M ${cx - 21} ${shoulderY - 14} Q ${cx} ${shoulderY + 16} ${cx + 21} ${shoulderY - 14}`}
-              fill="none"
-              stroke={clothShade}
-              strokeWidth="3.4"
-              strokeLinecap="round"
-              opacity="0.9"
-            />
-          )}
-        </g>
+          );
+        })}
 
         {/* Contact shadow where the legs meet the floor */}
         <ellipse cx={cx} cy={footY - 4} rx={hipHalf * 0.95} ry="7" fill="#000" opacity="0.4" />

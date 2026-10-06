@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Header from "./Header";
 import Footer from "./Footer";
+import { MobileTabBar } from "./MobileTabBar";
 import { ComingSoon } from "./ComingSoon";
 import { StoreSettings } from "../../types";
 import { defaultStoreSettings, isLaunchOpen } from "../../lib/store-config";
@@ -16,5 +17,20 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
   useEffect(() => { getStoreSettings().then(setSettings).catch(console.error).finally(() => setLoaded(true)); }, []);
   if (!isSupabaseConfigured && !isDemoMode) return <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 text-center"><p className="text-xs font-semibold tracking-[.2em] text-primary">DLXSTORE</p><h1 className="mt-4 text-3xl font-bold">Store configuration is required</h1><p className="mt-3 text-sm text-muted-foreground">The production data connection has not been configured yet. Please return once DLXSTORE is online.</p></main>;
   if (loaded && !isLaunchOpen(settings)) return <ComingSoon settings={settings} />;
-  return <><LanguagePrompt /><Header /><main className="flex-1 w-full mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 pb-safe-area-inset-bottom overflow-x-hidden">{children}</main><Footer /></>;
+  return (
+    <>
+      <LanguagePrompt />
+      <Header />
+      <main className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
+        {children}
+      </main>
+      {/* The tab bar is fixed to the viewport bottom, so the last painted
+          content (the footer) needs clearance or its links become untappable.
+          Scoped to md:hidden so desktop shows no dead strip. */}
+      <div className="pb-[calc(3.5rem+env(safe-area-inset-bottom)+1.5rem)] md:pb-0">
+        <Footer />
+      </div>
+      <MobileTabBar />
+    </>
+  );
 }

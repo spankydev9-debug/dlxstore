@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -15,23 +16,49 @@ import {
   Palette,
   Ruler,
   Sparkles,
-  Save,
   Wand2,
-  X,
 } from "lucide-react";
 import { getCategories, getProductMedia, getProducts } from "../../services/db/products";
 import type { VisualJob } from "../../services/db/visual-studio";
 import { useVisualStudioJobs } from "../../hooks/useVisualStudioJobs";
 import type { CustomerAvatar, Product, ProductMediaAsset, Profile } from "../../types";
+import { useLanguage } from "../../context/LanguageContext";
 import { ProductImage } from "../shared/ProductImage";
 import { StudioEnvironment, StudioLabel, StudioPanel } from "./StudioEnvironment";
-import { resolveColorHex, resolveGarmentKind, StudioMannequin } from "./StudioMannequin";
+import {
+  resolveColorHex,
+  resolveGarmentKind,
+  StudioMannequin,
+  type MannequinLayer,
+} from "./StudioMannequin";
+import {
+  addToOutfit,
+  describeFit,
+  fitBodyKey,
+  removeFromOutfit,
+  resolveSlot,
+  type GarmentSlot,
+  type Outfit,
+  type OutfitItem,
+} from "../../lib/studio/outfit";
+import {
+  buildGarmentRender,
+  type RenderSource,
+} from "../../lib/studio/garment-renderer";
+import { looksStoreFor, type SavedLook } from "../../services/studio/looks-store";
+import { AtelierLayers, ProvenanceNote } from "./AtelierLayers";
+import { StudioLooksPanel } from "./StudioLooksPanel";
 
 type MannequinStudioProps = {
   user: Profile;
   avatar: CustomerAvatar | null;
   /** Deep-linked from a product page so the shopper arrives pre-selected. */
   initialProductId?: string;
+  /** Variant carried over from the product page's own selector. */
+  initialSize?: string;
+  initialColor?: string;
+  /** A saved Look to wear on arrival (from a link / gallery). */
+  initialLookId?: string;
 };
 
 const EMPTY_MEDIA: ProductMediaAsset[] = [];
@@ -82,28 +109,59 @@ function Rail({ children, label }: { children: React.ReactNode; label: string })
 }
 
 /**
- * "My mannequin" — the DLX personal Ghost Mannequin studio.
+ * "Mon mannequin" — the DLX Personal Styling Atelier.
  *
  * The customer's own Avatar is the figure and owns the screen. Real catalogue
- * products, real `product_images` rows and real ledger rows are the only data on
- * screen. With no visual-generation provider configured the workspace never
- * fabricates a result: the mannequin renders a deterministic garment from the
- * selection, and the capability notice says plainly what is missing.
+ * products, real `product_images` rows, real size/colour data and real avatar
+ * proportions are the only inputs. With no visual-generation provider
+ * configured the workspace never fabricates a result: the mannequin renders the
+ * outfit layer by layer, each layer clipped to the garment silhouette from the
+ * product's own photograph, and the capability notice says plainly what is
+ * missing.
+ *
+ * The outfit is composed by selection: choosing a product places it on the
+ * correct body slot (resolving conflicts openly), so the figure always shows a
+ * coherent, layered look rather than one garment at a time.
  */
-export function MannequinStudio({ user, avatar, initialProductId }: MannequinStudioProps) {
+export function MannequinStudio({
+  user,
+  avatar,
+  initialProductId,
+  initialSize,
+  initialColor,
+  initialLookId,
+}: MannequinStudioProps) {
+  const { t } = useLanguage();
+  const router = useRouter();
   const studio = useVisualStudioJobs({ profileId: user.id, avatar });
+
   const [products, setProducts] = useState<Product[]>([]);
   const [mediaByProduct, setMediaByProduct] = useState<Record<string, ProductMediaAsset[]>>({});
   const [selectedProductId, setSelectedProductId] = useState(initialProductId ?? "");
   const [selectedMediaId, setSelectedMediaId] = useState("");
-  const [sizeChoice, setSizeChoice] = useState<string>("");
-  const [colorChoice, setColorChoice] = useState<string>("");
+  const [sizeChoice, setSizeChoice] = useState(initialSize ?? "");
+  const [colorChoice, setColorChoice] = useState(initialColor ?? "");
   const [loadingCatalogue, setLoadingCatalogue] = useState(true);
-  const [savingLook, setSavingLook] = useState(false);
-  const [lookSaved, setLookSaved] = useState(false);
-  const [mobileSheet, setMobileSheet] = useState<"loadout" | "wardrobe" | null>(null);
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
 
+  // The composed outfit — the thing the mannequin actually wears.
+  const [outfit, setOutfit] = useState<Outfit>([]);
+  const [looks, setLooks] = useState<SavedLook[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [mobileSheet, setMobileSheet] = useState<"loadout" | "wardrobe" | "outfit" | null>(null);
+
+  const looksStore = useRef(looksStoreFor());
+  const didInitDeepLink = useRef(false);
+  const noticeTimer = useRef<number | null>(null);
+
+  const setTransientNotice = (message: string | null) => {
+    setNotice(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = message ? window.setTimeout(() => setNotice(null), 4200) : null;
+  };
+
+  // ---------------------------------------------------------------- catalogue
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -122,8 +180,7 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
     };
   }, []);
 
-  // Category names are the most reliable signal for how a product is worn, so we
-  // resolve them alongside the catalogue and feed them to the garment resolver.
+  // Category names are the most reliable signal for how a product is worn.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -145,22 +202,40 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
     [products, selectedProductId]
   );
 
+  // Media for every product referenced by the selection OR the outfit, so each
+  // worn garment resolves to its own real photograph.
+  const mediaNeeded = useMemo(
+    () =>
+      Array.from(
+        new Set([selectedProductId, ...outfit.map((item) => item.productId)].filter(Boolean))
+      ),
+    [selectedProductId, outfit]
+  );
+
   useEffect(() => {
-    if (!selectedProductId) return;
+    if (mediaNeeded.length === 0) return;
+    const missing = mediaNeeded.filter((id) => !(id in mediaByProduct));
+    if (missing.length === 0) return;
     let cancelled = false;
     void (async () => {
-      try {
-        const rows = await getProductMedia(selectedProductId);
-        if (cancelled) return;
-        setMediaByProduct((current) => ({ ...current, [selectedProductId]: rows }));
-      } catch {
-        if (!cancelled) setMediaByProduct((current) => ({ ...current, [selectedProductId]: [] }));
+      const next: Record<string, ProductMediaAsset[]> = {};
+      for (const id of missing) {
+        try {
+          const rows = await getProductMedia(id);
+          if (cancelled) return;
+          next[id] = rows;
+        } catch {
+          if (cancelled) return;
+          next[id] = [];
+        }
       }
+      if (cancelled) return;
+      setMediaByProduct((current) => ({ ...current, ...next }));
     })();
     return () => {
       cancelled = true;
     };
-  }, [selectedProductId]);
+  }, [mediaNeeded, mediaByProduct]);
 
   const media = useMemo(
     () => mediaByProduct[selectedProductId] ?? EMPTY_MEDIA,
@@ -179,51 +254,173 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
   const selectedColor =
     colorChoice && colors.includes(colorChoice) ? colorChoice : colors[0] ?? "";
 
+  // Camera-ready view of the outfit: every item resolves its photograph from
+  // the media table (or falls back to what was known when it was added, or to
+  // the product's own images — never to invented pixels).
+  const resolvedOutfit: Outfit = useMemo(
+    () =>
+      outfit.map((item) => {
+        const rows = mediaByProduct[item.productId] ?? EMPTY_MEDIA;
+        const chosen = item.mediaId ? rows.find((row) => row.id === item.mediaId) : null;
+        const source = chosen ?? rows.find((row) => row.is_primary) ?? rows[0];
+        return { ...item, imageUrl: source?.image_url ?? item.imageUrl };
+      }),
+    [outfit, mediaByProduct]
+  );
+
+  // ---------------------------------------------------------------- outfit
+  const classify = (product: Product | null) =>
+    product
+      ? {
+          name: product.name,
+          brand: product.brand,
+          tags: product.tags,
+          category: product.category_id ? categoryNames[product.category_id] : undefined,
+        }
+      : null;
+
+  /** Places a product on the mannequin, resolving slot collisions openly. */
+  const composeProduct = (product: Product) => {
+    const kind = resolveGarmentKind(classify(product));
+    const slot = resolveSlot(classify(product), kind);
+    const item: OutfitItem = {
+      slot,
+      productId: product.id,
+      name: product.name,
+      imageUrl: product.images?.[0] ?? null,
+      mediaId: null,
+      size: product.sizes?.[0] ?? "",
+      color: product.colors?.[0] ?? "",
+    };
+    const result = addToOutfit(outfit, item);
+    setOutfit(result.outfit);
+    if (result.removed.length > 0) {
+      setTransientNotice(
+        t.outfitAdjusted.replace("{items}", result.removed.map((entry) => entry.name).join(", "))
+      );
+    }
+  };
+
   const handleSelectProduct = (productId: string) => {
     setSelectedProductId(productId);
     setSelectedMediaId("");
     setSizeChoice("");
     setColorChoice("");
+    if (!productId) return;
+    const product = products.find((entry) => entry.id === productId);
+    if (product) composeProduct(product);
   };
 
-  const garment = useMemo(
+  // Deep-link contract: /studio?product=ID (+ optional size/colour) composes
+  // the item once the catalogue is present, exactly as clicking it would.
+  useEffect(() => {
+    if (didInitDeepLink.current || loadingCatalogue) return;
+    didInitDeepLink.current = true;
+    if (initialProductId && products.some((entry) => entry.id === initialProductId)) {
+      if (initialSize) setSizeChoice(initialSize);
+      if (initialColor) setColorChoice(initialColor);
+      const product = products.find((entry) => entry.id === initialProductId) ?? null;
+      if (product) composeProduct(product);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingCatalogue, products]);
+
+  // Keep the composed item's variant in step with the loadout rails.
+  useEffect(() => {
+    if (!selectedProductId) return;
+    setOutfit((current) =>
+      current.map((item) =>
+        item.productId === selectedProductId
+          ? { ...item, size: selectedSize || item.size, color: selectedColor || item.color }
+          : item
+      )
+    );
+  }, [selectedSize, selectedColor, selectedProductId]);
+
+  const handleRemoveFromOutfit = (slot: GarmentSlot) => {
+    setOutfit((current) => removeFromOutfit(current, slot));
+  };
+
+  // ---------------------------------------------------------------- looks
+  useEffect(() => {
+    let cancelled = false;
+    looksStore.current
+      .list(user.id)
+      .then((rows) => {
+        if (!cancelled) setLooks(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLooks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  const applyLook = (look: SavedLook) => {
+    const known = look.items.filter((item) => products.some((entry) => entry.id === item.productId));
+    if (known.length === 0) return;
+    setOutfit(known);
+    const first = known[0];
+    setSelectedProductId(first.productId);
+    setSelectedMediaId(first.mediaId ?? "");
+    setSizeChoice(first.size);
+    setColorChoice(first.color);
+    setTransientNotice(t.lookApplied);
+    if (mobileSheet) setMobileSheet(null);
+  };
+
+  // ?look=ID deep link: wear the saved look on arrival, then clear the URL so
+  // a refresh does not re-apply it forever.
+  useEffect(() => {
+    if (!initialLookId || looks.length === 0) return;
+    const look = looks.find((entry) => entry.id === initialLookId);
+    if (!look) return;
+    applyLook(look);
+    if (initialLookId && window.location.pathname === "/studio") {
+      router.replace("/studio", { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [looks, initialLookId]);
+
+  // ---------------------------------------------------------------- figure
+  // Layers are the worn garments only. Footwear and accessories have no torso
+  // silhouette the geometry can honestly draw, so the mannequin keeps the
+  // Avatar's own presentation there instead of inventing one.
+  const figureLayers: MannequinLayer[] = useMemo(
     () =>
-      resolveGarmentKind(
-        selectedProduct
-          ? {
-              name: selectedProduct.name,
-              brand: selectedProduct.brand,
-              tags: selectedProduct.tags,
-              category: selectedProduct.category_id
-                ? categoryNames[selectedProduct.category_id]
-                : undefined,
-            }
-          : null
-      ),
-    [selectedProduct, categoryNames]
+      resolvedOutfit
+        .filter((item) => item.slot !== "footwear" && item.slot !== "accessory")
+        .map((item) => {
+          const product = products.find((entry) => entry.id === item.productId) ?? null;
+          const kind = resolveGarmentKind(classify(product));
+          return {
+            id: item.slot,
+            kind,
+            fabric: item.color ? resolveColorHex(item.color) : null,
+            imageUrl: item.imageUrl,
+          };
+        }),
+    // classify is a closure over categoryNames; recompute when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resolvedOutfit, products, categoryNames]
   );
-  const fabric = useMemo(() => resolveColorHex(selectedColor), [selectedColor]);
+
+  // Provenance is computed here so the badge under the figure always matches
+  // what the figure is actually showing.
+  const render = useMemo(
+    () =>
+      buildGarmentRender(studio.capability, {
+        mediaUrl: figureLayers[0]?.imageUrl ?? selectedMedia?.image_url ?? null,
+        generatedUrl: null,
+      }),
+    [studio.capability, figureLayers, selectedMedia]
+  );
 
   const generationReady = studio.capability?.available === true;
   const jobsInFlight = studio.jobs.filter(
     (job) => job.status === "queued" || job.status === "processing"
   );
-
-  const handleSaveLook = async () => {
-    if (!selectedProductId) return;
-    try {
-      setSavingLook(true);
-      setLookSaved(false);
-      await studio.saveToWardrobe({
-        productId: selectedProductId,
-        sourceProductImageId: selectedMedia?.id ?? null,
-      });
-      setLookSaved(true);
-      setTimeout(() => setLookSaved(false), 2200);
-    } finally {
-      setSavingLook(false);
-    }
-  };
 
   const canGenerate =
     generationReady && !!avatar && !!selectedProduct && !!selectedMedia && !studio.isSubmitting && jobsInFlight.length === 0;
@@ -231,7 +428,7 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
   // ---------------------------------------------------------------- controls
   const productPicker = (
     <div>
-      <StudioLabel>Article</StudioLabel>
+      <StudioLabel>{t.selectArticle}</StudioLabel>
       <div className="relative mt-2">
         <select
           id="studio-product"
@@ -240,7 +437,7 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
           className="min-h-11 w-full appearance-none rounded-xl border border-white/[0.1] bg-black/45 px-3 pr-9 text-sm text-white/90 outline-none transition-colors focus:border-[#d4af37]/60"
         >
           <option value="" className="bg-[#0d0d10]">
-            {loadingCatalogue ? "Chargement…" : "— Sélectionner un article —"}
+            {loadingCatalogue ? t.loading : `— ${t.chooseArticle} —`}
           </option>
           {products.map((product) => (
             <option key={product.id} value={product.id} className="bg-[#0d0d10]">
@@ -259,12 +456,10 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <Ruler className="h-3.5 w-3.5 text-[#d4af37]/70" />
-            <StudioLabel>Taille</StudioLabel>
-            {selectedSize ? (
-              <span className="ml-auto text-xs text-white/50">{selectedSize}</span>
-            ) : null}
+            <StudioLabel>{t.sizeRail}</StudioLabel>
+            {selectedSize ? <span className="ml-auto text-xs text-white/50">{selectedSize}</span> : null}
           </div>
-          <Rail label="Tailles disponibles">
+          <Rail label={t.sizeRail}>
             {sizes.map((size) => (
               <Pill key={size} active={selectedSize === size} onClick={() => setSizeChoice(size)}>
                 {size}
@@ -278,12 +473,12 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <Palette className="h-3.5 w-3.5 text-[#d4af37]/70" />
-            <StudioLabel>Coloris</StudioLabel>
+            <StudioLabel>{t.colorRail}</StudioLabel>
             {selectedColor ? (
               <span className="ml-auto text-xs text-white/50">{selectedColor}</span>
             ) : null}
           </div>
-          <Rail label="Coloris disponibles">
+          <Rail label={t.colorRail}>
             {colors.map((color) => {
               const hex = resolveColorHex(color);
               return (
@@ -310,15 +505,15 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <ImageIcon className="h-3.5 w-3.5 text-[#d4af37]/70" />
-            <StudioLabel>Source</StudioLabel>
+            <StudioLabel>{t.sourceRail}</StudioLabel>
             <span className="ml-auto text-xs text-white/50">
               {media.length > 0 ? `${media.length}` : "—"}
             </span>
           </div>
           {media.length === 0 ? (
-            <p className="text-xs text-white/45">Aucune photo pour cet article.</p>
+            <p className="text-xs text-white/45">{t.noProductPhoto}</p>
           ) : (
-            <Rail label="Photos de l'article">
+            <Rail label={t.sourceRail}>
               {media.map((item) => (
                 <Pill
                   key={item.id}
@@ -328,7 +523,7 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
                 >
                   <ProductImage
                     src={item.image_url}
-                    alt={item.alt_text || selectedProduct?.name || "Photo de l'article"}
+                    alt={item.alt_text || selectedProduct?.name || t.product}
                     className="h-full w-full object-cover"
                   />
                 </Pill>
@@ -344,15 +539,6 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
     <div className="flex flex-col gap-2">
       <button
         type="button"
-        onClick={handleSaveLook}
-        disabled={!selectedProductId || savingLook}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/[0.14] bg-white/[0.04] px-4 text-sm font-medium text-white/85 transition-colors hover:border-[#d4af37]/50 hover:text-white disabled:opacity-40"
-      >
-        <Save className="h-4 w-4" />
-        {savingLook ? "Enregistrement…" : lookSaved ? "Look enregistré" : "Enregistrer le look"}
-      </button>
-      <button
-        type="button"
         onClick={() => {
           if (!selectedProduct || !selectedMedia) return;
           void studio.request({
@@ -364,19 +550,15 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
         disabled={!canGenerate}
         className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#e6c65a] to-[#c39c22] px-4 text-sm font-semibold text-black shadow-[0_16px_40px_-18px_rgba(212,175,55,0.9)] transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-35"
       >
-        {studio.isSubmitting ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Wand2 className="h-4 w-4" />
-        )}
-        {generationReady ? "Générer l'essayage" : "Génération indisponible"}
+        {studio.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+        {generationReady ? t.generateTryOn : t.generateUnavailable}
       </button>
       {!avatar ? (
         <Link
           href="/dashboard?tab=avatar"
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 text-xs font-medium text-[#f0dfae]"
         >
-          Créer mon mannequin
+          {t.createMannequin}
         </Link>
       ) : null}
     </div>
@@ -386,15 +568,13 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
     <div>
       <div className="mb-2 flex items-center gap-1.5">
         <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" />
-        <StudioLabel>Garde-robe</StudioLabel>
+        <StudioLabel>{t.wardrobe}</StudioLabel>
         <span className="ml-auto text-xs text-white/45">{studio.wardrobe.length}</span>
       </div>
       {studio.wardrobe.length === 0 ? (
-        <p className="text-xs text-white/45">
-          Aucun look enregistré. Composez un article puis enregistrez-le.
-        </p>
+        <p className="text-xs text-white/45">{t.noLookInWardrobe}</p>
       ) : (
-        <Rail label="Looks enregistrés">
+        <Rail label={t.wardrobe}>
           {studio.wardrobe.map((item) => {
             const product = products.find((entry) => entry.id === item.product_id);
             const active = item.product_id === selectedProductId;
@@ -404,7 +584,7 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
                   active={active}
                   onClick={() => handleSelectProduct(item.product_id)}
                   className="h-[68px] w-[68px] overflow-hidden !p-0"
-                  title={item.label || product?.name || "Appliquer ce look"}
+                  title={item.label || product?.name || t.product}
                 >
                   {product?.images?.[0] ? (
                     <ProductImage src={product.images[0]} alt={product.name} className="h-full w-full object-cover" />
@@ -412,18 +592,6 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
                     <span className="text-[10px] text-white/40">DLX</span>
                   )}
                 </Pill>
-                <button
-                  type="button"
-                  onClick={() => void studio.removeFromWardrobe(item.id)}
-                  disabled={studio.isSubmitting}
-                  aria-label={`Retirer ${item.label || product?.name || "ce look"}`}
-                  /* 44px hit area (WCAG 2.5.8) with a small visual badge centred inside. */
-                  className="absolute -right-2 -top-2 flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-40"
-                >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-black/80 text-white/70 transition-colors hover:text-[#f0a0a0]">
-                    <X className="h-3 w-3" />
-                  </span>
-                </button>
               </div>
             );
           })}
@@ -435,23 +603,18 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
   const capabilityStrip = <CapabilityNotice capability={studio.capability} />;
 
   return (
-    <div
-      data-studio-root
-      className="relative isolate min-h-[calc(100dvh-4rem)] overflow-hidden"
-    >
+    <div data-studio-root className="relative isolate min-h-[calc(100dvh-4rem)] overflow-hidden">
       <StudioEnvironment />
 
       {/* ---------------- Desktop / tablet: character centre, floating rails ---- */}
-      <div className="relative mx-auto hidden max-w-[1400px] px-6 py-8 lg:grid lg:grid-cols-[minmax(230px,270px)_minmax(0,1fr)_minmax(230px,270px)] lg:gap-6 xl:px-10">
-        {/* Left rail — selection */}
+      <div className="relative mx-auto hidden max-w-[1400px] px-6 py-8 lg:grid lg:grid-cols-[minmax(230px,270px)_minmax(0,1fr)_minmax(230px,280px)] lg:gap-6 xl:px-10">
+        {/* Left rail — selection + the worn outfit */}
         <div className="flex flex-col gap-4">
           <StudioPanel className="p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
                 <StudioLabel>Studio</StudioLabel>
-                <h1 className="mt-0.5 text-lg font-semibold tracking-tight text-white">
-                  Mon mannequin
-                </h1>
+                <h1 className="mt-0.5 text-lg font-semibold tracking-tight text-white">{t.studioTitle}</h1>
               </div>
               <Sparkles className="h-4 w-4 text-[#d4af37]" />
             </div>
@@ -462,31 +625,58 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
             {loadoutRails}
           </StudioPanel>
 
+          <StudioPanel tone="quiet" className="p-4">
+            <div className="mb-2 flex items-center gap-1.5">
+              <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" />
+              <StudioLabel>{t.outfit}</StudioLabel>
+            </div>
+            <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
+          </StudioPanel>
+
           <StudioPanel tone="quiet" className="mt-auto p-4">
             {wardrobeRail}
           </StudioPanel>
         </div>
 
         {/* Centre — the figure owns the largest area */}
-        <div className="relative flex min-h-[74vh] items-end justify-center">
+        <div className="relative flex min-h-[74vh] flex-col items-end justify-center">
           <FigureStage
             avatar={avatar}
-            garment={garment}
-            fabric={fabric}
-            textureUrl={selectedMedia?.image_url ?? null}
-            hasSelection={!!selectedProduct}
+            layers={figureLayers}
+            renderSource={render.source}
+            hasSelection={resolvedOutfit.length > 0}
             product={selectedProduct}
+            outfit={resolvedOutfit}
             size={selectedSize}
             color={selectedColor}
             sourceImage={selectedMedia?.image_url ?? null}
+            notice={notice}
+            onBackToProduct={
+              selectedProduct
+                ? `/product/${selectedProduct.slug}?size=${encodeURIComponent(selectedSize)}&color=${encodeURIComponent(selectedColor)}`
+                : null
+            }
           />
+          <div className="mx-auto w-full max-w-[560px] px-1">
+            <FitNarration avatar={avatar} product={selectedProduct} />
+          </div>
         </div>
 
-        {/* Right rail — capability + actions */}
+        {/* Right rail — capability, actions, looks, ledger */}
         <div className="flex flex-col gap-4">
           {capabilityStrip}
           <StudioPanel tone="accent" className="p-4">
             {actions}
+          </StudioPanel>
+          <StudioPanel tone="quiet" className="p-4">
+            <StudioLooksPanel
+              profileId={user.id}
+              outfit={resolvedOutfit}
+              looks={looks}
+              onChange={setLooks}
+              onApply={applyLook}
+              onNotice={setTransientNotice}
+            />
           </StudioPanel>
           {studio.jobs.length > 0 ? (
             <StudioPanel tone="quiet" className="p-4">
@@ -508,56 +698,68 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
       <div className="relative flex min-h-[calc(100dvh-4rem)] flex-col lg:hidden">
         {/* The figure takes every pixel the controls do not claim. */}
         <div className="flex flex-1 flex-col justify-end px-3 pb-1 pt-3">
+          {notice ? (
+            <div className="animate-fade-in px-1 pb-2">
+              <p className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-center text-xs text-[#f0dfae]">
+                {notice}
+              </p>
+            </div>
+          ) : null}
+
           <div className="mb-1 flex items-start justify-between gap-2 px-1">
             <div className="min-w-0">
               <StudioLabel>Studio</StudioLabel>
               <h1 className="truncate text-base font-semibold tracking-tight text-white">
-                {selectedProduct ? selectedProduct.name : "Mon mannequin"}
+                {selectedProduct ? selectedProduct.name : t.studioTitle}
               </h1>
               <p className="truncate text-[11px] text-white/50">
-                {[selectedSize, selectedColor].filter(Boolean).join(" · ") ||
-                  "Choisissez un article"}
+                {[selectedSize, selectedColor].filter(Boolean).join(" · ") || t.chooseArticle}
               </p>
             </div>
             <Link
               href="/dashboard?tab=avatar"
               className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/12 bg-black/40 px-3 text-[11px] font-medium text-white/80"
             >
-              {avatar ? "Modifier" : "Créer"}
+              {avatar ? t.studioEditAvatar : t.createMannequin}
             </Link>
           </div>
 
           <FigureStage
             avatar={avatar}
-            garment={garment}
-            fabric={fabric}
-            textureUrl={selectedMedia?.image_url ?? null}
-            hasSelection={!!selectedProduct}
+            layers={figureLayers}
+            renderSource={render.source}
+            hasSelection={resolvedOutfit.length > 0}
             compact
           />
         </div>
 
-        {/* Floating sheet trigger */}
+        {/* Floating sheet trigger — three first-class studios: loadout, looks,
+            and the outfit itself. */}
         <div data-studio-sheet-trigger className="sticky bottom-0 z-20 px-3 pb-safe-area-inset-bottom">
           <StudioPanel tone="accent" className="p-2.5">
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMobileSheet("loadout")}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.14] bg-white/[0.04] text-sm font-medium text-white/90"
-              >
-                <Sparkles className="h-4 w-4 text-[#d4af37]" />
-                Équipement
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileSheet("wardrobe")}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.14] bg-white/[0.04] text-sm font-medium text-white/90"
-              >
-                <Layers className="h-4 w-4 text-[#d4af37]" />
-                Garde-robe
-                <span className="text-xs text-white/45">{studio.wardrobe.length}</span>
-              </button>
+              {(
+                [
+                  ["loadout", Sparkles, t.gearUp],
+                  ["wardrobe", Layers, t.wardrobe],
+                  ["outfit", Layers, t.outfit],
+                ] as const
+              ).map(([sheet, Icon, label]) => (
+                <button
+                  key={sheet}
+                  type="button"
+                  onClick={() => setMobileSheet(mobileSheet === sheet ? null : sheet)}
+                  aria-pressed={mobileSheet === sheet}
+                  className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
+                    mobileSheet === sheet
+                      ? "border-[#d4af37]/60 bg-[#d4af37]/15 text-[#f6e6b4]"
+                      : "border-white/[0.14] bg-white/[0.04] text-white/90"
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${sheet === "outfit" ? "text-[#d4af37]" : ""}`} />
+                  {label}
+                </button>
+              ))}
             </div>
             {mobileSheet ? (
               <div className="mt-2.5 space-y-3.5 border-t border-white/8 pt-3">
@@ -567,9 +769,18 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
                     {loadoutRails}
                     {actions}
                     {capabilityStrip}
+                    <FitNarration avatar={avatar} product={selectedProduct} />
                   </>
-                ) : (
+                ) : mobileSheet === "wardrobe" ? (
                   <>
+                    <StudioLooksPanel
+                      profileId={user.id}
+                      outfit={resolvedOutfit}
+                      looks={looks}
+                      onChange={setLooks}
+                      onApply={applyLook}
+                      onNotice={setTransientNotice}
+                    />
                     {wardrobeRail}
                     {studio.jobs.length > 0 ? (
                       <JobLedger
@@ -583,13 +794,21 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
                       />
                     ) : null}
                   </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <StudioLabel>{t.outfit}</StudioLabel>
+                      <span className="text-xs text-white/45">{resolvedOutfit.length}</span>
+                    </div>
+                    <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
+                  </>
                 )}
                 <button
                   type="button"
                   onClick={() => setMobileSheet(null)}
                   className="min-h-11 w-full rounded-xl border border-white/10 text-xs font-medium text-white/70"
                 >
-                  Réduire
+                  {t.collapse}
                 </button>
               </div>
             ) : null}
@@ -602,40 +821,42 @@ export function MannequinStudio({ user, avatar, initialProductId }: MannequinStu
 
 /**
  * The character stage: the figure plus the minimal contextual read-out that
- * tells the customer what they are looking at.
+ * tells the customer what they are looking at — and how it was rendered.
  */
 function FigureStage({
   avatar,
-  garment,
-  fabric,
-  textureUrl,
+  layers,
+  renderSource,
   hasSelection,
   product,
+  outfit,
   size,
   color,
   sourceImage,
+  notice,
+  onBackToProduct,
   compact = false,
 }: {
   avatar: CustomerAvatar | null;
-  garment: ReturnType<typeof resolveGarmentKind>;
-  fabric: string | null;
-  textureUrl: string | null;
+  layers: MannequinLayer[];
+  renderSource: RenderSource;
   hasSelection: boolean;
   product?: Product | null;
+  outfit?: Outfit;
   size?: string;
   color?: string;
   sourceImage?: string | null;
+  notice?: string | null;
+  onBackToProduct?: string | null;
   compact?: boolean;
 }) {
+  const { t } = useLanguage();
+
   return (
-    <div
-      className={`relative flex w-full flex-col items-center ${
-        compact ? "min-h-0 flex-1" : ""
-      }`}
-    >
+    <div className={`relative flex w-full flex-col items-center ${compact ? "min-h-0 flex-1" : ""}`}>
       <div
-        className={`relative w-full ${compact ? "min-h-[52svh] flex-1" : "h-[78vh]"}`}
-        style={compact ? undefined : { minHeight: 520 }}
+        className={`relative w-full ${compact ? "min-h-[52svh] flex-1" : "h-[74vh]"}`}
+        style={compact ? undefined : { minHeight: 500 }}
       >
         {/* Contact glow behind the figure */}
         <div
@@ -651,9 +872,7 @@ function FigureStage({
         {avatar ? (
           <StudioMannequin
             attributes={avatar.attributes}
-            garment={garment}
-            fabric={fabric}
-            textureUrl={textureUrl}
+            layers={layers}
             hasSelection={hasSelection}
             className="absolute inset-0 mx-auto h-full w-auto max-w-full drop-shadow-[0_28px_60px_rgba(0,0,0,0.75)]"
           />
@@ -662,32 +881,128 @@ function FigureStage({
         )}
       </div>
 
-      {product ? (
-        <div className="mt-1 flex w-full max-w-[520px] items-center gap-3 px-1">
+      {product || (outfit && outfit.length > 0) ? (
+        <div className="mt-1 flex w-full max-w-[560px] items-center gap-3 px-1">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{product.name}</p>
-            <p className="truncate text-[11px] uppercase tracking-[0.16em] text-[#d4af37]/70">
-              {[size, color].filter(Boolean).join(" · ") || "Article"}
-            </p>
+            {(product || outfit?.[0]) ? (
+              <>
+                <p className="truncate text-sm font-semibold text-white">
+                  {(outfit && outfit[0] && outfit[0].name) || product?.name || ""}
+                </p>
+                <p className="truncate text-[11px] uppercase tracking-[0.16em] text-[#d4af37]/70">
+                  {[size, color].filter(Boolean).join(" · ") || t.product}
+                </p>
+              </>
+            ) : null}
           </div>
           {sourceImage ? (
             <figure className="relative shrink-0">
               <ProductImage
                 src={sourceImage}
-                alt={`Source: ${product.name}`}
+                alt={`${t.sourceRail}: ${product?.name ?? ""}`}
                 className="h-12 w-12 rounded-lg object-cover ring-1 ring-white/15"
               />
-              <figcaption className="sr-only">Photo source de l&apos;article</figcaption>
+              <figcaption className="sr-only">{t.sourceRail}</figcaption>
             </figure>
           ) : null}
         </div>
       ) : null}
+
+      {/* Provenance — always visible while clothes are on the figure. The line
+          never claims a generated try-on, because none is generated. */}
+      {hasSelection ? (
+        <div className="mt-2 flex w-full max-w-[560px] flex-col items-center gap-2 px-1">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-black/35 px-3 py-1 text-[10px] uppercase tracking-[0.14em] text-white/55">
+            {t.renderingSource}: <SourceBadge source={renderSource} />
+          </p>
+          <ProvenanceNote className="text-center" />
+        </div>
+      ) : null}
+
+      {notice ? (
+        <p className="mt-2 animate-fade-in rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-center text-xs text-[#f0dfae]">
+          {notice}
+        </p>
+      ) : null}
+
+      {onBackToProduct && product ? (
+        <Link
+          href={onBackToProduct}
+          className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 text-xs font-semibold text-[#f0dfae] transition-colors hover:bg-[#d4af37]/20"
+        >
+          <Layers className="h-3.5 w-3.5" />
+          {t.backToProduct}
+        </Link>
+      ) : null}
+
+    </div>
+  );
+}
+
+function SourceBadge({ source }: { source: RenderSource }) {
+  const { t } = useLanguage();
+  if (source === "generated") {
+    return <span className="text-emerald-300">{t.capabilityReady}</span>;
+  }
+  if (source === "product-media") {
+    return <span className="text-[#d4af37]">{t.renderedFromProductPhoto}</span>;
+  }
+  return <span className="text-white/70">{t.layers}</span>;
+}
+
+/**
+ * Fit narration — the only sizing claim in the studio.
+ *
+ * Every word is derived from the avatar's persisted `clothingSize` and the
+ * product's published `sizes[]`. No size is invented, no range is assumed,
+ * and "unavailable" is stated instead of guessed.
+ */
+function FitNarration({
+  avatar,
+  product,
+}: {
+  avatar: CustomerAvatar | null;
+  product: Product | null;
+}) {
+  const { t } = useLanguage();
+  const verdict = describeFit(avatar?.attributes, product?.sizes);
+
+  if (!avatar) {
+    return (
+      <p className="rounded-xl border border-white/[0.08] bg-black/25 px-3 py-2.5 text-center text-[11px] text-white/50">
+        {t.noAvatarFit}
+      </p>
+    );
+  }
+
+  const tone =
+    verdict.status === "exact"
+      ? "border-emerald-400/30 bg-emerald-400/[0.06] text-emerald-300"
+      : verdict.status === "larger"
+        ? "border-[#d4af37]/30 bg-[#d4af37]/[0.06] text-[#f0dfae]"
+        : verdict.status === "smaller"
+          ? "border-orange-400/30 bg-orange-400/[0.06] text-orange-300"
+          : "border-white/[0.08] bg-black/25 text-white/55";
+
+  let body = t[fitBodyKey(verdict.status) as keyof typeof t] as string;
+  body = body.replace("{size}", verdict.avatarSize ?? "").replace("{bound}", verdict.bound ?? "");
+
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 text-[11px] leading-relaxed ${tone}`}>
+      <p className="flex items-center justify-between gap-2 font-semibold">
+        <span>{t.fitHeading}</span>
+        <span className="font-normal opacity-80">
+          {t.avatarSizeIs.replace("{size}", verdict.avatarSize ?? "—")}
+        </span>
+      </p>
+      <p className="mt-1 opacity-90">{body}</p>
     </div>
   );
 }
 
 /** Shown when the customer has no Avatar yet — the figure area stays cinematic. */
 function EmptyFigure({ compact }: { compact: boolean }) {
+  const { t } = useLanguage();
   // Both the desktop and mobile layout branches are mounted at once, so this
   // gradient id must be unique per instance or the second SVG wins.
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -711,9 +1026,7 @@ function EmptyFigure({ compact }: { compact: boolean }) {
           fill={`url(#dlxEmpty-${uid})`}
         />
       </svg>
-      <p className="max-w-[15rem] text-xs leading-relaxed text-white/55">
-        Créez votre mannequin pour habiller vos articles.
-      </p>
+      <p className="max-w-[15rem] text-xs leading-relaxed text-white/55">{t.studioNoAvatarBody}</p>
     </div>
   );
 }
@@ -735,9 +1048,10 @@ function JobLedger({
   onCancel: (id: string) => Promise<void>;
   onRetry: (id: string) => Promise<void>;
 }) {
+  const { t } = useLanguage();
   return (
     <div>
-      <StudioLabel className="mb-2">Historique</StudioLabel>
+      <StudioLabel className="mb-2">{t.studioHistory}</StudioLabel>
       <ul className="space-y-2">
         {jobs.slice(0, 6).map((job) => {
           const product = products.find((entry) => entry.id === job.product_id);
@@ -747,7 +1061,7 @@ function JobLedger({
                 <JobStatusIcon status={job.status} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-white/85">
-                    {product?.name ?? "Article"}
+                    {product?.name ?? t.product}
                   </p>
                   <p className="text-[10px] text-white/45">
                     {new Date(job.created_at).toLocaleString()}
@@ -760,7 +1074,7 @@ function JobLedger({
                       type="button"
                       onClick={() => void onCancel(job.id)}
                       disabled={busy}
-                      aria-label="Annuler"
+                      aria-label={t.cancelJob}
                       className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white disabled:opacity-40"
                     >
                       <CircleSlash className="h-3.5 w-3.5" />
@@ -771,7 +1085,7 @@ function JobLedger({
                       type="button"
                       onClick={() => void onRetry(job.id)}
                       disabled={busy}
-                      aria-label="Réessayer"
+                      aria-label={t.retry}
                       className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white disabled:opacity-40"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -806,10 +1120,11 @@ function CapabilityNotice({
 }: {
   capability: { available: boolean; reason: string } | null;
 }) {
+  const { t } = useLanguage();
   if (!capability) {
     return (
       <p className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-white/55">
-        Vérification du studio visuel…
+        {t.capabilityChecking}
       </p>
     );
   }
@@ -818,7 +1133,7 @@ function CapabilityNotice({
     return (
       <p className="flex items-start gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/[0.07] px-3 py-2.5 text-xs text-emerald-300">
         <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Studio visuel actif. L&apos;essayage peut être généré.
+        {t.capabilityReady}
       </p>
     );
   }
@@ -827,12 +1142,9 @@ function CapabilityNotice({
     <div className="rounded-xl border border-[#d4af37]/25 bg-[#d4af37]/[0.06] px-3 py-2.5 text-xs">
       <p className="flex items-start gap-2 font-medium text-[#f0dfae]">
         <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Pas de générateur connecté
+        {t.capabilityMissing}
       </p>
-      <p className="mt-1 text-[#f0dfae]/70">
-        Le mannequin et la garde-robe restent utilisables. Aucun résultat n&apos;est
-        simulé.
-      </p>
+      <p className="mt-1 text-[#f0dfae]/70">{t.capabilityMissingBody}</p>
     </div>
   );
 }
