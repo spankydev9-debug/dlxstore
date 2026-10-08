@@ -37,6 +37,7 @@ import { DownloadApp } from "./DownloadApp";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useTheme } from "./ThemeProvider";
 import { AvatarBadge } from "../account/AvatarBadge";
+import type { Notification } from "../../types";
 
 /**
  * "Account & More" — the secondary navigation control center, opened from the
@@ -89,6 +90,46 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Where a notification actually leads.
+ *
+ * We only ever store a `type` (never a deep entity id), so the destination is
+ * the surface that owns that type: an order goes to orders, a friend request to
+ * friends, a new drop to the shop. Clicking a notification must always land
+ * somewhere real — marking it read with no visible consequence is a dead
+ * interaction.
+ */
+function notificationDestination(notification: Notification): string {
+  switch (notification.type) {
+    case "order_status":
+    case "new_order":
+      return "/dashboard?tab=orders";
+    case "reward":
+      return "/dashboard?tab=rewards";
+    case "friend_request":
+    case "friend_accepted":
+      return "/dashboard?tab=friends";
+    case "story_reaction":
+    case "story_mention":
+      return "/dashboard?tab=stories";
+    case "streak_milestone":
+      return "/dashboard?tab=streak";
+    case "product_share":
+    case "product_reaction":
+      return "/dashboard?tab=shares";
+    case "partner_application":
+      return "/partner";
+    case "chat_message":
+      return "/chat";
+    case "promotion":
+    case "new_drop":
+    case "low_stock":
+      return "/shop";
+    default:
+      return "/dashboard?tab=notifications";
+  }
+}
+
 export function AccountMoreDrawer() {
   const router = useRouter();
   const { user, signOut } = useAuth();
@@ -108,6 +149,19 @@ export function AccountMoreDrawer() {
   const { unreadCount: chatUnreadCount } = useChat();
 
   const done = () => closeOverlay();
+
+  /** Read + go: a notification tap always lands on the surface that owns it. */
+  const openNotification = (notification: Notification) => {
+    void markAsRead(notification.id);
+    const destination = notificationDestination(notification);
+    if (destination === "/chat") {
+      // Opening a primary overlay replaces this drawer atomically.
+      toggleOverlay("chat");
+      return;
+    }
+    done();
+    router.push(destination);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -144,7 +198,7 @@ export function AccountMoreDrawer() {
           {user ? (
             <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3">
               <button type="button" className="shrink-0 rounded-full" onClick={() => { done(); router.push("/dashboard"); }} aria-label={t.myAccount}>
-                <AvatarBadge user={user} className="h-11 w-11" />
+                <AvatarBadge user={user} className="h-11 w-11" linked={false} />
               </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{user.full_name}</p>
@@ -263,7 +317,7 @@ export function AccountMoreDrawer() {
                       <li key={n.id}>
                         <button
                           type="button"
-                          onClick={() => markAsRead(n.id)}
+                          onClick={() => openNotification(n)}
                           className={`w-full rounded-lg p-2 text-left text-xs transition-colors ${
                             n.is_read
                               ? "hover:bg-muted"
@@ -344,10 +398,13 @@ export function AccountMoreDrawer() {
           {/* DLX */}
           <SectionTitle>DLX</SectionTitle>
           <Row
-            onClick={() => {
-              done();
-              toggleOverlay("assistant");
-            }}
+            onClick={() =>
+              // Replacing this drawer with the assistant surface in one commit:
+              // closing first would pop the overlay's history marker while the
+              // next open is still pushing its own, and the popstate would
+              // immediately close what the customer just opened.
+              toggleOverlay("assistant")
+            }
           >
             <Bot className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.assistantTitle}

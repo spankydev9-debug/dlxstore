@@ -110,7 +110,7 @@ function AuthContent() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Ex. Sarah Muhindo"
-                className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
               />
             </div>
           )}
@@ -127,7 +127,7 @@ function AuthContent() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Ex. sarah@gmail.com"
-              className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+              className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
             />
           </div>
 
@@ -144,7 +144,7 @@ function AuthContent() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Ex. +243 990 123 456"
-                className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
               />
             </div>
           )}
@@ -160,7 +160,7 @@ function AuthContent() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t.securePassword}
-                className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                className="w-full h-11 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
               />
           </div>
 
@@ -168,7 +168,7 @@ function AuthContent() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all disabled:opacity-50"
+            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all disabled:opacity-50"
           >
             {isLogin ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
             {isLoading ? t.loading : isLogin ? t.signIn : t.createAccount}
@@ -182,7 +182,7 @@ function AuthContent() {
               router.push(`/auth?mode=${isLogin ? "register" : "login"}`);
               setError("");
             }}
-            className="text-xs font-semibold text-primary hover:underline"
+            className="inline-flex min-h-11 items-center justify-center px-3 text-xs font-semibold text-primary hover:underline"
           >
             {isLogin ? t.createCustomerAccount : t.alreadyRegistered}
           </button>

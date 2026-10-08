@@ -19,9 +19,12 @@ const AVATAR_UPDATE_EVENT = "dlxstore-avatar-updated";
 export function AvatarBadge({
   user,
   className = "h-8 w-8",
+  linked = true,
 }: {
   user: Profile | null;
   className?: string;
+  /** Set to false when the badge is already inside a link or button (avoids nested interactive elements). */
+  linked?: boolean;
 }) {
   const { t } = useLanguage();
   const [attributes, setAttributes] = useState<AvatarAttributes | null>(null);
@@ -69,7 +72,7 @@ export function AvatarBadge({
     </div>
   );
 
-  if (user) {
+  if (user && linked) {
     return (
       <Link
         href="/dashboard?tab=avatar"

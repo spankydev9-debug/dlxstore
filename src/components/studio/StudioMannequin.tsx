@@ -248,6 +248,31 @@ function safeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, "");
 }
 
+/**
+ * Paint order for one garment, mirroring `SLOT_Z` in `lib/studio/outfit.ts`.
+ *
+ * The base wardrobe (the Avatar's own presentation pieces) is always the
+ * under-layer; a full-body piece is the body covering; a jacket paints over the
+ * top; trousers paint last so a waistband lands where a waistband lands.
+ */
+function layerPriority(layer: MannequinLayer): number {
+  if (layer.id === "base-bottom") return 0;
+  if (layer.id === "base-top") return 5;
+  switch (layer.kind) {
+    case "dress":
+    case "full":
+      return 10;
+    case "top":
+      return 20;
+    case "outerwear":
+      return 30;
+    case "bottom":
+      return 40;
+    default:
+      return 25;
+  }
+}
+
 /** Human hair highlight tone derived from the base colour. */
 function hairLight(hair: string): string {
   return hair === "#141210" ? "#2e2a26" : "#8f7654";
@@ -494,7 +519,12 @@ export function StudioMannequin({
 
   const builtLayers = styledLayers
     .map((layer) => ({ layer, geom: buildLayer(layer), key: `L${safeId(layer.id)}` }))
-    .filter((entry): entry is { layer: MannequinLayer; geom: LayerGeom; key: string } => entry.geom !== null);
+    .filter((entry): entry is { layer: MannequinLayer; geom: LayerGeom; key: string } => entry.geom !== null)
+    // Paint order is body-outward, not insertion order: the Avatar's own
+    // wardrobe sits underneath, a jacket covers the top it is worn with, and a
+    // trouser waistband sits where it actually sits. Without this the figure
+    // dressed itself in whatever order the customer happened to click.
+    .sort((a, b) => layerPriority(a.layer) - layerPriority(b.layer));
 
   const hairStyle = a.hairStyle ?? "Court";
   const showBackHair = hairStyle === "Long" || hairStyle === "Tresses" || hairStyle === "Mi-long";
@@ -502,6 +532,24 @@ export function StudioMannequin({
   const hairTip = hairStyle === "Long" ? 196 : hairStyle === "Mi-long" ? 132 : 92;
 
   const hl = hairLight(hair);
+
+  /**
+   * One continuous skull-to-jaw silhouette.
+   *
+   * A single path (rather than an ellipse plus a jaw overlay) keeps the face a
+   * clean sculpted plane: faceless editorial, where the head is read through
+   * light and hair alone.
+   */
+  const headPath =
+    `M ${cx - headRx} ${headCy - 4}` +
+    ` C ${cx - headRx} ${headCy - 36} ${cx - 24} ${headCy - 50} ${cx} ${headCy - 50}` +
+    ` C ${cx + 24} ${headCy - 50} ${cx + headRx} ${headCy - 36} ${cx + headRx} ${headCy - 4}` +
+    ` C ${cx + headRx} ${headCy + 18} ${cx + 20} ${headCy + 42} ${cx} ${headCy + 54}` +
+    ` C ${cx - 20} ${headCy + 42} ${cx - headRx} ${headCy + 18} ${cx - headRx} ${headCy - 4} Z`;
+
+  /** Anatomical landmarks the fitting guides are drawn on. No measurement is
+   *  stored for these, so the guides carry no numbers — only the marks. */
+  const guideMarks = [shoulderY, waistY, hipY];
 
   return (
     <svg
@@ -607,6 +655,27 @@ export function StudioMannequin({
           <stop offset="100%" stopColor="#1a0d07" stopOpacity="0.4" />
         </radialGradient>
 
+        <clipPath id={`${uid}-headClip`}>
+          <path d={headPath} />
+        </clipPath>
+
+        {/* Fitting guides fade out at both edges so they read as marks on the
+            backdrop rather than as rules drawn across the composition. */}
+        <linearGradient id={`${uid}-guide`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
+          <stop offset="18%" stopColor="#d4af37" stopOpacity="0.5" />
+          <stop offset="82%" stopColor="#d4af37" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Weave: a static fractal noise laid over each garment so cloth reads
+            as a surface instead of a filled shape. Purely a rendering effect —
+            it claims nothing about the fabric itself. */}
+        <filter id={`${uid}-grain`} x="-6%" y="-6%" width="112%" height="112%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch" />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+
         {/* Key-light wash over the whole figure (screen blend). */}
         <radialGradient id={`${uid}-keywash`} cx="38%" cy="30%" r="70%">
           <stop offset="0%" stopColor="#ffe9bd" stopOpacity="0.34" />
@@ -627,6 +696,26 @@ export function StudioMannequin({
       {/* ---- Environment: backlight halo + floor pool ---- */}
       <ellipse cx={cx} cy={headCy + 210} rx="172" ry="252" fill={`url(#${uid}-halo)`} />
       <ellipse cx={cx} cy={footY + 6} rx="150" ry="26" fill={`url(#${uid}-floor)`} />
+
+      {/* ---- Fitting guides: the atelier's measuring marks, drawn on the
+          backdrop BEHIND the figure so the body occludes them. Shoulders,
+          waist and hips are anatomical landmarks of this Avatar — no numbers
+          are shown, because no measurement is stored. ---- */}
+      <g aria-hidden="true">
+        {guideMarks.map((markY) => (
+          <g key={`guide-${markY}`}>
+            <path
+              d={`M 50 ${markY} H 310`}
+              stroke={`url(#${uid}-guide)`}
+              strokeWidth="1"
+              strokeDasharray="2 7"
+              fill="none"
+            />
+            <rect x="94" y={markY - 4} width="1.5" height="8" rx="0.75" fill="#d4af37" fillOpacity="0.45" />
+            <rect x="264" y={markY - 4} width="1.5" height="8" rx="0.75" fill="#d4af37" fillOpacity="0.45" />
+          </g>
+        ))}
+      </g>
 
       {/* ---- Back hair (behind the body) ---- */}
       {showBackHair && (
@@ -706,8 +795,8 @@ export function StudioMannequin({
         </g>
         {/* Collarbones — a fashion-figure signature. */}
         <g stroke="#000" strokeOpacity="0.16" strokeWidth="1.4" fill="none" strokeLinecap="round">
-          <path d={`M ${cx - 12} ${neckTop + 12} C ${cx - 24} ${shoulderY - 6} ${shoulderL + 8} ${shoulderY - 12}`} />
-          <path d={`M ${cx + 12} ${neckTop + 12} C ${cx + 24} ${shoulderY - 6} ${shoulderR - 8} ${shoulderY - 12}`} />
+          <path d={`M ${cx - 12} ${neckTop + 12} Q ${cx - 24} ${shoulderY - 6} ${shoulderL + 8} ${shoulderY - 12}`} />
+          <path d={`M ${cx + 12} ${neckTop + 12} Q ${cx + 24} ${shoulderY - 6} ${shoulderR - 8} ${shoulderY - 12}`} />
         </g>
 
         {/* ---- Arms ---- */}
@@ -729,44 +818,28 @@ export function StudioMannequin({
         <rect x={cx - 19} y={neckTop} width="38" height={shoulderY - neckTop + 10} rx="12" fill={`url(#${uid}-body)`} />
         {/* Jaw shadow under the chin — ambient occlusion. */}
         <ellipse cx={cx} cy={neckTop + 14} rx="15" ry="9" fill="#000" opacity="0.16" />
-        {/* Skull + jaw silhouette. */}
-        <ellipse cx={cx} cy={headCy - 4} rx={headRx} ry={headRy} fill={`url(#${uid}-body)`} />
-        <path
-          d={`M ${cx - headRx + 8} ${headCy - 6} C ${cx - headRx + 2} ${headCy + 20} ${cx - 16} ${headCy + 42} ${cx} ${
-            headCy + 54
-          } C ${cx + 16} ${headCy + 42} ${cx + headRx - 2} ${headCy + 20} ${cx + headRx - 8} ${headCy - 6} C ${
-            cx + headRx - 16
-          } ${headCy + 2} ${cx - headRx + 16} ${headCy + 2} ${cx - headRx + 8} ${headCy - 6} Z`}
-          fill={`url(#${uid}-body)`}
-        />
-        {/* Ears (mostly tucked behind the hair). */}
-        <ellipse cx={cx - headRx - 2} cy={headCy + 10} rx="6" ry="10" fill={skin} opacity="0.85" />
-        <ellipse cx={cx + headRx + 2} cy={headCy + 10} rx="6" ry="10" fill={skin} opacity="0.85" />
-        {/* Face: faceless premium editorial — smooth, sculpted, no eyes, brows,
-            nose or lips. Only hair, silhouette and lighting inform the head. */}
-        {/* Ears remain minimal and tucked (a small anatomical anchor). */}
-        <ellipse cx={cx - headRx - 1.6} cy={headCy + 9} rx="5" ry="8.5" fill={skin} opacity="0.4" />
-        <ellipse cx={cx + headRx + 1.6} cy={headCy + 9} rx="5" ry="8.5" fill={skin} opacity="0.4" />
-        {/* Clean, featureless face plane with subtle shadowing. */}
-        <ellipse
-          cx={cx}
-          cy={headCy + 1}
-          rx={headRx - 2}
-          ry={headRy - 3}
-          fill={skin}
-          opacity="0.28"
-          transform={`rotate(-12, ${cx}, ${headCy})`}
-        />
-        <ellipse
-          cx={cx}
-          cy={headCy + 1}
-          rx={headRx - 2}
-          ry={headRy - 3}
-          fill={skin}
-          opacity="0.24"
-          transform={`rotate(12, ${cx}, ${headCy})`}
-        />
-        <ellipse cx={cx} cy={headCy + 6} rx={headRx + 2} ry={headRy + 2} fill="#24110a" opacity="0.14" />
+        {/* Sculpted head: one continuous skull-to-chin silhouette. Faceless
+            editorial — no eyes, brows, nose or lips; the head is read entirely
+            through its hair, its outline and the light that falls on it. */}
+        <path d={headPath} fill={`url(#${uid}-body)`} />
+        {/* A single pair of ears, tucked mostly behind the hair. */}
+        <ellipse cx={cx - headRx - 1} cy={headCy + 8} rx="5" ry="9" fill={skin} opacity="0.7" />
+        <ellipse cx={cx + headRx + 1} cy={headCy + 8} rx="5" ry="9" fill={skin} opacity="0.7" />
+        {/* Sculpting: the edges of the form turn away from the key light, the
+            brow catches it, and the hairline lays a soft shadow on the plane of
+            the forehead. All of it stays inside the silhouette. */}
+        <g clipPath={`url(#${uid}-headClip)`}>
+          <ellipse cx={cx} cy={headCy + 2} rx={headRx + 6} ry={headRy + 8} fill={`url(#${uid}-faceShade)`} />
+          <ellipse
+            cx={cx - headRx * 0.34}
+            cy={headCy - 16}
+            rx={headRx * 0.66}
+            ry={headRy * 0.48}
+            fill="#ffe9bd"
+            opacity="0.12"
+          />
+          <ellipse cx={cx} cy={headCy - 46} rx={headRx} ry="14" fill="#000" opacity="0.1" />
+        </g>
 
         {/* Front hair — crown, hairline shadow, strands, side locks */}
         <g>
@@ -912,14 +985,32 @@ export function StudioMannequin({
                 </g>
               ) : null}
 
-              {/* 3. Lighting across the whole garment, photo or not. The sheen
+              {/* 3. Weave. A static noise clipped to the garment and blended
+                  over it, so both the vector fill and the photograph share one
+                  surface texture. Rendering only — it asserts nothing about the
+                  material. */}
+              <g
+                clipPath={`url(#${uid}-clip-${key})`}
+                opacity={isBase ? "0.14" : "0.2"}
+                style={{ mixBlendMode: "overlay" }}
+              >
+                <rect
+                  x={geom.x0}
+                  y={geom.y0}
+                  width={geom.bandW}
+                  height={bandHeight}
+                  filter={`url(#${uid}-grain)`}
+                />
+              </g>
+
+              {/* 4. Lighting across the whole garment, photo or not. The sheen
                   is what makes the surface read as cloth rather than as a filled
                   shape: a bright shoulder, a dark hip. */}
               {geom.paths.map((path, index) => (
                 <path key={`sheen-${index}`} d={path} fill={`url(#${uid}-clothSheen)`} />
               ))}
 
-              {/* 4. The garment belongs to the body: it pinches at the waist and
+              {/* 5. The garment belongs to the body: it pinches at the waist and
                   folds where the fabric meets the hem, so a top reads as worn
                   rather than pasted on. */}
               {geom.hasTop ? (
@@ -967,8 +1058,8 @@ export function StudioMannequin({
               {/* Sleeve creases near the elbow when the sleeve reaches it. */}
               {(layer.kind === "top" || layer.kind === "outerwear" || layer.kind === "full") && (
                 <g stroke="#000" strokeOpacity="0.16" strokeWidth="1.3" fill="none" strokeLinecap="round">
-                  <path d={`M ${cx - (shoulderHalf + 12)} ${waistY - 34} C ${cx - (shoulderHalf + 4)} ${waistY - 26} ${cx - (shoulderHalf + 8)} ${waistY - 16}`} />
-                  <path d={`M ${cx + (shoulderHalf + 12)} ${waistY - 34} C ${cx + (shoulderHalf + 4)} ${waistY - 26} ${cx + (shoulderHalf + 8)} ${waistY - 16}`} />
+                  <path d={`M ${cx - (shoulderHalf + 12)} ${waistY - 34} Q ${cx - (shoulderHalf + 4)} ${waistY - 26} ${cx - (shoulderHalf + 8)} ${waistY - 16}`} />
+                  <path d={`M ${cx + (shoulderHalf + 12)} ${waistY - 34} Q ${cx + (shoulderHalf + 4)} ${waistY - 26} ${cx + (shoulderHalf + 8)} ${waistY - 16}`} />
                 </g>
               )}
 

@@ -66,11 +66,20 @@ export function MobileTabBar() {
       aria-label={t.menu}
       className="dlx-tabbar fixed inset-x-3 bottom-[calc(var(--safe-bottom)+0.625rem)] z-40 md:hidden"
     >
-      {/* Floating app-control surface, not a footer: it sits above safe-area
-          clearance, in its own glass plane with its own shadow, so it reads as
-          a control surface detached from the content behind it. Width adapts to
-          the viewport (side gutters + max), never a hardcoded strip. */}
-      <ul className="mx-auto flex h-[3.75rem] w-full max-w-md items-stretch gap-1 rounded-[1.35rem] border border-border/60 bg-card/90 px-1.5 shadow-[0_18px_44px_-14px_rgba(0,0,0,0.75)] ring-1 ring-black/10 backdrop-blur-2xl">
+      {/* Floating app-control surface, not a footer: a real glass plane with
+          its own blur, its own shadow and a lit top edge, sitting above
+          safe-area clearance so the content scrolls *under* it instead of
+          stopping at it. Width adapts to the viewport (side gutters + max),
+          never a hardcoded strip. */}
+      <ul className="relative mx-auto flex h-[3.75rem] w-full max-w-md items-stretch gap-1 overflow-hidden rounded-[1.35rem] border border-black/[0.07] bg-card/72 px-1.5 shadow-[0_18px_44px_-14px_rgba(0,0,0,0.75),0_2px_10px_-6px_rgba(0,0,0,0.45)] ring-1 ring-black/[0.06] backdrop-blur-2xl supports-[backdrop-filter]:bg-card/58 dark:border-white/10 dark:ring-white/[0.06]">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-4 top-px h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-black/[0.06]"
+        />
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = isActive(tab.href);
@@ -83,7 +92,11 @@ export function MobileTabBar() {
 
           const content = (
             <>
-              <span className="relative inline-flex h-6 w-6 items-center justify-center">
+              <span
+                className={`relative inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-200 ${
+                  active ? "bg-[#d4af37]/15" : ""
+                }`}
+              >
                 <Icon
                   aria-hidden
                   className="h-5 w-5"

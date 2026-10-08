@@ -20,7 +20,14 @@ import { ProductImage } from "../../../components/shared/ProductImage";
 import { useLanguage } from "../../../context/LanguageContext";
 import { absoluteUrl } from "../../../lib/site";
 
-export default function ProductDetailPage() {
+export default function ProductDetailPage({
+  initialSize,
+  initialColor,
+}: {
+  /** Variant the customer came in with (e.g. back from the Studio). */
+  initialSize?: string;
+  initialColor?: string;
+}) {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -95,9 +102,15 @@ export default function ProductDetailPage() {
           void recordProductView(prod.id).catch(() => {});
         }
 
-        // Set default size/color
-        if (prod.sizes.length > 0) setSelectedSize(prod.sizes[0]);
-        if (prod.colors.length > 0) setSelectedColor(prod.colors[0]);
+        // Set default size/color — a deep link (from the Studio, or a shared
+        // variant link) wins over the catalogue's first option, and is dropped
+        // silently when this product does not offer it.
+        if (prod.sizes.length > 0) {
+          setSelectedSize(initialSize && prod.sizes.includes(initialSize) ? initialSize : prod.sizes[0]);
+        }
+        if (prod.colors.length > 0) {
+          setSelectedColor(initialColor && prod.colors.includes(initialColor) ? initialColor : prod.colors[0]);
+        }
       } catch (err) {
         console.error("Error loading product details:", err);
         setLoadError(t.productLoadError);
@@ -106,7 +119,7 @@ export default function ProductDetailPage() {
       }
     }
     loadData();
-  }, [slug, user, router, t.productLoadError]);
+  }, [slug, user, router, t.productLoadError, initialSize, initialColor]);
 
   useEffect(() => { getStoreSettings().then(setStoreSettings).catch(console.error); }, []);
 

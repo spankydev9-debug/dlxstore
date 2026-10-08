@@ -126,7 +126,7 @@ export default function CheckoutPage() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center space-y-4 animate-fade-in">
         <h1 className="text-2xl font-bold">{t.cartEmpty}</h1>
-        <Link href="/shop" className="text-primary hover:underline font-semibold text-sm">{t.backToShop}</Link>
+        <Link href="/shop" className="inline-flex min-h-11 items-center text-primary hover:underline font-semibold text-sm">{t.backToShop}</Link>
       </div>
     );
   }

@@ -30,6 +30,21 @@ export function StudioEnvironment() {
       {/* Base void */}
       <div className="absolute inset-0 bg-[#050506]" />
 
+      {/* Atelier backdrop: a faint cutting grid, the way pattern paper is
+          ruled. It fades out at the top and the floor so it reads as texture on
+          the wall of the room rather than as a UI overlay. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, rgba(255,255,255,0) 1px 96px), repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, rgba(255,255,255,0) 1px 96px)",
+          maskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,0) 4%, rgba(0,0,0,1) 26%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 88%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,0) 4%, rgba(0,0,0,1) 26%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 88%)",
+        }}
+      />
+
       {/* Warm key light directly behind the figure */}
       <div
         className="absolute left-1/2 top-[38%] h-[68vh] w-[min(115vw,860px)] -translate-x-1/2 -translate-y-1/2 rounded-[50%] opacity-90"
@@ -58,6 +73,9 @@ export function StudioEnvironment() {
 
       {/* Floor plane + horizon glow */}
       <div className="absolute inset-x-0 bottom-0 h-[34%]">
+        {/* The seam where the backdrop meets the floor — the room has a
+            horizon, so the figure stands somewhere instead of floating. */}
+        <div className="absolute inset-x-[6%] top-0 h-px bg-gradient-to-r from-transparent via-white/[0.16] to-transparent" />
         <div
           className="absolute inset-0"
           style={{

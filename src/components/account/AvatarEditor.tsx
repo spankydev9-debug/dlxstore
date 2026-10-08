@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { getMyAvatar, saveMyAvatar } from "../../services/db/avatar";
@@ -13,7 +14,7 @@ import {
 } from "../../lib/avatar";
 import { AvatarVisual } from "./AvatarVisual";
 import { VisualStudio } from "./VisualStudio";
-import { Check, Pencil, RefreshCw, Save, Sparkles, UserCircle } from "lucide-react";
+import { Check, Pencil, RefreshCw, Save, Shirt, Sparkles, UserCircle } from "lucide-react";
 
 const AVATAR_UPDATE_EVENT = "dlxstore-avatar-updated";
 
@@ -200,17 +201,27 @@ export function AvatarEditor() {
                 {user?.full_name || t.avatarGuestName}
               </h3>
               <p className="text-xs leading-relaxed text-muted-foreground">{translatedSummary}</p>
-              <button
-                onClick={() => {
-                  setIsEditing(true);
-                  setSuccessMessage("");
-                  setErrorMessage("");
-                }}
-                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-sm transition-all hover:bg-muted"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                {t.avatarEdit}
-              </button>
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setSuccessMessage("");
+                    setErrorMessage("");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-sm transition-all hover:bg-muted"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  {t.avatarEdit}
+                </button>
+                {/* The avatar's honest next step: wear it in the studio. */}
+                <Link
+                  href="/studio"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                >
+                  <Shirt className="h-3.5 w-3.5" />
+                  {t.tryOnMyMannequin}
+                </Link>
+              </div>
             </div>
           </div>
         </div>

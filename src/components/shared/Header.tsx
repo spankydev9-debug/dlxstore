@@ -192,12 +192,12 @@ export default function Header() {
             gold rule is "navigation gives way before utilities do"). Thresholds
             in rem: 60rem ≈ full suite, 48.75rem ≈ utilities-first, 40rem ≈
             essentials only. */}
-        <div className="@container/header mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="@container/header mx-auto flex h-16 min-w-0 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* LOGO */}
           <Link
             href="/"
             onClick={() => closeOverlay()}
-            className="flex shrink-0 items-center"
+            className="flex min-h-11 shrink-0 items-center"
           >
             <span className="text-base font-bold tracking-widest text-foreground uppercase sm:text-xl lg:text-2xl">
               DLX<span className="text-primary font-light">STORE</span>
@@ -262,7 +262,7 @@ export default function Header() {
             <span ref={langMenuRef} className="relative @min-[60rem]/header:hidden">
               <button
                 onClick={() => setIsLangMenuOpen((open) => !open)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground @min-[23rem]/header:flex"
                 aria-label={t.language}
                 aria-expanded={isLangMenuOpen}
                 title={t.language}
@@ -296,7 +296,7 @@ export default function Header() {
 
             <button
               onClick={toggleTheme}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground @min-[23rem]/header:flex"
               title={t.changeTheme}
               aria-label={t.changeTheme}
             >
@@ -450,7 +450,7 @@ export default function Header() {
                     aria-expanded={isUserMenuOpen}
                   >
                     <StreakPip count={streak?.current_count ?? 0} />
-                    <AvatarBadge user={user} />
+                    <AvatarBadge user={user} linked={false} />
                   </button>
 
                   {isUserMenuOpen && (
@@ -524,9 +524,14 @@ export default function Header() {
               ) : (
                 <Link
                   href="/auth?mode=login"
-                  className="flex h-11 shrink-0 items-center rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/95"
+                  aria-label={t.signIn}
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/95 @min-[19rem]/header:px-4"
                 >
-                  {t.signIn}
+                  {/* Below ~336px of header room the label cannot fit beside
+                      cart + menu, so the control collapses to its icon rather
+                      than being dropped — it stays one tap away either way. */}
+                  <User className="h-4 w-4 @min-[19rem]/header:hidden" />
+                  <span className="hidden @min-[19rem]/header:inline">{t.signIn}</span>
                 </Link>
               )}
             </div>

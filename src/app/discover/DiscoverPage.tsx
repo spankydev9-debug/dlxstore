@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Clock, Compass, Flame, Loader2, UtensilsCrossed } from "lucide-react";
+import { Clock, Compass, Flame, Loader2, Shirt, UtensilsCrossed } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { getRecentlyViewed, getTrending } from "../../services/db/discover";
@@ -54,6 +54,25 @@ export default function DiscoverPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.discoverIntro}</p>
       </div>
+
+      {user ? (
+        <section className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Shirt className="h-4 w-4 text-[#d4af37]" />
+              {t.discoverAtelierTitle}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t.discoverAtelierBody}</p>
+          </div>
+          <Link
+            href="/studio"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 self-start rounded-full bg-gradient-to-r from-[#e6c65a] to-[#c39c22] px-5 text-sm font-bold text-black transition-opacity hover:opacity-95 sm:self-auto"
+          >
+            <Shirt className="h-4 w-4" aria-hidden />
+            {t.discoverAtelierCta}
+          </Link>
+        </section>
+      ) : null}
 
       {loading ? (
         <p className="flex items-center gap-2 py-12 text-sm text-muted-foreground">

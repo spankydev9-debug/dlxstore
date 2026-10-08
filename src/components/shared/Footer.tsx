@@ -96,7 +96,7 @@ export default function Footer() {
             <li className="pt-2">
               <Link
                 href="/contact"
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition-colors"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition-colors"
               >
                 {t.footerViewOfficialChannels}
               </Link>

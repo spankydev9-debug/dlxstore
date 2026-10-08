@@ -91,7 +91,7 @@ export default function AboutPage() {
         <div className="pt-2">
           <Link
             href="/shop"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-white text-black px-6 text-xs font-semibold hover:bg-neutral-100 transition-colors"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white text-black px-6 text-xs font-semibold hover:bg-neutral-100 transition-colors"
           >
             {t.aboutCTAButton}
           </Link>

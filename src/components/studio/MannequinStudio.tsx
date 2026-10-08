@@ -63,6 +63,12 @@ type MannequinStudioProps = {
 
 const EMPTY_MEDIA: ProductMediaAsset[] = [];
 const EMPTY_OPTIONS: string[] = [];
+const OUTFIT_DRAFT_PREFIX = "dlx:studio:outfit-draft:";
+
+/** Session-only draft, scoped to one account so a shared device never mixes looks. */
+function outfitDraftKey(profileId: string): string {
+  return `${OUTFIT_DRAFT_PREFIX}${profileId}`;
+}
 
 /** A single pill in a loadout rail (sizes, colours, media). */
 function Pill({
@@ -154,6 +160,14 @@ export function MannequinStudio({
   const looksStore = useRef(looksStoreFor());
   const didInitDeepLink = useRef(false);
   const noticeTimer = useRef<number | null>(null);
+  const draftKey = outfitDraftKey(user.id);
+  /**
+   * The composed outfit is a draft the customer is working on, so it survives a
+   * reload (back/forward, an accidental refresh, a deep link into a product)
+   * for this browser session only. Nothing is written before the catalogue has
+   * been read, so an early empty state can never wipe a saved draft.
+   */
+  const outfitHydrated = useRef(false);
 
   const setTransientNotice = (message: string | null) => {
     setNotice(message);
@@ -280,7 +294,7 @@ export function MannequinStudio({
       : null;
 
   /** Places a product on the mannequin, resolving slot collisions openly. */
-  const composeProduct = (product: Product) => {
+  const composeProduct = (product: Product, base: Outfit = outfit) => {
     const kind = resolveGarmentKind(classify(product));
     const slot = resolveSlot(classify(product), kind);
     const item: OutfitItem = {
@@ -292,7 +306,7 @@ export function MannequinStudio({
       size: product.sizes?.[0] ?? "",
       color: product.colors?.[0] ?? "",
     };
-    const result = addToOutfit(outfit, item);
+    const result = addToOutfit(base, item);
     setOutfit(result.outfit);
     if (result.removed.length > 0) {
       setTransientNotice(
@@ -313,17 +327,54 @@ export function MannequinStudio({
 
   // Deep-link contract: /studio?product=ID (+ optional size/colour) composes
   // the item once the catalogue is present, exactly as clicking it would.
+  // Before that, the draft outfit from this session is put back so a reload
+  // does not silently empty the figure.
   useEffect(() => {
     if (didInitDeepLink.current || loadingCatalogue) return;
     didInitDeepLink.current = true;
-    if (initialProductId && products.some((entry) => entry.id === initialProductId)) {
+    let restored: Outfit = [];
+    try {
+      const raw = window.sessionStorage.getItem(draftKey);
+      const draft: unknown = raw ? JSON.parse(raw) : [];
+      restored = Array.isArray(draft)
+        ? (draft as Outfit).filter((item) => products.some((entry) => entry.id === item.productId))
+        : [];
+    } catch {
+      // Unreadable draft (private mode / corrupt value): start empty.
+    } finally {
+      outfitHydrated.current = true;
+    }
+    const linked = initialProductId ? products.find((entry) => entry.id === initialProductId) : null;
+    if (linked) {
       if (initialSize) setSizeChoice(initialSize);
       if (initialColor) setColorChoice(initialColor);
-      const product = products.find((entry) => entry.id === initialProductId) ?? null;
-      if (product) composeProduct(product);
+      composeProduct(linked, restored);
+    } else {
+      // A deep link into a product the catalogue no longer returns (unpublished,
+      // removed, or a stale shared link) says so instead of silently composing
+      // nothing — and the empty selection is cleared rather than left dangling.
+      if (initialProductId && products.length > 0) {
+        setSelectedProductId("");
+        setTransientNotice(t.productUnavailableBody);
+      } else if (restored.length > 0) {
+        setOutfit(restored);
+        setTransientNotice(t.lookApplied);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingCatalogue, products]);
+
+  // Persist the draft for this session only — never to disk, never across
+  // customers, and never before hydration has had its chance to restore it.
+  useEffect(() => {
+    if (!outfitHydrated.current) return;
+    try {
+      if (outfit.length === 0) window.sessionStorage.removeItem(draftKey);
+      else window.sessionStorage.setItem(draftKey, JSON.stringify(outfit));
+    } catch {
+      // Storage unavailable: the outfit simply does not survive a reload.
+    }
+  }, [outfit, draftKey]);
 
   // Keep the composed item's variant in step with the loadout rails.
   useEffect(() => {

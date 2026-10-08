@@ -198,7 +198,7 @@ export function DesktopNav() {
         <Shirt className="h-4 w-4 text-[#d4af37]" aria-hidden />
         {user ? (
           <>
-            <AvatarBadge user={user} className="h-6 w-6" />
+            <AvatarBadge user={user} className="h-6 w-6" linked={false} />
             <span className="hidden lg:inline">{t.studio}</span>
           </>
         ) : (

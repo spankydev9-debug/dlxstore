@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2, LockKeyhole } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { getMyAvatar } from "../../services/db/avatar";
 import { MannequinStudio } from "../../components/studio/MannequinStudio";
 import type { CustomerAvatar } from "../../types";
@@ -59,6 +60,7 @@ function MannequinStudioShell({
   lookParam?: string;
 }) {
   const { user, isLoading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [avatar, setAvatar] = useState<CustomerAvatar | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -102,16 +104,13 @@ function MannequinStudioShell({
           }}
         />
         <LockKeyhole className="h-8 w-8 text-[#d4af37]" />
-        <h1 className="relative text-xl font-semibold text-white">Votre mannequin vous attend</h1>
-        <p className="relative max-w-sm text-sm text-white/55">
-          Connectez-vous pour créer votre mannequin DLXSTORE et essayer vos
-          articles.
-        </p>
+        <h1 className="relative text-xl font-semibold text-white">{t.studioGateTitle}</h1>
+        <p className="relative max-w-sm text-sm text-white/55">{t.studioGateBody}</p>
         <Link
           href="/auth"
           className="relative inline-flex min-h-11 items-center rounded-xl bg-gradient-to-b from-[#e6c65a] to-[#c39c22] px-5 py-2 text-sm font-semibold text-black"
         >
-          Se connecter
+          {t.signIn}
         </Link>
       </main>
     );

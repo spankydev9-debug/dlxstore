@@ -113,7 +113,7 @@ export default function PartnersPage() {
         <p className="text-sm text-muted-foreground">
           {t.partnersCta}
         </p>
-        <Link href="/partner" className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
+        <Link href="/partner" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
           {t.partner}
           <ArrowRight className="h-4 w-4" />
         </Link>

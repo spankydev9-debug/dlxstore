@@ -3,7 +3,13 @@ import { getProductBySlug } from "../../../services/db/products";
 import { absoluteUrl } from "../../../lib/site";
 import ProductPage from "./ProductPage";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  // The Studio sends the customer back with the variant they were wearing, so
+  // the route reads it here (server) and hands it to the client page as props —
+  // no `useSearchParams` in the tree, no Suspense gap in the product HTML.
+  searchParams: Promise<{ size?: string | string[]; color?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -33,7 +39,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ProductRoute({ params }: Props) {
+export default async function ProductRoute({ params, searchParams }: Props) {
   await params;
-  return <ProductPage />;
+  const sp = await searchParams;
+  const size = typeof sp.size === "string" && sp.size.length > 0 ? sp.size : undefined;
+  const color = typeof sp.color === "string" && sp.color.length > 0 ? sp.color : undefined;
+  return <ProductPage initialSize={size} initialColor={color} />;
 }
