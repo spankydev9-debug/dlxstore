@@ -259,6 +259,47 @@ html {
   100% { transform: translate3d(6px, -180px, 0); opacity: 0; }
 }
 
+/* A garment "dressing in": a soft settle onto the figure instead of a pop-in.
+   Applied to each SVG garment group, staggered by mount order. Factory-mode
+   callers keep it subtle so a whole outfit reads as one dressing sequence. */
+@keyframes dlx-rise {
+  0%   { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.985); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+.dlx-garment-rise {
+  animation: dlx-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Slow travelling backlight across the atelier cyclorama. CSS-only, fixed on
+   SSR so client and server agree on the initial frame. */
+@keyframes dlx-sheen {
+  0%   { transform: translate3d(-6%, -2%, 0); opacity: 0.55; }
+  50%  { opacity: 0.95; }
+  100% { transform: translate3d(6%, 2%, 0); opacity: 0.55; }
+}
+.dlx-cyclorama-sheen {
+  animation: dlx-sheen 22s ease-in-out infinite alternate;
+}
+
+/* Mobile atelier sheet — rises from under the command bar. */
+@keyframes dlx-sheet-up {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.dlx-sheet-up {
+  animation: dlx-sheet-up 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hide scrollbars on horizontal garment rails while keeping them scrollable. */
+.dlx-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dlx-rail::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }

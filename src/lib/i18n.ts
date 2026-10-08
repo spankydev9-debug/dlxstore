@@ -744,6 +744,14 @@ const fr = {
   slotFootwear: "Chaussures",
   slotAccessory: "Accessoire",
   cancelJob: "Annuler",
+  leaveAtelier: "Quitter l'atelier",
+  nowWearing: "En ce moment",
+  addGarment: "Ajouter un vêtement",
+  enterAtelier: "Entrer dans l'atelier",
+  avatarIntoAtelier: "Votre mannequin vous attend dans l'atelier.",
+  noGarmentOnMannequin: "Aucun vêtement posé. Ouvrez la garde-robe.",
+  figureCaptionDefault: "Habillez, composez, portez.",
+  atelierCta: "Explorer l'atelier",
 };
 
 const en: typeof fr = {
@@ -1483,6 +1491,14 @@ const en: typeof fr = {
   slotFootwear: "Footwear",
   slotAccessory: "Accessory",
   cancelJob: "Cancel",
+  leaveAtelier: "Leave atelier",
+  nowWearing: "Now wearing",
+  addGarment: "Add a garment",
+  enterAtelier: "Enter the atelier",
+  avatarIntoAtelier: "Your mannequin is waiting in the atelier.",
+  noGarmentOnMannequin: "Nothing on the mannequin yet. Open the wardrobe.",
+  figureCaptionDefault: "Dress, compose, wear.",
+  atelierCta: "Explore the atelier",
 };
 
 // Basic Kiswahili translations (widely spoken in Eastern DRC/Goma)
@@ -2223,6 +2239,14 @@ const sw: typeof fr = {
   slotFootwear: "Viatu",
   slotAccessory: "Vifaa",
   cancelJob: "Ghairi",
+  leaveAtelier: "Ondoka atelier",
+  nowWearing: "Unavaa sasa",
+  addGarment: "Ongeza nguo",
+  enterAtelier: "Ingia atelier",
+  avatarIntoAtelier: "Mannequin yako inakusubiri atelier.",
+  noGarmentOnMannequin: "Hakuna nguo kwenye mannequin. Fungua wodi.",
+  figureCaptionDefault: "Vaa, changanya, ubebe.",
+  atelierCta: "Chunguza atelier",
 };
 
 // Basic Lingála translations (widely spoken in Western DRC/Kinshasa)
@@ -2963,6 +2987,14 @@ const ln: typeof fr = {
   slotFootwear: "Mafuta ba kitoko",
   slotAccessory: "Bikolo",
   cancelJob: "Kansela",
+  leaveAtelier: "Tika atelier",
+  nowWearing: "Ozali kolata sik'oyo",
+  addGarment: "Lakisa elamba",
+  enterAtelier: "Kota na atelier",
+  avatarIntoAtelier: "Mannequin na yo ezali kozela yo na atelier.",
+  noGarmentOnMannequin: "Elamba moko te na mannequin. Fungola garde-robe.",
+  figureCaptionDefault: "Lata, bongisa, mema.",
+  atelierCta: "Tala atelier",
 };
 
 // Basic Tshiluba translations (widely spoken in Central DRC/Kasai)
@@ -3703,6 +3735,14 @@ const tl: typeof fr = {
   slotFootwear: "Sapatos",
   slotAccessory: "Aksesor",
   cancelJob: "Kanselahin",
+  leaveAtelier: "Toka atelier",
+  nowWearing: "Unavaa sasa",
+  addGarment: "Ongeza nguo",
+  enterAtelier: "Ingia atelier",
+  avatarIntoAtelier: "Mannequin yako inakusubiri atelier.",
+  noGarmentOnMannequin: "Hakuna nguo kwenye mannequin. Fungua wodi.",
+  figureCaptionDefault: "Vaa, changanya, ubebe.",
+  atelierCta: "Chunguza atelier",
 };
 
 // Basic Kikongo translations (widely spoken in Western DRC/Bas-Congo)
@@ -4420,6 +4460,14 @@ const kg: typeof fr = {
   slotFootwear: "Ingano",
   slotAccessory: "Igikoresho",
   cancelJob: "Hagarika",
+  leaveAtelier: "Bika atelier",
+  nowWearing: "Kuvwala sasudia",
+  addGarment: "Yika nvwala",
+  enterAtelier: "Kota mu atelier",
+  avatarIntoAtelier: "Mannequin na nge ke kufidisila mu atelier.",
+  noGarmentOnMannequin: "Ka nvwala mosi ko. Zibula garde-robe.",
+  figureCaptionDefault: "Nkutu, yikisa, vwala.",
+  atelierCta: "Tala atelier",
 };
 
 export function translate(language: Language) {

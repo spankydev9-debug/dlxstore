@@ -30,6 +30,17 @@ export function StudioEnvironment() {
       {/* Base void */}
       <div className="absolute inset-0 bg-[#050506]" />
 
+      {/* A slow travelling softbox sheen across the back wall — the room is
+          lit, not flat. Pure CSS, deterministic on SSR. */}
+      <div
+        className="absolute -left-[10%] top-[4%] h-[70%] w-[120%] opacity-50 dlx-cyclorama-sheen"
+        style={{
+          background:
+            "linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(232,217,164,0.10) 34%, rgba(212,175,55,0.05) 50%, rgba(255,255,255,0) 70%)",
+          filter: "blur(22px)",
+        }}
+      />
+
       {/* Atelier backdrop: a faint cutting grid, the way pattern paper is
           ruled. It fades out at the top and the floor so it reads as texture on
           the wall of the room rather than as a UI overlay. */}
@@ -37,7 +48,7 @@ export function StudioEnvironment() {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, rgba(255,255,255,0) 1px 96px), repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 1px, rgba(255,255,255,0) 1px 96px)",
+            "repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, rgba(255,255,255,0) 1px 96px), repeating-linear-gradient(0deg, rgba(255,255,255,0.022) 0 1px, rgba(255,255,255,0) 1px 96px)",
           maskImage:
             "linear-gradient(to bottom, rgba(0,0,0,0) 4%, rgba(0,0,0,1) 26%, rgba(0,0,0,1) 62%, rgba(0,0,0,0) 88%)",
           WebkitMaskImage:

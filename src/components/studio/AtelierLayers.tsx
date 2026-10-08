@@ -44,7 +44,7 @@ export function AtelierLayers({
   if (ordered.length === 0) {
     return (
       <div className={className}>
-        <p className="rounded-xl border border-white/[0.07] bg-black/25 px-3 py-3 text-xs leading-relaxed text-white/55">
+        <p className="border-b border-white/6 pb-2 text-[11px] leading-relaxed text-white/40">
           {t.emptyOutfit}
         </p>
       </div>
@@ -53,7 +53,7 @@ export function AtelierLayers({
 
   return (
     <div className={className}>
-      <ul className="space-y-2">
+      <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
         {ordered.map((item) => (
           <LayerRow key={`${item.slot}-${item.productId}`} item={item} onRemove={onRemove} />
         ))}
@@ -74,7 +74,7 @@ function LayerRow({
   const label = (t as unknown as Record<string, string>)[SLOT_KEY[item.slot]] ?? SLOT_KEY[item.slot];
 
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/25 p-2">
+    <li className="flex items-center gap-3 py-2.5">
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white/[0.04] ring-1 ring-white/10">
         {item.imageUrl ? (
           <ProductImage
@@ -92,7 +92,7 @@ function LayerRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-semibold text-white/90">{item.name}</p>
         <p className="mt-0.5 flex items-center gap-1.5 truncate text-[10px] text-white/50">
-          <span className="rounded-full border border-white/15 px-1.5 py-px text-[9px] uppercase tracking-wider text-[#d4af37]/80">
+          <span className="rounded-full border border-[#d4af37]/25 px-1.5 py-px text-[9px] uppercase tracking-wider text-[#d4af37]/80">
             {label}
           </span>
           {[item.size, item.color].filter(Boolean).join(" · ")}

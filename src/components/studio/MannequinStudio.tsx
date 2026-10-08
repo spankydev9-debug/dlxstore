@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
+  ArrowLeft,
   CheckCircle2,
-  ChevronDown,
   CircleSlash,
   Clock3,
   ImageIcon,
@@ -14,6 +14,7 @@ import {
   Loader2,
   LockKeyhole,
   Palette,
+  Plus,
   Ruler,
   Sparkles,
   Wand2,
@@ -24,7 +25,7 @@ import { useVisualStudioJobs } from "../../hooks/useVisualStudioJobs";
 import type { CustomerAvatar, Product, ProductMediaAsset, Profile } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { ProductImage } from "../shared/ProductImage";
-import { StudioEnvironment, StudioLabel, StudioPanel } from "./StudioEnvironment";
+import { StudioEnvironment, StudioLabel } from "./StudioEnvironment";
 import {
   resolveColorHex,
   resolveGarmentKind,
@@ -48,6 +49,7 @@ import {
 import { looksStoreFor, type SavedLook } from "../../services/studio/looks-store";
 import { AtelierLayers, ProvenanceNote } from "./AtelierLayers";
 import { StudioLooksPanel } from "./StudioLooksPanel";
+import { StudioWardrobe } from "./StudioWardrobe";
 
 type MannequinStudioProps = {
   user: Profile;
@@ -155,7 +157,8 @@ export function MannequinStudio({
   const [looks, setLooks] = useState<SavedLook[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [mobileSheet, setMobileSheet] = useState<"loadout" | "wardrobe" | "outfit" | null>(null);
+  const [mobileSheet, setMobileSheet] = useState<"wardrobe" | "tenue" | "looks" | null>(null);
+  const [toolTab, setToolTab] = useState<"wardrobe" | "looks">("wardrobe");
 
   const looksStore = useRef(looksStoreFor());
   const didInitDeepLink = useRef(false);
@@ -477,38 +480,19 @@ export function MannequinStudio({
     generationReady && !!avatar && !!selectedProduct && !!selectedMedia && !studio.isSubmitting && jobsInFlight.length === 0;
 
   // ---------------------------------------------------------------- controls
-  const productPicker = (
-    <div>
-      <StudioLabel>{t.selectArticle}</StudioLabel>
-      <div className="relative mt-2">
-        <select
-          id="studio-product"
-          value={selectedProductId}
-          onChange={(event) => handleSelectProduct(event.target.value)}
-          className="min-h-11 w-full appearance-none rounded-xl border border-white/[0.1] bg-black/45 px-3 pr-9 text-sm text-white/90 outline-none transition-colors focus:border-[#d4af37]/60"
-        >
-          <option value="" className="bg-[#0d0d10]">
-            {loadingCatalogue ? t.loading : `— ${t.chooseArticle} —`}
-          </option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id} className="bg-[#0d0d10]">
-              {product.name}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-      </div>
-    </div>
-  );
-
-  const loadoutRails = (
-    <div className="space-y-4">
+  // Variant rails (size / colour) belong to the garment being tried: they sit
+  // with the figure, not in a corner console, so the person choosing size is
+  // looking at the person wearing it.
+  const variantRails = (
+    <div className="space-y-3.5">
       {sizes.length > 0 && (
         <div>
           <div className="mb-2 flex items-center gap-1.5">
             <Ruler className="h-3.5 w-3.5 text-[#d4af37]/70" />
             <StudioLabel>{t.sizeRail}</StudioLabel>
-            {selectedSize ? <span className="ml-auto text-xs text-white/50">{selectedSize}</span> : null}
+            {selectedSize ? (
+              <span className="ml-auto text-xs text-white/50">{selectedSize}</span>
+            ) : null}
           </div>
           <Rail label={t.sizeRail}>
             {sizes.map((size) => (
@@ -551,37 +535,39 @@ export function MannequinStudio({
           </Rail>
         </div>
       )}
+    </div>
+  );
 
-      {selectedProductId && (
-        <div>
-          <div className="mb-2 flex items-center gap-1.5">
-            <ImageIcon className="h-3.5 w-3.5 text-[#d4af37]/70" />
-            <StudioLabel>{t.sourceRail}</StudioLabel>
-            <span className="ml-auto text-xs text-white/50">
-              {media.length > 0 ? `${media.length}` : "—"}
-            </span>
-          </div>
-          {media.length === 0 ? (
-            <p className="text-xs text-white/45">{t.noProductPhoto}</p>
-          ) : (
-            <Rail label={t.sourceRail}>
-              {media.map((item) => (
-                <Pill
-                  key={item.id}
-                  active={selectedMedia?.id === item.id}
-                  onClick={() => setSelectedMediaId(item.id)}
-                  className="h-14 w-14 overflow-hidden !p-0"
-                >
-                  <ProductImage
-                    src={item.image_url}
-                    alt={item.alt_text || selectedProduct?.name || t.product}
-                    className="h-full w-full object-cover"
-                  />
-                </Pill>
-              ))}
-            </Rail>
-          )}
-        </div>
+  // The source rail ("which photograph is draped on the figure") sits next to
+  // the rendering statement, close to where the honesty of the picture lives.
+  const mediaRail = (
+    <div>
+      <div className="mb-2 flex items-center gap-1.5">
+        <ImageIcon className="h-3.5 w-3.5 text-[#d4af37]/70" />
+        <StudioLabel>{t.sourceRail}</StudioLabel>
+        <span className="ml-auto text-xs text-white/50">
+          {media.length > 0 ? `${media.length}` : "—"}
+        </span>
+      </div>
+      {media.length === 0 ? (
+        <p className="text-xs text-white/45">{t.noProductPhoto}</p>
+      ) : (
+        <Rail label={t.sourceRail}>
+          {media.map((item) => (
+            <Pill
+              key={item.id}
+              active={selectedMedia?.id === item.id}
+              onClick={() => setSelectedMediaId(item.id)}
+              className="h-14 w-14 overflow-hidden !p-0"
+            >
+              <ProductImage
+                src={item.image_url}
+                alt={item.alt_text || selectedProduct?.name || t.product}
+                className="h-full w-full object-cover"
+              />
+            </Pill>
+          ))}
+        </Rail>
       )}
     </div>
   );
@@ -615,82 +601,74 @@ export function MannequinStudio({
     </div>
   );
 
-  const wardrobeRail = (
-    <div>
-      <div className="mb-2 flex items-center gap-1.5">
-        <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" />
-        <StudioLabel>{t.wardrobe}</StudioLabel>
-        <span className="ml-auto text-xs text-white/45">{studio.wardrobe.length}</span>
-      </div>
-      {studio.wardrobe.length === 0 ? (
-        <p className="text-xs text-white/45">{t.noLookInWardrobe}</p>
-      ) : (
-        <Rail label={t.wardrobe}>
-          {studio.wardrobe.map((item) => {
-            const product = products.find((entry) => entry.id === item.product_id);
-            const active = item.product_id === selectedProductId;
-            return (
-              <div key={item.id} className="relative shrink-0">
-                <Pill
-                  active={active}
-                  onClick={() => handleSelectProduct(item.product_id)}
-                  className="h-[68px] w-[68px] overflow-hidden !p-0"
-                  title={item.label || product?.name || t.product}
-                >
-                  {product?.images?.[0] ? (
-                    <ProductImage src={product.images[0]} alt={product.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-[10px] text-white/40">DLX</span>
-                  )}
-                </Pill>
-              </div>
-            );
-          })}
-        </Rail>
-      )}
-    </div>
-  );
-
   const capabilityStrip = <CapabilityNotice capability={studio.capability} />;
 
+  // The atelier shop window — the real catalogue as garments to try. Every
+  // tile is the product's own photograph; none of it is simulated.
+  const wardrobeGrid = (
+    <StudioWardrobe
+      products={products}
+      categoryNames={categoryNames}
+      outfit={resolvedOutfit}
+      onPick={(id) => {
+        if (id === selectedProductId) return;
+        handleSelectProduct(id);
+        setMobileSheet(null);
+      }}
+    />
+  );
+
+  const finishLine =
+    selectedProduct && selectedMedia ? (
+      <>
+        {mediaRail}
+        <div className="pt-1">{actions}</div>
+      </>
+    ) : (
+      <div>
+        <p className="border-b border-white/6 pb-2 text-[11px] leading-relaxed text-white/40">
+          {t.composePrompt}
+        </p>
+        <div className="pt-1">{actions}</div>
+      </div>
+    );
+
   return (
-    <div data-studio-root className="relative isolate min-h-[calc(100dvh-4rem)] overflow-hidden">
+    <div data-studio-root className="relative isolate min-h-[calc(100dvh-4rem)] overflow-x-hidden">
       <StudioEnvironment />
 
-      {/* ---------------- Desktop / tablet: character centre, floating rails ---- */}
-      <div className="relative mx-auto hidden max-w-[1400px] px-6 py-8 lg:grid lg:grid-cols-[minmax(230px,270px)_minmax(0,1fr)_minmax(230px,280px)] lg:gap-6 xl:px-10">
-        {/* Left rail — selection + the worn outfit */}
-        <div className="flex flex-col gap-4">
-          <StudioPanel className="p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
-                <StudioLabel>Studio</StudioLabel>
-                <h1 className="mt-0.5 text-lg font-semibold tracking-tight text-white">{t.studioTitle}</h1>
-              </div>
-              <Sparkles className="h-4 w-4 text-[#d4af37]" />
-            </div>
-            {productPicker}
-          </StudioPanel>
+      <AtelierMasthead
+        backHref={
+          selectedProduct
+            ? `/product/${selectedProduct.slug}?size=${encodeURIComponent(selectedSize)}&color=${encodeURIComponent(selectedColor)}`
+            : "/shop"
+        }
+        backLabel={selectedProduct ? t.backToProduct : t.leaveAtelier}
+        avatarHref="/dashboard?tab=avatar"
+        avatarLabel={avatar ? t.studioEditAvatar : t.createMannequin}
+      />
 
-          <StudioPanel tone="quiet" className="p-4">
-            {loadoutRails}
-          </StudioPanel>
-
-          <StudioPanel tone="quiet" className="p-4">
+      {/* ---------------- Desktop / tablet: figure centre, atelier columns ------- */}
+      <div className="relative mx-auto hidden max-w-[1500px] grid-cols-[minmax(250px,290px)_minmax(0,1fr)_minmax(270px,330px)] gap-6 px-6 pt-4 lg:grid xl:px-10">
+        {/* Left — what the figure is wearing, in wearing order */}
+        <aside className="flex min-w-0 flex-col gap-5">
+          <section>
             <div className="mb-2 flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" />
-              <StudioLabel>{t.outfit}</StudioLabel>
+              <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" aria-hidden />
+              <StudioLabel>{t.nowWearing}</StudioLabel>
+              <span className="ml-auto text-xs text-white/45">{resolvedOutfit.length}</span>
             </div>
             <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
-          </StudioPanel>
+          </section>
 
-          <StudioPanel tone="quiet" className="mt-auto p-4">
-            {wardrobeRail}
-          </StudioPanel>
-        </div>
+          <section>
+            <StudioLabel className="mb-2">{t.fitHeading}</StudioLabel>
+            <FitNarration avatar={avatar} product={selectedProduct} />
+          </section>
+        </aside>
 
-        {/* Centre — the figure owns the largest area */}
-        <div className="relative flex min-h-[74vh] flex-col items-end justify-center">
+        {/* Centre — one figure, full height, the subject of the page */}
+        <div className="relative flex min-h-[70vh] flex-col items-center justify-center">
           <FigureStage
             avatar={avatar}
             layers={figureLayers}
@@ -708,29 +686,47 @@ export function MannequinStudio({
                 : null
             }
           />
-          <div className="mx-auto w-full max-w-[560px] px-1">
+          <div className="mx-auto mt-3 w-full max-w-[600px] space-y-4 px-1">
+            {selectedProduct ? variantRails : null}
             <FitNarration avatar={avatar} product={selectedProduct} />
+            <p className="pb-1 text-center text-[10px] uppercase tracking-[0.3em] text-white/25">
+              {t.figureCaptionDefault}
+            </p>
           </div>
         </div>
 
-        {/* Right rail — capability, actions, looks, ledger */}
-        <div className="flex flex-col gap-4">
-          {capabilityStrip}
-          <StudioPanel tone="accent" className="p-4">
-            {actions}
-          </StudioPanel>
-          <StudioPanel tone="quiet" className="p-4">
-            <StudioLooksPanel
-              profileId={user.id}
-              outfit={resolvedOutfit}
-              looks={looks}
-              onChange={setLooks}
-              onApply={applyLook}
-              onNotice={setTransientNotice}
-            />
-          </StudioPanel>
+        {/* Right — the atelier tool: catalogue to try, looks to keep, and the
+            rendering statement closed against it */}
+        <aside className="flex min-w-0 flex-col gap-3">
+          <AtelierTabs
+            value={toolTab}
+            onChange={setToolTab}
+            tabs={[
+              { id: "wardrobe", label: t.wardrobe },
+              { id: "looks", label: t.saveLookLabel },
+            ]}
+            wornDot={resolvedOutfit.length > 0}
+          />
+
+          {toolTab === "wardrobe" ? (
+            <div className="max-h-[52vh] min-h-0 overflow-y-auto pr-0.5 [scrollbar-width:thin]">
+              {wardrobeGrid}
+            </div>
+          ) : (
+            <div className="max-h-[52vh] min-h-0 overflow-y-auto pr-0.5 [scrollbar-width:thin]">
+              <StudioLooksPanel
+                profileId={user.id}
+                outfit={resolvedOutfit}
+                looks={looks}
+                onChange={setLooks}
+                onApply={applyLook}
+                onNotice={setTransientNotice}
+              />
+            </div>
+          )}
+
           {studio.jobs.length > 0 ? (
-            <StudioPanel tone="quiet" className="p-4">
+            <div className="max-h-[22vh] overflow-y-auto [scrollbar-width:thin]">
               <JobLedger
                 jobs={studio.jobs}
                 products={products}
@@ -740,40 +736,27 @@ export function MannequinStudio({
                 onCancel={studio.cancel}
                 onRetry={studio.retry}
               />
-            </StudioPanel>
+            </div>
           ) : null}
-        </div>
+
+          <div className="mt-auto space-y-2.5 border-t border-white/[0.06] pt-3">
+            {capabilityStrip}
+            {finishLine}
+          </div>
+        </aside>
       </div>
 
-      {/* ---------------- Mobile: character dominant, sheet controls ----------- */}
+      {/* ---------------- Mobile: figure hero, command bar, rising sheet -------- */}
       <div className="relative flex min-h-[calc(100dvh-4rem)] flex-col lg:hidden">
-        {/* The figure takes every pixel the controls do not claim. */}
-        <div className="flex flex-1 flex-col justify-end px-3 pb-1 pt-3">
+        {/* Figure owns every pixel the controls do not claim. */}
+        <main className="flex flex-1 flex-col justify-end px-3 pb-1.5 pt-2">
           {notice ? (
-            <div className="animate-fade-in px-1 pb-2">
+            <div className="animate-fade-in pb-2">
               <p className="rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-center text-xs text-[#f0dfae]">
                 {notice}
               </p>
             </div>
           ) : null}
-
-          <div className="mb-1 flex items-start justify-between gap-2 px-1">
-            <div className="min-w-0">
-              <StudioLabel>Studio</StudioLabel>
-              <h1 className="truncate text-base font-semibold tracking-tight text-white">
-                {selectedProduct ? selectedProduct.name : t.studioTitle}
-              </h1>
-              <p className="truncate text-[11px] text-white/50">
-                {[selectedSize, selectedColor].filter(Boolean).join(" · ") || t.chooseArticle}
-              </p>
-            </div>
-            <Link
-              href="/dashboard?tab=avatar"
-              className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/12 bg-black/40 px-3 text-[11px] font-medium text-white/80"
-            >
-              {avatar ? t.studioEditAvatar : t.createMannequin}
-            </Link>
-          </div>
 
           <FigureStage
             avatar={avatar}
@@ -781,53 +764,101 @@ export function MannequinStudio({
             renderSource={render.source}
             hasSelection={resolvedOutfit.length > 0}
             compact
+            showReadout={false}
+            notice={null}
+            onBackToProduct={
+              selectedProduct
+                ? `/product/${selectedProduct.slug}?size=${encodeURIComponent(selectedSize)}&color=${encodeURIComponent(selectedColor)}`
+                : null
+            }
           />
+
+          <NowWearingStrip outfit={resolvedOutfit} />
+
+          {selectedProduct ? (
+            <div className="mt-2">{variantRails}</div>
+          ) : (
+            <p className="mt-3 pb-1 text-center text-[10px] uppercase tracking-[0.3em] text-white/25">
+              {t.figureCaptionDefault}
+            </p>
+          )}
+        </main>
+
+        {/* Command bar — one primary action (the garment CTA) plus the honest
+            generation state. Clears the floating tab bar: bottom = safe +
+            4.375rem. */}
+        <div className="sticky bottom-[calc(var(--safe-bottom)+4.375rem)] z-30 border-t border-white/[0.07] bg-gradient-to-t from-[#050506]/95 via-[#050506]/70 to-transparent px-3 pb-[calc(var(--safe-bottom)+0.375rem)] pt-2 backdrop-blur-xl">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              data-studio-sheet-trigger
+              onClick={() => setMobileSheet(mobileSheet === "wardrobe" ? null : "wardrobe")}
+              aria-pressed={mobileSheet === "wardrobe"}
+              aria-expanded={mobileSheet === "wardrobe"}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-b from-[#e6c65a] to-[#c39c22] px-4 text-sm font-semibold text-black shadow-[0_16px_40px_-18px_rgba(212,175,55,0.9)]"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {t.addGarment}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedProduct || !selectedMedia) return;
+                void studio.request({
+                  workflow: "try_on",
+                  product: selectedProduct,
+                  sourceMedia: selectedMedia,
+                });
+              }}
+              disabled={!canGenerate}
+              title={t.generateUnavailable}
+              className="inline-flex min-h-12 w-[4.75rem] shrink-0 items-center justify-center gap-1 rounded-full border border-white/[0.12] bg-white/[0.04] px-2 text-[10px] font-medium text-white/60"
+            >
+              {studio.isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="h-4 w-4" aria-hidden />
+              )}
+              {generationReady ? t.generateTryOn : t.generateUnavailable}
+            </button>
+          </div>
+          {capabilityStrip}
         </div>
 
-        {/* Floating sheet trigger — three first-class studios: loadout, looks,
-            and the outfit itself. Below `md` it must clear the floating tab bar
-            (bottom = safe + 4.375rem), not sit beneath it. */}
-        <div
-          data-studio-sheet-trigger
-          className="sticky bottom-[calc(var(--safe-bottom)+4.5rem)] z-30 px-3 md:bottom-[calc(var(--safe-bottom)+0.75rem)]"
-        >
-          <StudioPanel tone="accent" className="p-2.5">
-            <div className="flex gap-2">
-              {(
-                [
-                  ["loadout", Sparkles, t.gearUp],
-                  ["wardrobe", Layers, t.wardrobe],
-                  ["outfit", Layers, t.outfit],
-                ] as const
-              ).map(([sheet, Icon, label]) => (
-                <button
-                  key={sheet}
-                  type="button"
-                  onClick={() => setMobileSheet(mobileSheet === sheet ? null : sheet)}
-                  aria-pressed={mobileSheet === sheet}
-                  className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors ${
-                    mobileSheet === sheet
-                      ? "border-[#d4af37]/60 bg-[#d4af37]/15 text-[#f6e6b4]"
-                      : "border-white/[0.14] bg-white/[0.04] text-white/90"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${sheet === "outfit" ? "text-[#d4af37]" : ""}`} />
-                  {label}
-                </button>
-              ))}
-            </div>
-            {mobileSheet ? (
-              <div className="mt-2.5 space-y-3.5 border-t border-white/8 pt-3">
-                {mobileSheet === "loadout" ? (
-                  <>
-                    {productPicker}
-                    {loadoutRails}
-                    {actions}
-                    {capabilityStrip}
-                    <FitNarration avatar={avatar} product={selectedProduct} />
-                  </>
-                ) : mobileSheet === "wardrobe" ? (
-                  <>
+        {/* The rising sheet — wardrobe / outfit / looks */}
+        {mobileSheet ? (
+          <div className="fixed inset-0 z-40 bg-black/50 lg:hidden">
+            <button
+              type="button"
+              aria-label={t.searchClose}
+              onClick={() => setMobileSheet(null)}
+              className="absolute inset-0 h-full w-full cursor-default"
+            />
+            <div className="dlx-sheet-up absolute inset-x-0 bottom-[calc(var(--safe-bottom)+2.75rem)] top-[11%] flex flex-col rounded-t-3xl border-t border-[#d4af37]/25 bg-[#0a0a0c]/97 px-3 pb-2 pt-2 shadow-[0_-24px_60px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+              <div className="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-white/15" />
+              <AtelierTabs
+                value={mobileSheet}
+                onChange={setMobileSheet}
+                tabs={[
+                  { id: "wardrobe", label: t.wardrobe },
+                  { id: "tenue", label: t.outfit },
+                  { id: "looks", label: t.saveLookLabel },
+                ]}
+                wornDot={resolvedOutfit.length > 0}
+                variant="sheet"
+              />
+              <div className="no-scrollbar -mx-3 flex-1 overflow-y-auto px-3 pt-3">
+                {mobileSheet === "wardrobe" ? (
+                  <div className="space-y-4 pb-4">
+                    {wardrobeGrid}
+                    {finishLine}
+                  </div>
+                ) : mobileSheet === "tenue" ? (
+                  <div className="pb-4">
+                    <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
+                  </div>
+                ) : (
+                  <div className="space-y-3 pb-4">
                     <StudioLooksPanel
                       profileId={user.id}
                       outfit={resolvedOutfit}
@@ -836,7 +867,6 @@ export function MannequinStudio({
                       onApply={applyLook}
                       onNotice={setTransientNotice}
                     />
-                    {wardrobeRail}
                     {studio.jobs.length > 0 ? (
                       <JobLedger
                         jobs={studio.jobs}
@@ -848,27 +878,12 @@ export function MannequinStudio({
                         onRetry={studio.retry}
                       />
                     ) : null}
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between gap-2">
-                      <StudioLabel>{t.outfit}</StudioLabel>
-                      <span className="text-xs text-white/45">{resolvedOutfit.length}</span>
-                    </div>
-                    <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
-                  </>
+                  </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setMobileSheet(null)}
-                  className="min-h-11 w-full rounded-xl border border-white/10 text-xs font-medium text-white/70"
-                >
-                  {t.collapse}
-                </button>
               </div>
-            ) : null}
-          </StudioPanel>
-        </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -891,6 +906,7 @@ function FigureStage({
   notice,
   onBackToProduct,
   compact = false,
+  showReadout = true,
 }: {
   avatar: CustomerAvatar | null;
   layers: MannequinLayer[];
@@ -904,13 +920,14 @@ function FigureStage({
   notice?: string | null;
   onBackToProduct?: string | null;
   compact?: boolean;
+  showReadout?: boolean;
 }) {
   const { t } = useLanguage();
 
   return (
     <div className={`relative flex w-full flex-col items-center ${compact ? "min-h-0 flex-1" : ""}`}>
       <div
-        className={`relative w-full ${compact ? "min-h-[52svh] flex-1" : "h-[74vh]"}`}
+        className={`relative w-full ${compact ? "min-h-[50svh] flex-1" : "h-[72vh]"}`}
         style={compact ? undefined : { minHeight: 500 }}
       >
         {/* Contact glow behind the figure */}
@@ -936,7 +953,7 @@ function FigureStage({
         )}
       </div>
 
-      {product || (outfit && outfit.length > 0) ? (
+      {showReadout && (product || (outfit && outfit.length > 0)) ? (
         <div className="mt-1 flex w-full max-w-[560px] items-center gap-3 px-1">
           <div className="min-w-0 flex-1">
             {(product || outfit?.[0]) ? (
@@ -1051,6 +1068,149 @@ function FitNarration({
         </span>
       </p>
       <p className="mt-1 opacity-90">{body}</p>
+    </div>
+  );
+}
+
+/**
+ * Atelier masthead — a wordmark, a way out, and the way back to the avatar.
+ * Shared by both breakpoints; it adapts its density to the viewport.
+ */
+function AtelierMasthead({
+  backHref,
+  backLabel,
+  avatarHref,
+  avatarLabel,
+}: {
+  backHref: string;
+  backLabel: string;
+  avatarHref: string;
+  avatarLabel: string;
+}) {
+  const { t } = useLanguage();
+  return (
+    <header className="relative z-20 mx-auto flex max-w-[1500px] items-center justify-between gap-3 px-3 pt-3 lg:px-6 lg:pt-5 xl:px-10">
+      <Link
+        href={backHref}
+        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-2.5 text-[11px] font-medium text-white/70 transition-colors hover:border-[#d4af37]/40 hover:text-white lg:min-h-11 lg:px-3.5 lg:text-xs"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        <span className="hidden max-w-[11rem] truncate sm:inline">{backLabel}</span>
+      </Link>
+
+      <div className="pointer-events-none shrink-0 text-center">
+        <p className="text-sm font-semibold uppercase leading-none tracking-[0.32em] text-white/95 lg:text-lg">
+          {t.atelier}
+        </p>
+        <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.22em] text-[#d4af37]/60 lg:text-[10px]">
+          {t.studioTitle}
+        </p>
+      </div>
+
+      <Link
+        href={avatarHref}
+        className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 text-[11px] font-medium text-[#f0dfae] transition-colors hover:bg-[#d4af37]/20 lg:min-h-11 lg:text-xs"
+      >
+        {avatarLabel}
+      </Link>
+    </header>
+  );
+}
+
+/**
+ * The atelier tab set — Garde-robe / Tenue / Looks. `variant="sheet"` switches
+ * the shape for the mobile rising sheet.
+ */
+function AtelierTabs<T extends string>({
+  value,
+  onChange,
+  tabs,
+  wornDot = false,
+  variant = "column",
+}: {
+  value: T;
+  onChange: (tab: T) => void;
+  tabs: { id: T; label: string }[];
+  wornDot?: boolean;
+  variant?: "column" | "sheet";
+}) {
+  const { t } = useLanguage();
+  return (
+    <div
+      role="tablist"
+      aria-label={t.atelier}
+      className="flex shrink-0 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1"
+    >
+      {tabs.map((tab) => {
+        const active = tab.id === value;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(tab.id)}
+            className={`relative inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-2 text-xs font-medium transition-colors ${
+              active
+                ? "bg-[#d4af37]/16 text-[#f6e6b4] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.35)]"
+                : "text-white/60 hover:bg-white/[0.05] hover:text-white/90"
+            }`}
+          >
+            {tab.label}
+            {wornDot && tab.id === "wardrobe" ? (
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#d4af37]" />
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * "En ce moment" — the mobile read-out of what the figure is wearing, shown as
+ * small garment chips so the clothing stays the story and the hierarchy stays
+ * figure → current look → clothing controls → secondary actions.
+ */
+function NowWearingStrip({ outfit }: { outfit: Outfit }) {
+  const { t } = useLanguage();
+  if (outfit.length === 0) {
+    return (
+      <div className="mt-1 px-1">
+        <StudioLabel className="mb-1.5">{t.nowWearing}</StudioLabel>
+        <p className="border-b border-white/6 pb-2 text-[11px] leading-relaxed text-white/40">
+          {t.noGarmentOnMannequin}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1 px-1">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <StudioLabel>{t.nowWearing}</StudioLabel>
+        <span className="text-[11px] text-white/45">{outfit.length}</span>
+      </div>
+      <div className="dlx-rail -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {outfit.map((item) => (
+          <span
+            key={`${item.slot}-${item.productId}`}
+            className="flex shrink-0 items-center gap-2 rounded-full border border-white/8 bg-black/30 py-1 pl-1 pr-3"
+          >
+            <span className="h-8 w-8 overflow-hidden rounded-full ring-1 ring-white/10">
+              {item.imageUrl ? (
+                <ProductImage src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-[8px] tracking-widest text-white/35">
+                  DLX
+                </span>
+              )}
+            </span>
+            <span className="max-w-[7.5rem] truncate text-[11px] font-medium text-white/85">
+              {item.name}
+            </span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

@@ -213,15 +213,16 @@ export function AvatarEditor() {
                   <Pencil className="h-3.5 w-3.5" />
                   {t.avatarEdit}
                 </button>
-                {/* The avatar's honest next step: wear it in the studio. */}
+                {/* The avatar's next step — walk it into the atelier. */}
                 <Link
                   href="/studio"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 px-5 py-2.5 text-xs font-bold text-black shadow-lg transition-all hover:from-amber-400 hover:to-amber-300"
                 >
                   <Shirt className="h-3.5 w-3.5" />
-                  {t.tryOnMyMannequin}
+                  {t.enterAtelier}
                 </Link>
               </div>
+              <p className="text-[11px] text-muted-foreground">{t.avatarIntoAtelier}</p>
             </div>
           </div>
         </div>

@@ -785,14 +785,19 @@ export function StudioMannequin({
         {/* ---- Torso ---- */}
         <path d={torsoPath} fill={`url(#${uid}-body)`} />
         {/* Under-arm + waist modelling so the torso reads as volume, not a flat shape. */}
-        <g fill="#000" opacity="0.12">
-          <ellipse cx={shoulderL + 6} cy={shoulderY + 44} rx="16" ry="24" />
-          <ellipse cx={shoulderR - 6} cy={shoulderY + 44} rx="16" ry="24" />
+        <g fill="#000" opacity="0.09">
+          <ellipse cx={shoulderL + 6} cy={shoulderY + 44} rx="13" ry="22" />
+          <ellipse cx={shoulderR - 6} cy={shoulderY + 44} rx="13" ry="22" />
         </g>
-        <g fill="#000" opacity="0.06">
-          <ellipse cx={cx} cy={chestY - 6} rx="30" ry="16" />
-          <ellipse cx={cx} cy={waistY + 6} rx="26" ry="10" />
+        <g fill="#000" opacity="0.05">
+          <ellipse cx={cx} cy={chestY - 6} rx="30" ry="14" />
+          <ellipse cx={cx} cy={waistY + 6} rx="26" ry="9" />
         </g>
+        {/* Sternum — a fine vertical hint so the chest reads as anatomy, not a pillow. */}
+        <path
+          d={`M ${cx} ${neckTop + 18} Q ${cx} ${chestY - 10} ${cx} ${waistY - 14}`}
+          stroke="#000" strokeOpacity="0.07" strokeWidth="1.3" fill="none" strokeLinecap="round"
+        />
         {/* Collarbones — a fashion-figure signature. */}
         <g stroke="#000" strokeOpacity="0.16" strokeWidth="1.4" fill="none" strokeLinecap="round">
           <path d={`M ${cx - 12} ${neckTop + 12} Q ${cx - 24} ${shoulderY - 6} ${shoulderL + 8} ${shoulderY - 12}`} />
@@ -822,12 +827,10 @@ export function StudioMannequin({
             editorial — no eyes, brows, nose or lips; the head is read entirely
             through its hair, its outline and the light that falls on it. */}
         <path d={headPath} fill={`url(#${uid}-body)`} />
-        {/* A single pair of ears, tucked mostly behind the hair. */}
-        <ellipse cx={cx - headRx - 1} cy={headCy + 8} rx="5" ry="9" fill={skin} opacity="0.7" />
-        <ellipse cx={cx + headRx + 1} cy={headCy + 8} rx="5" ry="9" fill={skin} opacity="0.7" />
         {/* Sculpting: the edges of the form turn away from the key light, the
             brow catches it, and the hairline lays a soft shadow on the plane of
-            the forehead. All of it stays inside the silhouette. */}
+            the forehead. All of it stays inside the silhouette. The face is a
+            fashion croquis: feature lines in light, no rendered expression. */}
         <g clipPath={`url(#${uid}-headClip)`}>
           <ellipse cx={cx} cy={headCy + 2} rx={headRx + 6} ry={headRy + 8} fill={`url(#${uid}-faceShade)`} />
           <ellipse
@@ -839,6 +842,28 @@ export function StudioMannequin({
             opacity="0.12"
           />
           <ellipse cx={cx} cy={headCy - 46} rx={headRx} ry="14" fill="#000" opacity="0.1" />
+          {/* Brows — a soft shadow rather than a drawn line, so the forehead
+              reads as a plane and the eyes stay suggestion, not expression. */}
+          <path
+            d={`M ${cx - 15} ${headCy + 2} Q ${cx - 8} ${headCy - 1} ${cx - 2} ${headCy + 1}`}
+            stroke="#000" strokeOpacity="0.14" strokeWidth="1.6" fill="none" strokeLinecap="round"
+          />
+          <path
+            d={`M ${cx + 2} ${headCy + 1} Q ${cx + 8} ${headCy - 1} ${cx + 15} ${headCy + 2}`}
+            stroke="#000" strokeOpacity="0.14" strokeWidth="1.6" fill="none" strokeLinecap="round"
+          />
+          {/* Eye sockets + closed lid lines — the croquis gaze. */}
+          <ellipse cx={cx - 13} cy={headCy + 13} rx="6" ry="2.6" fill="#000" opacity="0.09" />
+          <ellipse cx={cx + 13} cy={headCy + 13} rx="6" ry="2.6" fill="#000" opacity="0.09" />
+          <path d={`M ${cx - 19} ${headCy + 14} Q ${cx - 13} ${headCy + 16} ${cx - 7} ${headCy + 14}`} stroke="#000" strokeOpacity="0.16" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          <path d={`M ${cx + 7} ${headCy + 14} Q ${cx + 13} ${headCy + 16} ${cx + 19} ${headCy + 14}`} stroke="#000" strokeOpacity="0.16" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          {/* Nose — a single soft facet line from bridge to tip, no nostrils. */}
+          <path d={`M ${cx} ${headCy + 10} L ${cx} ${headCy + 21}`} stroke="#000" strokeOpacity="0.13" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          <path d={`M ${cx} ${headCy + 21} Q ${cx - 3} ${headCy + 23} ${cx - 6} ${headCy + 24}`} stroke="#000" strokeOpacity="0.1" strokeWidth="1" fill="none" strokeLinecap="round" />
+          {/* Lips — a restrained croquis mouth. */}
+          <path d={`M ${cx - 10} ${headCy + 30} Q ${cx} ${headCy + 34} ${cx + 10} ${headCy + 30}`} stroke="#000" strokeOpacity="0.16" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          {/* Jaw notches — where the light turns under the chin. */}
+          <path d={`M ${cx - 16} ${headCy + 44} Q ${cx} ${headCy + 50} ${cx + 16} ${headCy + 44}`} stroke="#000" strokeOpacity="0.12" strokeWidth="1.1" fill="none" strokeLinecap="round" />
         </g>
 
         {/* Front hair — crown, hairline shadow, strands, side locks */}
@@ -915,14 +940,23 @@ export function StudioMannequin({
 
         {/* ---- Garments, painted back to front. The Avatar's base wardrobe is an
             under-layer, so an idle or partial outfit stays styled. ---- */}
-        {builtLayers.map(({ layer, geom, key }) => {
+        {builtLayers.map(({ layer, geom, key }, index) => {
           const bandHeight = Math.max(80, geom.y1 - geom.y0);
           const tint = layer.fabric ?? fallback.base;
           const shade = layer.fabric ?? fallback.shade;
           const hasPhoto = !!layer.imageUrl && layer.kind !== "none" && !failedPhotos[key];
           const isBase = key === "Lbase-top" || key === "Lbase-bottom";
+          const isOuter = layer.kind === "outerwear";
+          const isTrouser = layer.kind === "bottom";
+          const isShirt = layer.kind === "top" || isOuter || layer.kind === "full";
           return (
-            <g key={key} data-layer={key} data-kind={layer.kind}>
+            <g
+              key={key}
+              data-layer={index}
+              data-kind={layer.kind}
+              className="dlx-garment-rise"
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
               {/* 1. Fabric base. Painted first so the garment exists even if the
                   photograph never loads, and so the chosen colourway is always
                   the true colour underneath. */}
@@ -1091,6 +1125,124 @@ export function StudioMannequin({
                   />
                 </g>
               ) : null}
+
+              {/* ── Garment tailoring: collar ribs, shoulder seams, cuffs,
+                  buttons and trousers that read as sewn cloth rather than as a
+                  painted shape. All strictly inside the garment silhouette. ── */}
+              {isShirt && (
+                <g>
+                  {/* Neckline — a ribbed collar band over the crew opening. */}
+                  <path
+                    d={`M ${cx - 26} ${shoulderY - 6} Q ${cx} ${shoulderY + 24} ${cx + 26} ${shoulderY - 6}`}
+                    stroke={shade} strokeOpacity="0.5" strokeWidth="2.4" fill="none" strokeLinecap="round"
+                  />
+                  <path
+                    d={`M ${cx - 26} ${shoulderY - 6} Q ${cx} ${shoulderY + 24} ${cx + 26} ${shoulderY - 6}`}
+                    stroke="#000" strokeOpacity="0.2" strokeWidth="4" fill="none" strokeLinecap="round"
+                  />
+                  {/* Shoulder seams — where each sleeve is joined to the body. */}
+                  <path
+                    d={`M ${cx - 34} ${shoulderY - 4} Q ${cx} ${shoulderY - 16} ${cx + 34} ${shoulderY - 4}`}
+                    stroke="#000" strokeOpacity="0.15" strokeWidth="1.2" fill="none"
+                  />
+                  {/* Sleeve cuffs — a turned band where each sleeve ends. */}
+                  {([-1, 1] as const).map((side) => {
+                    const cuffY = isOuter ? wristY + 1 : chestY + 22;
+                    return (
+                      <g key={`cuff-${side}`} transform={`rotate(${side * 7} ${cx + side * (shoulderHalf + 6)} ${cuffY})`}>
+                        <ellipse
+                          cx={cx + side * (shoulderHalf + 6)}
+                          cy={cuffY}
+                          rx={isOuter ? 11.5 : 8.5}
+                          ry={5.4}
+                          fill="none"
+                          stroke="#000"
+                          strokeOpacity="0.2"
+                          strokeWidth="1.2"
+                        />
+                        <ellipse
+                          cx={cx + side * (shoulderHalf + 6)}
+                          cy={cuffY}
+                          rx={isOuter ? 11.5 : 8.5}
+                          ry={5.4}
+                          fill="none"
+                          stroke={shade}
+                          strokeOpacity="0.42"
+                          strokeWidth="0.9"
+                        />
+                      </g>
+                    );
+                  })}
+                  {/* Centre seam on fitted shirts dresses down the torso. */}
+                  {layer.kind === "top" && (
+                    <path
+                      d={`M ${cx} ${shoulderY - 4} L ${cx} ${geom.hemY - 6}`}
+                      stroke="#000" strokeOpacity="0.1" strokeWidth="1" fill="none" strokeLinecap="round"
+                    />
+                  )}
+                </g>
+              )}
+
+              {isOuter && (
+                <g>
+                  {/* Placket buttons — the gold DLX accent, worn in. */}
+                  {[chestY + 6, chestY + 30, waistY - 4, waistY + 20, waistY + 44].map((by) =>
+                    by < geom.hemY - 10 ? (
+                      <circle
+                        key={`btn-${by}`}
+                        cx={cx}
+                        cy={by}
+                        r="1.7"
+                        fill="#d4af37"
+                        fillOpacity="0.55"
+                        stroke="#000"
+                        strokeOpacity="0.3"
+                        strokeWidth="0.5"
+                      />
+                    ) : null
+                  )}
+                  {/* Chest pocket outline. */}
+                  <path
+                    d={`M ${cx - 17} ${chestY - 18} L ${cx - 17} ${chestY - 2} Q ${cx - 17} ${chestY} ${cx - 15} ${chestY} L ${cx + 15} ${chestY} Q ${cx + 17} ${chestY} ${cx + 17} ${chestY - 2} L ${cx + 17} ${chestY - 18}`}
+                    stroke="#000"
+                    strokeOpacity="0.13"
+                    strokeWidth="1"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              )}
+
+              {isTrouser && (
+                <g stroke="#000" strokeOpacity="0.15" fill="none" strokeLinecap="round">
+                  {/* Waistband seated at the hip seam. */}
+                  <path
+                    d={`M ${hipL - 4} ${hipY - 9} Q ${cx} ${hipY - 3} ${hipR + 4} ${hipY - 9}`}
+                    strokeOpacity="0.24"
+                    strokeWidth="2"
+                  />
+                  {/* Fly seam. */}
+                  <path d={`M ${cx} ${hipY - 8} L ${cx} ${hipY + 14}`} strokeOpacity="0.18" strokeWidth="1.2" />
+                  {/* Front creases down each leg. */}
+                  {([-1, 1] as const).map((side) => (
+                    <path
+                      key={`crease-${side}`}
+                      d={`M ${cx + side * (kneeHalf - 6)} ${hipY + 12} L ${cx + side * (kneeHalf - 6)} ${kneeY - 10}`}
+                      strokeOpacity="0.13"
+                      strokeWidth="1"
+                    />
+                  ))}
+                </g>
+              )}
+
+              {/* Side-slit notches where a hem turns up. */}
+              {!isTrouser && geom.hasTop && (
+                <g stroke="#000" strokeOpacity="0.18" strokeWidth="1.1" fill="none" strokeLinecap="round">
+                  <path d={`M ${waistL + 2} ${geom.hemY + 2} L ${waistL - 3} ${geom.hemY + 8}`} />
+                  <path d={`M ${waistR - 2} ${geom.hemY + 2} L ${waistR + 3} ${geom.hemY + 8}`} />
+                </g>
+              )}
 
               {/* Gold contour — the lit edge of the garment. */}
               {geom.paths.map((path, index) => (

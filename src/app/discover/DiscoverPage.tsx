@@ -56,7 +56,8 @@ export default function DiscoverPage() {
       </div>
 
       {user ? (
-        <section className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-amber-400/25 bg-gradient-to-br from-[#191622] via-card to-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
           <div>
             <h2 className="flex items-center gap-2 text-base font-bold text-foreground">
               <Shirt className="h-4 w-4 text-[#d4af37]" />
@@ -66,7 +67,7 @@ export default function DiscoverPage() {
           </div>
           <Link
             href="/studio"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 self-start rounded-full bg-gradient-to-r from-[#e6c65a] to-[#c39c22] px-5 text-sm font-bold text-black transition-opacity hover:opacity-95 sm:self-auto"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 self-start rounded-full bg-gradient-to-r from-[#e6c65a] to-[#c39c22] px-5 text-sm font-bold text-black shadow-[0_14px_36px_-16px_rgba(212,175,55,0.9)] transition-opacity hover:opacity-95 sm:self-auto"
           >
             <Shirt className="h-4 w-4" aria-hidden />
             {t.discoverAtelierCta}
