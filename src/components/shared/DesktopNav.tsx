@@ -28,7 +28,7 @@ import { AvatarBadge } from "../account/AvatarBadge";
  * Every item carries `aria-current` from `usePathname()` — the previous header
  * had no active state anywhere, so the site never told you where you were.
  */
-export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
+export function DesktopNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -99,7 +99,7 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
         aria-current={current("/shop")}
         onClick={() => {
           closeOverlay();
-          onNavigate?.();
+
         }}
         className={linkClass("/shop")}
       >
@@ -107,8 +107,9 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       {/* Categories — a mega-menu built from the real `categories` table, so the
-          entry point reflects what the catalogue actually contains. */}
-      <div ref={megaRef} className="relative">
+          entry point reflects what the catalogue actually contains. Gives way
+          to utilities on constrained rows (container < 53.75rem). */}
+      <div ref={megaRef} className="relative @max-[53.75rem]/header:hidden">
         <button
           type="button"
           onClick={() => setMegaOpen((open) => !open)}
@@ -136,7 +137,7 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
               onClick={() => {
                 setMegaOpen(false);
                 closeOverlay();
-                onNavigate?.();
+
               }}
               role="menuitem"
               className="mb-1 flex min-h-11 items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
@@ -151,7 +152,7 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={() => {
                     setMegaOpen(false);
                     closeOverlay();
-                    onNavigate?.();
+
                   }}
                   role="menuitem"
                   className="min-h-11 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -169,9 +170,9 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
         aria-current={current("/discover")}
         onClick={() => {
           closeOverlay();
-          onNavigate?.();
+
         }}
-        className={linkClass("/discover")}
+        className={`${linkClass("/discover")} @max-[58.75rem]/header:hidden`}
       >
         {t.discoverTab}
       </Link>
@@ -183,7 +184,7 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
         aria-current={current("/studio")}
         onClick={() => {
           closeOverlay();
-          onNavigate?.();
+
         }}
         title={user ? t.studio : t.navStudioCreate}
         className={`${navClass} ${
@@ -210,9 +211,9 @@ export function DesktopNav({ onNavigate }: { onNavigate?: () => void }) {
         aria-current={current("/food")}
         onClick={() => {
           closeOverlay();
-          onNavigate?.();
+
         }}
-        className={linkClass("/food")}
+        className={`${linkClass("/food")} @max-[58.75rem]/header:hidden`}
       >
         {t.food}
       </Link>

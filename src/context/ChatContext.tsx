@@ -55,6 +55,9 @@ type ChatContextType = {
   isLoading: boolean;
   isSending: boolean;
   error: string | null;
+  /** Dismiss the current error banner (bounds the error to the surface that
+      raised it instead of forcing a reload). */
+  clearError: () => void;
   realtimeStatus: "connected" | "fallback" | "off";
   typingIndicators: TypingIndicator[];
   // Core actions
@@ -717,6 +720,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshMessages, refreshTypingIndicators, refreshConversations]);
 
+  const clearError = useCallback(() => setError(null), []);
+  
   const value = useMemo<ChatContextType>(
     () => ({
       conversations,
@@ -726,6 +731,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isSending,
       error,
+      clearError,
       realtimeStatus,
       typingIndicators,
       setActiveConversationId: (id) => void openConversation(id),
@@ -755,6 +761,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       activeConversation,
       addConversationParticipant,
       conversations,
+      clearError,
       createInternalConversation,
       error,
       isLoading,

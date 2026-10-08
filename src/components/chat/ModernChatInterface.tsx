@@ -30,6 +30,7 @@ export function ModernChatInterface() {
     isLoading,
     isSending,
     error,
+    clearError,
     realtimeStatus,
     unreadCount,
     setActiveConversationId,
@@ -277,15 +278,15 @@ export function ModernChatInterface() {
             {/* Sidebar header */}
             <div className="border-b border-border p-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  DLX Chat
-                  {unreadCount > 0 && (
-                    <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                      {unreadCount}
-                    </span>
-                  )}
-                </h2>
+                   <h2 className="text-lg font-bold flex items-center gap-2">
+                     <MessageSquare className="h-5 w-5" />
+                     {t.supportTitle}
+                     {unreadCount > 0 && (
+                       <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                         {unreadCount}
+                       </span>
+                     )}
+                   </h2>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsSidebarOpen(false)}
@@ -306,9 +307,9 @@ export function ModernChatInterface() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                   placeholder={t.chatSearchConversations}
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:border-foreground"
                 />
               </div>
@@ -351,8 +352,8 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   <UserPlus className="h-4 w-4" />
-                  New message
-                </button>
+                   {t.chatNewMessage}
+                 </button>
               )}
             </div>
 
@@ -360,14 +361,14 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
             <div className="flex-1 overflow-y-auto p-2">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center">
-                  <div className="text-sm text-muted-foreground">Loading conversations...</div>
+                   <div className="text-sm text-muted-foreground">{t.chatLoadingConversations}</div>
                 </div>
               ) : filteredConversations.length === 0 ? (
                 <div className="flex h-full items-center justify-center p-4">
                   <div className="text-center">
                     <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      {searchQuery ? "No conversations found" : "No conversations yet"}
+                       {searchQuery ? t.chatNoConversationsFound : t.chatNoConversations}
                     </p>
                   </div>
                 </div>
@@ -493,14 +494,17 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
               <div ref={messagesEndRef} />
             </div>
             
-            {/* Message composer */}
-            <MessageComposer
-              onSend={handleSendMessage}
-              disabled={isSending}
-              placeholder={t.chatWriteMessage}
-              sending={isSending}
-              onTypingChange={handleTypingChange}
-            />
+            {/* Message composer — below `md` it must clear the floating tab bar
+                (bottom = safe + 4.375rem) or the input becomes untappable. */}
+            <div className="pb-[calc(var(--safe-bottom)+4.5rem)] md:pb-[var(--safe-bottom)]">
+              <MessageComposer
+                onSend={handleSendMessage}
+                disabled={isSending}
+                placeholder={t.chatWriteMessage}
+                sending={isSending}
+                onTypingChange={handleTypingChange}
+              />
+            </div>
           </>
         ) : (
           <div className="flex h-full items-center justify-center p-8">
@@ -529,12 +533,12 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
             <div className="flex items-center gap-2 text-destructive text-sm">
               <AlertCircle className="h-4 w-4" />
               <span>{error}</span>
-              <button
-                onClick={() => {}}
-                className="ml-auto text-xs hover:underline"
-              >
-                Dismiss
-              </button>
+               <button
+                 onClick={clearError}
+                 className="ml-auto text-xs hover:underline"
+               >
+                 Dismiss
+               </button>
             </div>
           </div>
         )}

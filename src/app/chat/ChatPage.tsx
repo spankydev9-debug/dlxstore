@@ -2,7 +2,6 @@
 
 import { Suspense } from "react";
 import { ModernChatInterface } from "../../components/chat/ModernChatInterface";
-import { ChatProvider } from "../../context/ChatContext";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import Link from "next/link";
@@ -55,19 +54,21 @@ function ChatContent() {
   return <ModernChatInterface />;
 }
 
+// ChatProvider is mounted app-wide in the root layout, so this route must NOT
+// wrap itself in a second provider: a nested provider re-mounts subscriptions
+// and state, and the realtime channel churns on every navigation. The Suspense
+// boundary is the only thing that belongs here.
 export function ChatPage() {
   return (
-    <ChatProvider>
-      <Suspense
-        fallback={
-          <div className="flex min-h-screen flex-col items-center justify-center">
-            <Loader className="h-8 w-8 animate-spin text-primary" />
-            <p className="mt-4 text-sm text-muted-foreground">Loading chat...</p>
-          </div>
-        }
-      >
-        <ChatContent />
-      </Suspense>
-    </ChatProvider>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading chat...</p>
+        </div>
+      }
+    >
+      <ChatContent />
+    </Suspense>
   );
 }

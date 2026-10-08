@@ -17,6 +17,11 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
+  const applyThemeColor = (color: string) => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", color);
+  };
+
   useEffect(() => {
     // Read theme from localStorage or system preference
     const savedTheme = localStorage.getItem("dlxstore-theme") as Theme;
@@ -29,6 +34,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    // Keep the browser chrome (URL bar, overscroll) on-brand with the DLX
+    // surface: black on dark (cinematic), paper on light (minimal).
+    applyThemeColor(activeTheme === "dark" ? "#000000" : "#fcfcfc");
   }, []);
 
   const toggleTheme = () => {
@@ -41,6 +50,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    // Flip the browser chrome paint alongside the first paint.
+    applyThemeColor(nextTheme === "dark" ? "#000000" : "#fcfcfc");
   };
 
   return (

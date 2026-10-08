@@ -734,8 +734,12 @@ export function MannequinStudio({
         </div>
 
         {/* Floating sheet trigger — three first-class studios: loadout, looks,
-            and the outfit itself. */}
-        <div data-studio-sheet-trigger className="sticky bottom-0 z-20 px-3 pb-safe-area-inset-bottom">
+            and the outfit itself. Below `md` it must clear the floating tab bar
+            (bottom = safe + 4.375rem), not sit beneath it. */}
+        <div
+          data-studio-sheet-trigger
+          className="sticky bottom-[calc(var(--safe-bottom)+4.5rem)] z-30 px-3 md:bottom-[calc(var(--safe-bottom)+0.75rem)]"
+        >
           <StudioPanel tone="accent" className="p-2.5">
             <div className="flex gap-2">
               {(

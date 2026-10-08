@@ -45,7 +45,17 @@ function ShopContent() {
     async function loadData() {
       try {
         const [cats, prods] = await Promise.all([getCategories(), getProducts()]);
-        setCategories(cats);
+        setCategories(
+          cats.filter((cat) =>
+            prods.some(
+              (p) =>
+                p.is_active !== false &&
+                p.is_archived !== true &&
+                p.category_id === cat.id &&
+                (!inStockOnly ? true : p.stock_quantity > 0)
+            )
+          )
+        );
         setProducts(prods);
       } catch (err) {
         console.error("Error loading shop data:", err);

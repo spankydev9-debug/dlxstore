@@ -10,6 +10,7 @@ import { defaultStoreSettings, isLaunchOpen } from "../../lib/store-config";
 import { getStoreSettings } from "../../services/db/settings";
 import { isDemoMode, isSupabaseConfigured } from "../../services/db";
 import { LanguagePrompt } from "./LanguagePrompt";
+import { DLXAssistantFab } from "./DLXAssistantFab";
 
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings);
@@ -24,13 +25,15 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
-      {/* The tab bar is fixed to the viewport bottom, so the last painted
-          content (the footer) needs clearance or its links become untappable.
-          Scoped to md:hidden so desktop shows no dead strip. */}
-      <div className="pb-[calc(3.5rem+env(safe-area-inset-bottom)+1.5rem)] md:pb-0">
+      {/* The tab bar is fixed to the viewport bottom (floating above safe-area
+          clearance), so the last painted content (the footer) needs clearance
+          or its links become untappable. Scoped to md:hidden so desktop shows
+          no dead strip. */}
+      <div className="pb-[calc(4.375rem+var(--safe-bottom)+1rem)] md:pb-0">
         <Footer />
       </div>
       <MobileTabBar />
+      <DLXAssistantFab />
     </>
   );
 }

@@ -187,7 +187,12 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border/40 glass pt-safe-area-inset-top">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        {/* The header row is a *container*, not a set of breakpoints: nav links
+            and utilities collapse by the row width actually available (the
+            gold rule is "navigation gives way before utilities do"). Thresholds
+            in rem: 60rem ≈ full suite, 48.75rem ≈ utilities-first, 40rem ≈
+            essentials only. */}
+        <div className="@container/header mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* LOGO */}
           <Link
             href="/"
@@ -248,12 +253,13 @@ export default function Header() {
 
           {/* CONTROLS */}
           <div className="flex min-w-0 shrink items-center gap-1 sm:gap-1.5">
-            {/* Language — full pill on pointers, compact globe+menu on phones so
-                the utility survives even at 320px without crowding the logo. */}
-            <span className="hidden md:inline-flex">
+            {/* Language — the full pill only when the row actually has room
+                (≥ 60rem); otherwise a compact globe keeps the utility present
+                at every width. */}
+            <span className="hidden @min-[60rem]/header:inline-flex">
               <LanguageSwitcher />
             </span>
-            <span ref={langMenuRef} className="relative md:hidden">
+            <span ref={langMenuRef} className="relative @min-[60rem]/header:hidden">
               <button
                 onClick={() => setIsLangMenuOpen((open) => !open)}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -316,7 +322,7 @@ export default function Header() {
             {user && (
               <button
                 onClick={() => toggleOverlay("chat")}
-                className={`${iconBtn} relative hidden lg:flex`}
+                className={`${iconBtn} relative hidden @min-[50rem]/header:flex`}
                 title={t.supportTitle}
                 aria-label={t.supportTitle}
                 aria-expanded={isChatOpen}
@@ -331,7 +337,7 @@ export default function Header() {
             )}
 
             {user && (
-              <div ref={notificationsRef} className="relative hidden lg:block">
+              <div ref={notificationsRef} className="relative hidden @min-[50rem]/header:block">
                 <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                   className={`${iconBtn} relative`}

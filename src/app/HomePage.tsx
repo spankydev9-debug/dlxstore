@@ -33,7 +33,16 @@ export default function HomePage() {
     async function loadData() {
       try {
         const [cats, sess, prods] = await Promise.all([getCategories(), getSessions(), getProducts()]);
-        setCategories(cats);
+        setCategories(
+          cats.filter((cat) =>
+            prods.some(
+              (p) =>
+                p.is_active !== false &&
+                p.is_archived !== true &&
+                p.category_id === cat.id
+            )
+          )
+        );
         setSessions(sess);
         setFeaturedProducts(prods.filter(p => p.is_featured).slice(0, 4));
         setBestSellers(prods.filter(p => p.is_best_seller).slice(0, 4));

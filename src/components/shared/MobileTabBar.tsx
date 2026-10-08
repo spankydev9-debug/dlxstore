@@ -64,9 +64,13 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label={t.menu}
-      className="dlx-tabbar fixed inset-x-0 bottom-0 z-40 border-t border-border/50 glass md:hidden"
+      className="dlx-tabbar fixed inset-x-3 bottom-[calc(var(--safe-bottom)+0.625rem)] z-40 md:hidden"
     >
-      <ul className="mx-auto flex h-14 w-full max-w-lg items-stretch">
+      {/* Floating app-control surface, not a footer: it sits above safe-area
+          clearance, in its own glass plane with its own shadow, so it reads as
+          a control surface detached from the content behind it. Width adapts to
+          the viewport (side gutters + max), never a hardcoded strip. */}
+      <ul className="mx-auto flex h-[3.75rem] w-full max-w-md items-stretch gap-1 rounded-[1.35rem] border border-border/60 bg-card/90 px-1.5 shadow-[0_18px_44px_-14px_rgba(0,0,0,0.75)] ring-1 ring-black/10 backdrop-blur-2xl">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = isActive(tab.href);
@@ -80,7 +84,11 @@ export function MobileTabBar() {
           const content = (
             <>
               <span className="relative inline-flex h-6 w-6 items-center justify-center">
-                <Icon aria-hidden className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
+                <Icon
+                  aria-hidden
+                  className="h-5 w-5"
+                  strokeWidth={active ? 2.2 : 1.8}
+                />
                 {badge > 0 ? (
                   <span
                     aria-hidden
@@ -97,11 +105,20 @@ export function MobileTabBar() {
               <span className="mt-0.5 truncate text-[10px] leading-tight">
                 {labelFor(tab.id)}
               </span>
+              {/* Gold active indicator — the DLX accent, not a borrowed one. */}
+              <span
+                aria-hidden
+                className={`mt-0.5 h-1 rounded-full transition-all duration-200 ${
+                  active ? "w-5 bg-[#d4af37]/90" : "w-0 bg-transparent"
+                }`}
+              />
             </>
           );
 
           const baseClass = `flex min-h-full flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
-            active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            active
+              ? "text-[#d4af37]"
+              : "text-muted-foreground hover:text-foreground"
           }`;
 
           return (
@@ -139,9 +156,6 @@ export function MobileTabBar() {
           );
         })}
       </ul>
-
-      {/* Home-indicator clearance for notched iPhones. */}
-      <div aria-hidden className="h-[env(safe-area-inset-bottom)]" />
     </nav>
   );
 }

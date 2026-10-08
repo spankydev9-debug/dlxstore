@@ -58,6 +58,8 @@ export const viewport = {
   viewportFit: "cover",
   maximumScale: 5,
   userScalable: true,
+  themeColor: "#fcfcfc",
+  colorScheme: "light dark",
 };
 
 const organizationJsonLd = {

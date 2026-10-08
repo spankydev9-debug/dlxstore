@@ -742,67 +742,31 @@ export function StudioMannequin({
         {/* Ears (mostly tucked behind the hair). */}
         <ellipse cx={cx - headRx - 2} cy={headCy + 10} rx="6" ry="10" fill={skin} opacity="0.85" />
         <ellipse cx={cx + headRx + 2} cy={headCy + 10} rx="6" ry="10" fill={skin} opacity="0.85" />
-        {/* Face shading over the lower face. */}
-        <ellipse cx={cx} cy={headCy + 6} rx={headRx + 2} ry={headRy + 2} fill={`url(#${uid}-faceShade)`} opacity="0.9" />
-
-        {/* Face: editorial, warm, no cartoon features. */}
-        {/* Brows */}
-        <g stroke={hair} strokeOpacity="0.85" strokeWidth="2.2" fill="none" strokeLinecap="round">
-          <path d={`M ${cx - 17} ${headCy - 16} Q ${cx - 8} ${headCy - 22} ${cx - 1} ${headCy - 17}`} />
-          <path d={`M ${cx + 2} ${headCy - 17} Q ${cx + 9} ${headCy - 22} ${cx + 18} ${headCy - 16}`} />
-        </g>
-        {/* Eyes — almond lids, iris + catchlight, upper-lid shading */}
-        <g>
-          <path
-            d={`M ${cx - 20} ${headCy - 3} C ${cx - 15} ${headCy - 8} ${cx - 9} ${headCy - 8} ${cx - 6} ${headCy - 2} C ${
-              cx - 9
-            } ${headCy + 3} ${cx - 16} ${headCy + 3} ${cx - 20} ${headCy - 3} Z`}
-            fill="#000"
-            opacity="0.16"
-          />
-          <path
-            d={`M ${cx + 20} ${headCy - 3} C ${cx + 15} ${headCy - 8} ${cx + 9} ${headCy - 8} ${cx + 6} ${headCy - 2} C ${
-              cx + 9
-            } ${headCy + 3} ${cx + 16} ${headCy + 3} ${cx + 20} ${headCy - 3} Z`}
-            fill="#000"
-            opacity="0.14"
-          />
-          <circle cx={cx - 13} cy={headCy - 1} r="2.8" fill="#1a120c" />
-          <circle cx={cx + 13} cy={headCy - 1} r="2.8" fill="#1a120c" />
-          <circle cx={cx - 12.2} cy={headCy - 2.2} r="1" fill="#ffffff" opacity="0.8" />
-          <circle cx={cx + 13.8} cy={headCy - 2.2} r="1" fill="#ffffff" opacity="0.8" />
-          <g stroke="#26160c" strokeOpacity="0.55" strokeWidth="1.3" fill="none" strokeLinecap="round">
-            <path d={`M ${cx - 20} ${headCy - 3} C ${cx - 14} ${headCy - 7} ${cx - 8} ${headCy - 7} ${cx - 5} ${headCy - 1.5}`} />
-            <path d={`M ${cx + 20} ${headCy - 3} C ${cx + 14} ${headCy - 7} ${cx + 8} ${headCy - 7} ${cx + 5} ${headCy - 1.5}`} />
-          </g>
-        </g>
-        {/* Nose — bridge + nostril hints */}
-        <g stroke="#24110a" strokeOpacity="0.3" fill="none" strokeLinecap="round">
-          <path d={`M ${cx - 1} ${headCy + 3} Q ${cx - 4} ${headCy + 9} ${cx - 1.5} ${headCy + 13}`} strokeWidth="1.2" />
-          <path d={`M ${cx - 4.5} ${headCy + 12} Q ${cx - 1} ${headCy + 15} ${cx + 1} ${headCy + 12} M ${cx - 1} ${headCy + 14} Q ${cx + 2} ${headCy + 16} ${cx + 4} ${headCy + 13}`} strokeWidth="1.1" />
-        </g>
-        {/* Lips — understated upper lip + crease */}
-        <path
-          d={`M ${cx - 8} ${headCy + 19} Q ${cx} ${headCy + 16} ${cx + 8} ${headCy + 19}`}
-          fill="none"
-          stroke="#67382a"
-          strokeOpacity="0.75"
-          strokeWidth="2"
-          strokeLinecap="round"
+        {/* Face: faceless premium editorial — smooth, sculpted, no eyes, brows,
+            nose or lips. Only hair, silhouette and lighting inform the head. */}
+        {/* Ears remain minimal and tucked (a small anatomical anchor). */}
+        <ellipse cx={cx - headRx - 1.6} cy={headCy + 9} rx="5" ry="8.5" fill={skin} opacity="0.4" />
+        <ellipse cx={cx + headRx + 1.6} cy={headCy + 9} rx="5" ry="8.5" fill={skin} opacity="0.4" />
+        {/* Clean, featureless face plane with subtle shadowing. */}
+        <ellipse
+          cx={cx}
+          cy={headCy + 1}
+          rx={headRx - 2}
+          ry={headRy - 3}
+          fill={skin}
+          opacity="0.28"
+          transform={`rotate(-12, ${cx}, ${headCy})`}
         />
-        <path
-          d={`M ${cx - 5} ${headCy + 20} L ${cx - 1} ${headCy + 21.5} L ${cx + 4} ${headCy + 20.5}`}
-          fill="none"
-          stroke="#67382a"
-          strokeOpacity="0.4"
-          strokeWidth="1"
-          strokeLinecap="round"
+        <ellipse
+          cx={cx}
+          cy={headCy + 1}
+          rx={headRx - 2}
+          ry={headRy - 3}
+          fill={skin}
+          opacity="0.24"
+          transform={`rotate(12, ${cx}, ${headCy})`}
         />
-        {/* Soft cheek warmth */}
-        <g fill="#a0472a" opacity="0.07">
-          <ellipse cx={cx - 16} cy={headCy + 10} rx="7" ry="4.5" />
-          <ellipse cx={cx + 17} cy={headCy + 10} rx="7" ry="4.5" />
-        </g>
+        <ellipse cx={cx} cy={headCy + 6} rx={headRx + 2} ry={headRy + 2} fill="#24110a" opacity="0.14" />
 
         {/* Front hair — crown, hairline shadow, strands, side locks */}
         <g>

@@ -4,9 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bell,
+  Bot,
+  Building,
   Flame,
+  Gift,
   Heart,
-  Home,
+  History,
+  Images,
+  Info,
   LogOut,
   Mail,
   MessageSquare,
@@ -14,12 +19,15 @@ import {
   Package,
   Settings,
   Shirt,
+  ShoppingBag,
   Store,
   Sun,
   Users,
+  Utensils,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useNotifications } from "../../context/NotificationContext";
@@ -31,19 +39,17 @@ import { useTheme } from "./ThemeProvider";
 import { AvatarBadge } from "../account/AvatarBadge";
 
 /**
- * "Account & More" — the secondary navigation drawer, opened from the header
- * menu button on phones.
+ * "Account & More" — the secondary navigation control center, opened from the
+ * header menu button. This is NOT the primary navigation: the five primary
+ * destinations live in `MobileTabBar`, so nothing here is the sole path to a
+ * core screen.
  *
- * This replaces the old hamburger drawer. The distinction matters:
+ * Sections follow the DLX navigation principle:
+ *   PRIMARY NAV = where I go constantly.
+ *   ACCOUNT / MORE = everything else.
  *
- *  - the old drawer was the ONLY mobile outlet for primary destinations, which
- *    is why it had 9 links and still omitted `/studio`;
- *  - this drawer holds only secondary content. Primary destinations live in
- *    `MobileTabBar`, so nothing here is the sole path to a core screen.
- *
- * It is also the reason the 640–767px dead zone is gone: its utility rows are
- * no longer `sm:hidden` (the old drawer hid them from `sm:` while the header
- * only showed them from `sm:`, so neither branch applied).
+ * Every row here is a real destination or action — nothing renders without a
+ * working onClick/href, and each item is tap-tested (see docs).
  */
 function Row({
   href,
@@ -90,6 +96,7 @@ export function AccountMoreDrawer() {
   const { theme, toggleTheme } = useTheme();
   const { closeOverlay, toggleOverlay } = useOverlay();
   const { streak } = useStreakContext();
+  const { cartCount } = useCart();
   const {
     unreadCount,
     notifications,
@@ -131,11 +138,14 @@ export function AccountMoreDrawer() {
           </button>
         </header>
 
+        {/* Control center — a real, scrollable secondary navigation surface. */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
           {/* Identity */}
           {user ? (
             <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3">
-              <AvatarBadge user={user} className="h-11 w-11" />
+              <button type="button" className="shrink-0 rounded-full" onClick={() => { done(); router.push("/dashboard"); }} aria-label={t.myAccount}>
+                <AvatarBadge user={user} className="h-11 w-11" />
+              </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{user.full_name}</p>
                 <p className="truncate text-xs text-muted-foreground">{user.email}</p>
@@ -164,6 +174,7 @@ export function AccountMoreDrawer() {
             </button>
           )}
 
+          {/* ACCOUNT */}
           {user ? (
             <>
               <SectionTitle>{t.myAccount}</SectionTitle>
@@ -172,22 +183,13 @@ export function AccountMoreDrawer() {
                   <Package className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                   {t.myOrders}
                 </Row>
-                <Row href="/dashboard?tab=wishlist" onClick={done}>
-                  <Heart className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-                  {t.wishlist}
-                </Row>
-                <Row href="/dashboard?tab=streak" onClick={done}>
-                  <Flame className="h-4.5 w-4.5 text-orange-500" aria-hidden />
-                  {t.streakTitle}
-                  {(streak?.current_count ?? 0) > 0 ? (
-                    <span className="ml-auto rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
-                      {streak?.current_count}
-                    </span>
-                  ) : null}
-                </Row>
                 <Row href="/studio" onClick={done}>
                   <Shirt className="h-4.5 w-4.5 text-[#d4af37]" aria-hidden />
                   {t.studio}
+                </Row>
+                <Row href="/dashboard?tab=rewards" onClick={done}>
+                  <Gift className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+                  {t.rewardsTab}
                 </Row>
                 {user.role === "admin" ? (
                   <Row href="/admin/dashboard" onClick={done}>
@@ -196,6 +198,26 @@ export function AccountMoreDrawer() {
                   </Row>
                 ) : null}
               </div>
+
+              {/* SOCIAL */}
+              <SectionTitle>{t.social}</SectionTitle>
+              <Row href="/dashboard?tab=friends" onClick={done}>
+                <Users className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+                {t.friendsTab}
+              </Row>
+              <Row href="/dashboard?tab=stories" onClick={done}>
+                <Images className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+                {t.storiesTab}
+              </Row>
+              <Row href="/dashboard?tab=streak" onClick={done}>
+                <Flame className="h-4.5 w-4.5 text-orange-500" aria-hidden />
+                {t.streakTitle}
+                {(streak?.current_count ?? 0) > 0 ? (
+                  <span className="ml-auto rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-extrabold text-orange-600 dark:text-orange-400">
+                    {streak?.current_count}
+                  </span>
+                ) : null}
+              </Row>
 
               {/* Notifications, inline so they are one tap away without a page load. */}
               <SectionTitle>{t.notifications}</SectionTitle>
@@ -260,42 +282,39 @@ export function AccountMoreDrawer() {
                     ))
                   )}
                 </ul>
+                <div className="mt-2 border-t border-border pt-2">
+                  <Row href="/dashboard?tab=notifications" onClick={done}>
+                    <Bell className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+                    {t.viewAllNotifications}
+                  </Row>
+                </div>
               </div>
-
-              <Row
-                onClick={() => {
-                  if (!user) return;
-                  done();
-                  toggleOverlay("chat");
-                }}
-              >
-                <MessageSquare className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-                {t.supportTitle}
-                {chatUnreadCount > 0 ? (
-                  <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
-                    {chatUnreadCount}
-                  </span>
-                ) : null}
-              </Row>
-              <Row href="/dashboard?tab=notifications" onClick={done}>
-                <Bell className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-                {t.viewAllNotifications}
-              </Row>
             </>
           ) : null}
 
-          {/* Explore — not in the tab bar, so these belong here. */}
-          <SectionTitle>{t.explore}</SectionTitle>
-          <Row href="/" onClick={done}>
-            <Home className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-            {t.home}
+          {/* SHOPPING */}
+          <SectionTitle>{t.shop}</SectionTitle>
+          <Row href="/cart" onClick={done}>
+            <ShoppingBag className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            {t.cart}
+            {cartCount > 0 ? (
+              <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                {cartCount}
+              </span>
+            ) : null}
           </Row>
+          {user ? (
+            <Row href="/dashboard?tab=wishlist" onClick={done}>
+              <Heart className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+              {t.wishlist}
+            </Row>
+          ) : null}
           <Row href="/discover" onClick={done}>
-            <Users className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-            {t.discoverTab}
+            <History className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            {t.discoverRecentlyViewed}
           </Row>
           <Row href="/food" onClick={done}>
-            <Store className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            <Utensils className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.food}
           </Row>
           <Row href="/partners" onClick={done}>
@@ -303,8 +322,8 @@ export function AccountMoreDrawer() {
             {t.shops}
           </Row>
 
-          {/* Utility */}
-          <SectionTitle>{t.language}</SectionTitle>
+          {/* SETTINGS */}
+          <SectionTitle>{t.settings}</SectionTitle>
           <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2">
             <LanguageSwitcher />
             <button
@@ -318,15 +337,41 @@ export function AccountMoreDrawer() {
               {t.changeTheme}
             </button>
           </div>
-
-          <div className="mt-4">
+          <div className="mt-2 px-3">
             <DownloadApp variant="drawer" />
           </div>
 
-          {/* Footer utility — deliberately not competing with shopping links. */}
+          {/* DLX */}
           <SectionTitle>DLX</SectionTitle>
+          <Row
+            onClick={() => {
+              done();
+              toggleOverlay("assistant");
+            }}
+          >
+            <Bot className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            {t.assistantTitle}
+          </Row>
+          {user ? (
+            <Row
+              onClick={() =>
+                // Opening a primary overlay replaces this drawer atomically: no
+                // history push/pop churn, because openOverlay only pushes a
+                // history entry when no primary overlay is already open.
+                toggleOverlay("chat")
+              }
+            >
+              <MessageSquare className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+              {t.supportTitle}
+              {chatUnreadCount > 0 ? (
+                <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                  {chatUnreadCount}
+                </span>
+              ) : null}
+            </Row>
+          ) : null}
           <Row href="/about" onClick={done}>
-            <Home className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            <Info className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.about}
           </Row>
           <Row href="/contact" onClick={done}>
@@ -334,7 +379,7 @@ export function AccountMoreDrawer() {
             {t.contact}
           </Row>
           <Row href="/partner" onClick={done}>
-            <Store className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+            <Building className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.partner}
           </Row>
 
