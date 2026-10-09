@@ -18,6 +18,7 @@ import {
 } from "./EnhancedChatUi";
 import { ChatTimestamp } from "./chatTime";
 import { NewDirectConversationPanel } from "./NewDirectConversationPanel";
+import { productSharePreview } from "../../lib/product-share";
 
 export function ModernChatInterface() {
   const { t } = useLanguage();
@@ -242,7 +243,7 @@ export function ModernChatInterface() {
               isActive ? "text-primary-foreground/80" : "text-muted-foreground"
             }`}
           >
-            {conversation.last_message_preview || "New conversation"}
+            {(productSharePreview(conversation.last_message_preview) ?? conversation.last_message_preview) || "New conversation"}
           </p>
           
           <div className="mt-1 flex items-center gap-2">

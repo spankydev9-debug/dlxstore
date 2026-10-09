@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
+  Images,
   Link2,
   Loader2,
   LockKeyhole,
   MessageCircle,
+  MessageSquare,
   Share2,
   Sparkles,
   Users,
@@ -14,10 +17,12 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { useChat } from "../../context/ChatContext";
 import {
   getProductSocialProof,
   getShareRecipients,
   shareProduct,
+  shareProductToChat,
   SocialCommerceUnavailableError,
 } from "../../services/db/social-commerce";
 import type { Friend, Product, ProductSocialProof, ShareChannel } from "../../types";
@@ -154,6 +159,8 @@ export function ProductShareSheet({
 }) {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { openSupportConversation, sendMessage } = useChat();
+  const router = useRouter();
   const [recipients, setRecipients] = useState<Friend[] | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -219,6 +226,44 @@ export function ProductShareSheet({
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
     `${product.name} — ${typeof window !== "undefined" ? window.location.origin : ""}/product/${product.slug}`
   )}`;
+
+  // Send the product as a real card through DLX Chat: open (or create) the
+  // support conversation, post the encoded card, then land the customer in the
+  // thread so they see it rendered inline. Uses the same openSupportConversation
+  // path as the post-order continuation so there is one conversation surface.
+  const sendInChat = useCallback(async () => {
+    setBusy("chat");
+    setError(null);
+    try {
+      const conversation = await openSupportConversation();
+      if (!conversation) {
+        setError(t.socialChatUnavailable);
+        setBusy(null);
+        return;
+      }
+      try {
+        await shareProductToChat(sendMessage, { slug: product.slug, name: product.name });
+      } catch (sendErr) {
+        // The conversation is open even if the card failed to post. Still take
+        // the customer there — they can retry — rather than a dead-end modal.
+        console.warn("Product card could not be sent to DLX Chat:", sendErr);
+      }
+      onClose();
+      router.push("/chat");
+    } catch (cause) {
+      console.error("Error sending product to DLX Chat:", cause);
+      setError(t.socialChatUnavailable);
+      setBusy(null);
+    }
+  }, [openSupportConversation, sendMessage, product.slug, product.name, onClose, router, t.socialChatUnavailable]);
+
+  // Share to DLX Stories: hand off to the Stories composer on the dashboard with
+  // this product pre-tagged. The composer is the single, authoritative surface
+  // (same upload + create_story validation path), so this only deep-links to it.
+  const shareToStory = useCallback(() => {
+    onClose();
+    router.push(`/dashboard?tab=stories&share=${encodeURIComponent(product.slug)}`);
+  }, [onClose, router, product.slug]);
 
   return (
     <div
@@ -300,6 +345,28 @@ export function ProductShareSheet({
         {/* Direct share. Requires a session, because it is attributed and notifies. */}
         {user ? (
           <div className="space-y-2 border-t border-border/40 pt-4">
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void sendInChat()}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 px-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-primary/10 disabled:opacity-50"
+            >
+              {busy === "chat" ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+              ) : (
+                <MessageSquare className="h-4 w-4 shrink-0 text-primary" />
+              )}
+              {t.socialSendInChat}
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={shareToStory}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border px-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              <Images className="h-4 w-4 shrink-0 text-primary" />
+              {t.socialShareToStory}
+            </button>
             <p className="text-xs font-bold text-foreground">{t.socialShareWithFriend}</p>
             {recipients === null ? (
               <p className="flex items-center gap-2 py-2 text-xs text-muted-foreground">

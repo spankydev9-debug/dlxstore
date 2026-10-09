@@ -16,6 +16,7 @@ import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
 import { AvatarEditor } from "../../components/account/AvatarEditor";
 import { FriendsPanel } from "../../components/account/FriendsPanel";
 import { StoriesPanel } from "../../components/account/StoriesPanel";
+import { CustomOrdersPanel } from "../../components/account/CustomOrdersPanel";
 import { MySharesPanel } from "../../components/account/MySharesPanel";
 import { ShoppingAssistantPanel } from "../../components/account/ShoppingAssistantPanel";
 import { StreakPanel } from "../../components/account/StreakPanel";
@@ -45,6 +46,7 @@ import {
   Check,
   Star,
   Crown,
+  PackageSearch,
 } from "lucide-react";
 
 function DashboardContent() {
@@ -58,7 +60,7 @@ function DashboardContent() {
   // fall back to the default tab instead of trusting the query blindly.
   const VALID_TABS = new Set([
     "orders", "wishlist", "notifications", "friends", "stories", "assistant",
-    "shares", "streak", "addresses", "avatar", "rewards", "loyalty", "privacy",
+    "shares", "streak", "custom-orders", "addresses", "avatar", "rewards", "loyalty", "privacy",
     "language", "settings",
   ]);
   const [activeTab, setActiveTab] = useState(
@@ -267,6 +269,7 @@ function DashboardContent() {
     { key: "assistant", label: t.assistantTab, icon: Bot },
     { key: "shares", label: t.socialMyShares, icon: Share2 },
     { key: "streak", label: t.streakTitle, icon: Flame },
+    { key: "custom-orders", label: t.customTitle, icon: PackageSearch },
     { key: "addresses", label: t.savedAddresses, icon: MapPin },
     { key: "avatar", label: t.avatarSettings, icon: UserCircle },
     { key: "rewards", label: t.rewardsTab, icon: Gift },
@@ -442,6 +445,13 @@ function DashboardContent() {
               {activeTab === "streak" && (
                 <div className="space-y-4">
                   <StreakPanel />
+                </div>
+              )}
+
+              {/* CUSTOM ORDERS TAB */}
+              {activeTab === "custom-orders" && (
+                <div className="space-y-4">
+                  <CustomOrdersPanel />
                 </div>
               )}
 

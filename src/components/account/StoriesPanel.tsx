@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   AlertCircle,
   Archive,
   ArchiveRestore,
   Eye,
+  ExternalLink,
   ImagePlus,
   Loader2,
   LockKeyhole,
@@ -98,6 +101,7 @@ function StoryComposer({
   busy,
   onPublish,
   onClose,
+  initialProductSlug,
 }: {
   busy: boolean;
   onPublish: (args: {
@@ -108,6 +112,8 @@ function StoryComposer({
     productIds: string[];
   }) => Promise<void>;
   onClose: () => void;
+  /** A product to pre-tag, resolved from a `?share=<slug>` deep link. */
+  initialProductSlug?: string | null;
 }) {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,6 +129,19 @@ function StoryComposer({
       .then(setProducts)
       .catch(() => setProducts([]));
   }, []);
+
+  // Pre-tag the deep-linked product once the catalogue has loaded. The slug is
+  // resolved to an id here because `create_story` tags by id; the guard ref
+  // ensures this runs at most once per composer mount.
+  const preTaggedRef = useRef(false);
+  useEffect(() => {
+    if (preTaggedRef.current || !initialProductSlug || products.length === 0) return;
+    const match = products.find((product) => product.slug === initialProductSlug);
+    if (match) {
+      preTaggedRef.current = true;
+      setTagged([match.id]);
+    }
+  }, [initialProductSlug, products]);
 
   // The preview is derived from the selected file, so it is memoised rather than
   // stored: that avoids setting state inside an effect and guarantees the object
@@ -321,9 +340,26 @@ export function StoriesPanel() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { groups, stories, mine, loadState, error, pendingAction, actions, refresh } = useStories();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [composing, setComposing] = useState(false);
   const [openGroup, setOpenGroup] = useState<StoryGroup | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // A product shared to Stories from a product page arrives as ?share=<slug>.
+  // It opens the composer pre-tagged once; the ref prevents re-opening on every
+  // render while the param is still in the URL.
+  const shareSlug = searchParams.get("share");
+  const [pendingShareSlug, setPendingShareSlug] = useState<string | null>(shareSlug);
+  const consumedShareRef = useRef(false);
+
+  useEffect(() => {
+    if (consumedShareRef.current || !shareSlug || !user) return;
+    consumedShareRef.current = true;
+    setPendingShareSlug(shareSlug);
+    setComposing(true);
+    // Drop the param so a refresh or back-navigation does not reopen the sheet.
+    router.replace("/dashboard?tab=stories");
+  }, [shareSlug, user, router]);
 
   const urls = useStoryMediaUrls([...stories, ...mine]);
 
@@ -426,7 +462,11 @@ export function StoriesPanel() {
         <StoryComposer
           busy={pendingAction === "create"}
           onPublish={publish}
-          onClose={() => setComposing(false)}
+          initialProductSlug={pendingShareSlug}
+          onClose={() => {
+            setComposing(false);
+            setPendingShareSlug(null);
+          }}
         />
       ) : null}
 
@@ -679,11 +719,15 @@ function StoryViewer({
             <p className="text-[11px] font-bold text-white/80">{t.storiesTaggedProducts}</p>
             <ul className="flex flex-wrap gap-1.5">
               {story.products.map((product) => (
-                <li
-                  key={product.id}
-                  className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white"
-                >
-                  {product.name}
+                <li key={product.id}>
+                  <Link
+                    href={`/product/${product.slug}`}
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-white/20"
+                  >
+                    {product.name}
+                    <ExternalLink className="h-3 w-3 opacity-70" />
+                  </Link>
                 </li>
               ))}
             </ul>

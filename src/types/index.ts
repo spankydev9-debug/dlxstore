@@ -1050,6 +1050,65 @@ export interface SocialShare {
 }
 
 // ---------------------------------------------------------------------------
+// DLX Custom orders & quotations
+// ---------------------------------------------------------------------------
+// Added by 20261021090000_custom_orders.sql (unapplied pending approval).
+// A customer describes a product DLXSTORE does not stock and receives a quote
+// from the DLX team. Prices are always the reviewer's real number.
+
+export type CustomOrderStatus =
+  | "open"
+  | "quoted"
+  | "accepted"
+  | "declined"
+  | "cancelled"
+  | "fulfilled";
+
+export type CustomOrderQuoteStatus = "sent" | "accepted" | "declined" | "superseded";
+
+export type CustomOrderContactPreference = "chat" | "whatsapp";
+
+/** A quotation attached to a request. Price is in minor units (cents). */
+export interface CustomOrderQuote {
+  id: string;
+  price_cents: number;
+  message: string | null;
+  status: CustomOrderQuoteStatus;
+  created_at: string;
+}
+
+/** A customer's own request, with its quotes (newest first). */
+export interface CustomOrderRequest {
+  id: string;
+  title: string;
+  details: string;
+  budget_cents: number | null;
+  contact_preference: CustomOrderContactPreference;
+  reference_image_urls: string[];
+  status: CustomOrderStatus;
+  created_at: string;
+  updated_at: string;
+  quotes: CustomOrderQuote[];
+}
+
+/** A request as seen by a reviewer (admin/staff) in the review queue. */
+export interface CustomOrderReviewItem {
+  id: string;
+  title: string;
+  details: string;
+  budget_cents: number | null;
+  contact_preference: CustomOrderContactPreference;
+  reference_image_urls: string[];
+  status: CustomOrderStatus;
+  created_at: string;
+  updated_at: string;
+  customer_id: string;
+  customer_name: string;
+  quote_count: number;
+}
+
+
+// ---------------------------------------------------------------------------
 // DLX Discover (master roadmap area 14)
 // ---------------------------------------------------------------------------
 // Added by 20261009090000_discover_recent_and_trending.sql.

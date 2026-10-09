@@ -12,6 +12,8 @@ import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp, RelativeTimestamp, useHydrationSafeTime } from "./chatTime";
 import { ChatMediaService } from "../../services/media/chat-media";
+import { ProductCardMessage } from "./ProductCardMessage";
+import { parseProductShareMessage } from "../../lib/product-share";
 
 // Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
 // formatChatTime() directly during render reintroduces the hydration mismatch unless
@@ -139,8 +141,13 @@ return (
             </div>
           )}
 
-          {/* Message body */}
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+          {/* Message body. A shared product card is decoded and rendered as a
+              navigable card rather than leaking its raw [[dlx-product:…]] token. */}
+          {parseProductShareMessage(message.body) ? (
+            <ProductCardMessage body={message.body} />
+          ) : (
+            <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+          )}
 
           {/* Message metadata */}
           <div className={`mt-1 flex items-center gap-2 text-[10px] ${

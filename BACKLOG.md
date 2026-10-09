@@ -122,16 +122,26 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 
 ---
 
-## P3 — Low / later roadmap phases
+## P3 — Social-commerce continuation (product cards, Stories sharing, custom orders)
 
-Not yet broken out into items. Tracked at phase level in `ROADMAP.md`.
+Built 2026-10-09. See `docs/CHECKPOINT-P3-SOCIAL-COMMERCE-CONTINUATION.md`. tsc/eslint/build green.
 
-Phase 4 AI Product Studio (Ghost Mannequin, Model Studio, Lifestyle Studio, batch) ·
-Phase 5 AI Catalog Automation · Phase 8 Friends · Phase 9 Streaks · Phase 10 Stories ·
-Phase 11 Social Commerce · Phase 12 Profiles · Phase 13 Discover · Phase 14 AI Assistant ·
-Phase 15 Notifications · Phase 16 Safety & Privacy · Phase 17 Growth & Loyalty ·
-Phase 18 Analytics & BI · Phase 19 Communication & Marketing · Phase 20 Scale ·
-Phase 21 Mobile/PWA · Phase 23 Ecosystem
+| ID | Item | Status | Notes |
+|---|---|---|---|
+| SC-A | Product cards through DLX Chat | **DONE (local)** | Reader (`ProductCardMessage`) + "Send in DLX Chat" action. No migration needed — card rides in the message body. Activation of the *send* path also depends on the chat-media migration (`20261020090000`) for media, but text cards work today. |
+| SC-B | Share eligible products to DLX Stories | **DONE (local)** | "Share to Story" deep-links into the existing composer pre-tagged; tagged products navigable in the viewer. Reuses `create_story`; no schema change. |
+| SC-C | Custom orders & quotations | **DONE (local), migration UNAPPLIED** | `20261021090000_custom_orders.sql` written, **not applied — needs explicit approval**. Customer request + reference images + reviewer quote flow. UI shows honest "not available" until applied. |
+
+**Next known follow-ups (not complete):**
+- P4 — Inventory & cart (available / out-of-stock / coming-soon, server-side stock validation, stale-cart safety).
+- P5 — In-app advertising, campaigns & rewards (real campaign banners/modals, admin controls, welcome rewards/coupons/loyalty, "We are now open" launch campaign). Never fabricate savings.
+- P6 — Feedback page + external marketing/sharing (honest about permissions; do not pretend a post published).
+
+---
+
+## P4–P6 — Later roadmap phases (reconciled, not yet started)
+
+Phase 4 AI Product Studio (Ghost Mannequin, Model Studio, Lifestyle Studio, batch) · Phase 5 AI Catalog Automation · (Friends/Streaks/Stories/Social/Discover/Assistant/Notifications/Safety/Growth/Analytics/Communication/Scale/Mobile delivered in prior phases). Studio & Avatar remain **paused by project direction — do not modify without authorization.**
 
 ---
 

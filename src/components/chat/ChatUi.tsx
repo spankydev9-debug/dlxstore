@@ -5,6 +5,8 @@ import { Clock, Send, MessageSquare, Wifi, WifiOff, FileDown } from "lucide-reac
 import { Conversation, ConversationMessage } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp } from "./chatTime";
+import { ProductCardMessage } from "./ProductCardMessage";
+import { parseProductShareMessage, productSharePreview } from "../../lib/product-share";
 
 // Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
 // formatChatTime() directly during render reintroduces the hydration mismatch unless
@@ -35,7 +37,11 @@ export function MessageBubble({
             {message.sender_name || "DLXSTORE"}
           </p>
         )}
-        <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+        {parseProductShareMessage(message.body) ? (
+          <ProductCardMessage body={message.body} />
+        ) : (
+          <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+        )}
         {(message.media ?? []).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {(message.media ?? []).map((media, index) =>
@@ -176,7 +182,7 @@ export function ConversationListItem({
             isActive ? "text-primary-foreground/80" : "text-muted-foreground"
           }`}
         >
-          {conversation.last_message_preview || "Nouvelle conversation"}
+          {(productSharePreview(conversation.last_message_preview) ?? conversation.last_message_preview) || "Nouvelle conversation"}
         </p>
         <div className="mt-1 flex items-center gap-2">
           {hasUnread && (

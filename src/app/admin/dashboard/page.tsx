@@ -14,6 +14,7 @@ import { CatalogAssistant } from "../../../components/admin/CatalogAssistant";
 import { SessionControls } from "../../../components/admin/SessionControls";
 import { PartnerControls } from "../../../components/admin/PartnerControls";
 import { MarketplaceConsole } from "../../../components/admin/MarketplaceConsole";
+import { CustomOrdersConsole } from "../../../components/admin/CustomOrdersConsole";
 import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
 import { CouponControls } from "../../../components/admin/CouponControls";
 import { NotificationBroadcast } from "../../../components/admin/NotificationBroadcast";
@@ -54,7 +55,8 @@ import {
   Banknote,
   Wand2,
   Sparkles,
-  Bell
+  Bell,
+  PackageSearch
 } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -67,7 +69,7 @@ function AdminDashboardContent() {
   // tab instead of trusting an arbitrary query string.
   const VALID_TABS = new Set([
     "analytics", "orders", "products", "deliveries", "inventory", "sessions",
-    "partners", "marketplace", "food", "coupons", "notifications", "reports",
+    "partners", "marketplace", "custom-orders", "food", "coupons", "notifications", "reports",
     "support", "internal", "visuals", "catalog-ai", "business",
   ]);
   const [activeTab, setActiveTab] = useState(
@@ -446,6 +448,7 @@ function AdminDashboardContent() {
     { key: "sessions", label: "Collections", icon: LayoutGrid },
     { key: "partners", label: "Partenaires", icon: Store },
     { key: "marketplace", label: "Marketplace", icon: Banknote },
+    { key: "custom-orders", label: "Commandes sur mesure", icon: PackageSearch },
     { key: "food", label: "DLX Food", icon: UtensilsCrossed },
     { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
     { key: "notifications", label: "Notifications", icon: Bell },
@@ -917,6 +920,9 @@ function AdminDashboardContent() {
 
               {/* MARKETPLACE / VENDOR PAYOUTS */}
               {activeTab === "marketplace" && <MarketplaceConsole />}
+
+              {/* CUSTOM ORDERS / QUOTATIONS */}
+              {activeTab === "custom-orders" && <CustomOrdersConsole />}
 
               {activeTab === "food" && <FoodVendorControls />}
 
