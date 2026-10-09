@@ -32,7 +32,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; Core Web Vitals + PERF-4 still open |
 | **Audit** | **Production readiness (P9–P16)** | local code production-ready. Re-checked 2026-10-09: **production IS deployed** (`dlxstore-flax.vercel.app` ← `main` @ `276e759`, the `git-main` alias) and the old "37 RPCs missing" figure is obsolete — the ledger is **45/45 at `20261017093000` with 4 pending**. See `docs/CHECKPOINT-PRODUCTION-READINESS.md`, corrected in `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1 |
-| **P0–P4b** | **2026-10-09 working series** (commits `18f250b`→`c61132f` + uncommitted P4b) | See the section below; each advances an existing roadmap phase rather than opening a new one |
+| **P0–P4b** | **2026-10-09 working series** (commits `18f250b`→`8a2fd56`, 8 ahead of `origin/main`) | See the section below; each advances an existing roadmap phase rather than opening a new one |
 
 ### 2026-10-09 working series — where each increment landed
 
@@ -43,7 +43,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | P2 | Global horizontal category rail from real catalogue categories (`98f3e68`) | 2 UX · 3 Commerce | No — undeployed |
 | P3 | Chat product cards, product→Story sharing, custom orders (`46ccaa3`) | 11 Social commerce · 10 Stories · 3 Commerce | Cards work on text; custom orders gated on `20261021090000` |
 | P4 | Availability classifier + purchasable/unavailable split (`c61132f`) | 3 Commerce · 6 Inventory | No — undeployed |
-| P4b | Cart revalidation against the live catalogue, checkout prefill, coupon drift, false-alert and dead-code fixes | 3 Commerce · 6 Inventory | **Built + browser-verified, uncommitted.** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
+| P4b | Cart revalidation against the live catalogue, checkout prefill, coupon drift, false-alert and dead-code fixes (`8a2fd56`) | 3 Commerce · 6 Inventory | **Committed locally; browser-verified; not pushed, not deployed.** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
 | P5 | Campaigns, launch banner/modals, admin controls, welcome rewards, "We are now open" | 17 Growth & loyalty · 19 Communication | **NOT STARTED** — next approved increment |
 
 Roadmap Phase 12 (DLX Profiles) has no separate P-series entry; the profile, privacy and

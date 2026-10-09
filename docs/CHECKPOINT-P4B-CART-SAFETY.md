@@ -1,7 +1,7 @@
 # CHECKPOINT — P4b: cart/checkout safety against the live catalogue
 
-**Status: BUILT, TYPE-SAFE, AND VERIFIED IN A REAL BROWSER against live production data.**
-**Branch:** `main` · **Base commit:** `c61132f` · **Date:** 2026-10-09
+**Status: BUILT, TYPE-SAFE, VERIFIED IN A REAL BROWSER against live production data, and committed.**
+**Branch:** `main` · **Commit:** `8a2fd56` (base `c61132f`) · **Date:** 2026-10-09 · **Pushed:** no
 **Scope:** the defects a review of P3/P4 found in the *running system*, plus the production
 migration/security facts the earlier docs recorded as unknown. No migration applied. No push.
 
@@ -81,8 +81,10 @@ drifts, so the discount sent always matches what the database will recompute.
   (`EnhancedChatUi.tsx:146`) and `ChatUi.tsx:40` both render the reader; both inbox previews use
   `productSharePreview`. No surface still leaks the raw token. The send path calls
   `send_conversation_message` / `send_conversation_message_v2` /
-  `get_or_create_customer_support_conversation`, **all confirmed present in production**, so the
-  text card works without the pending migration (media still needs `20261020090000`).
+  `get_or_create_customer_support_conversation`, **all confirmed present in production** (re-checked
+  2026-10-09 against `pg_proc`), so the text card works without the pending migration (media still
+  needs `20261020090000`). Do not conflate that with direct chat: `get_or_create_direct_conversation`
+  is **absent**, so a customer-initiated 1-to-1 conversation fails while a support conversation works.
 * **P3b product → Story sharing — WORKS.** `StoriesPanel.tsx:137-144` waits for the catalogue
   (`products.length === 0` guard) and resolves slug→id behind a once-only ref, so there is no race
   that clears `?share=` before the product arrives. Reuses `create_story`, which is live.
@@ -125,7 +127,8 @@ drifts, so the discount sent always matches what the database will recompute.
 3. Approve applying `20261020090000` → `20261021090000` and pushing + deploying local `main`
    (production is still at `276e759`). Chat media and custom orders must not deploy ahead of their
    migrations, or they go dark on day one.
-4. This P4b work is committed locally on `main`; it is **not pushed** and production does not have
-   it. `scripts/` is deliberately left untracked — it was untracked at handover and promoting it is
-   the owner's call, not a side effect of this commit.
+4. This work is committed locally as `8a2fd56` (`main` is 8 ahead of `origin/main`); it is **not
+   pushed** and production does not have it. `scripts/` was deliberately left untracked — it was
+   untracked at handover, and promoting it is the owner's call rather than a side effect of a
+   `git add`.
 5. Then P5 — campaigns, launch banner and welcome rewards — which the backlog lists next.

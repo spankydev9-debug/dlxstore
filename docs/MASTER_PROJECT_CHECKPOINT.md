@@ -496,6 +496,15 @@ not linked**. `supabase/.temp/project-ref` = `szhkesvvrgcxbxucodzz` and `.env.lo
 
 ## 9. Current production state
 
+> **Re-checked 2026-10-09 — §9.1 and §9.3 below are superseded.** Production now serves
+> `dpl_H4941MTDJrpFVGQy861mpXRrhwHa` on the same `dlxstore-flax` alias, built 2026-10-08 22:39 CAT
+> from **`main` @ `276e759`** (= `origin/main`), functions reporting `iad1`; `/discover`, `/studio`
+> and `/partner/dashboard` return 200. Migration ledger **45/45** at `20261017093000` with 4 pending.
+> Live catalogue counts re-read today: `products` **64** (61 sellable), `categories` **15**.
+> Three RPCs that the deployed bundle calls fail in production right now —
+> `get_trending_products` `42P10`, `get_product_social_proof` `42804`, and
+> `get_or_create_direct_conversation` does not exist. Full evidence: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1.
+
 ### 9.1 Deployment
 
 | | |
