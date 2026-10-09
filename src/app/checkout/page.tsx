@@ -4,14 +4,14 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
-import { createOrder, recordOrderWhatsAppHandoff } from "../../services/db/orders";
+import { createOrder } from "../../services/db/orders";
 import { CouponValidation, validateCoupon } from "../../services/db/coupons";
-import { getStoreSettings } from "../../services/db/settings";
-import { buildWhatsAppUrl, buildOrderOperationalMessage, getWhatsAppBuyNumber } from "../../lib/whatsapp";
 import { useLanguage } from "../../context/LanguageContext";
 import { GOMA_MUNICIPALITIES } from "../../lib/mock-data";
+import { Order } from "../../types";
 import { ShieldCheck, ArrowLeft, ShoppingBag } from "lucide-react";
 import Link from "next/link";
+import PurchaseContinueDialog, { PurchaseContinueItem } from "../../components/checkout/PurchaseContinueDialog";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -32,11 +32,12 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState<CouponValidation | null>(null);
   const [couponNotice, setCouponNotice] = useState("");
 
+  // Order confirmation + purchase continuation (DLX Chat / WhatsApp choice).
+  const [confirmedOrder, setConfirmedOrder] = useState<{ order: Order; items: PurchaseContinueItem[] } | null>(null);
+
   // Sync with logged-in user details if available
   useEffect(() => {
     if (user) {
-      setCustomerName(user.full_name);
-      setPhoneNumber(user.phone || "");
     }
   }, [user]);
 
@@ -44,7 +45,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     const list = GOMA_MUNICIPALITIES[municipality] || [];
     if (list.length > 0) {
-      setNeighborhood(list[0]);
     }
   }, [municipality]);
 
@@ -90,28 +90,16 @@ export default function CheckoutPage() {
 
       const newOrder = await createOrder(orderFields, orderItems);
       clearCart();
-      let whatsappStatus: "link_opened" | "unavailable" | "not_configured" = "not_configured";
-      try {
-        const settings = await getStoreSettings();
-        const number = getWhatsAppBuyNumber(settings);
-        const message = buildOrderOperationalMessage({
-          ...newOrder,
-          items: items.map((item) => ({
-            quantity: item.quantity,
-            price_at_sale: item.product.discount_price ?? item.product.price,
-            size: item.selectedSize,
-            color: item.selectedColor,
-            product: { name: item.product.name },
-          })),
-        });
-        const url = number ? buildWhatsAppUrl(number, message) : null;
-        if (url) {
-          const handoffWindow = window.open(url, "_blank", "noopener,noreferrer");
-          whatsappStatus = handoffWindow ? "link_opened" : "unavailable";
-        }
-      } catch (whatsappError) { console.warn("WhatsApp handoff unavailable; order was created.", whatsappError); }
-      try { await recordOrderWhatsAppHandoff(newOrder.id, whatsappStatus); } catch (handoffError) { console.warn("Order handoff state was not recorded.", handoffError); }
-      router.push(`/order-tracking?orderId=${newOrder.id}&whatsapp=${whatsappStatus}`);
+      setConfirmedOrder({
+        order: newOrder,
+        items: items.map((item) => ({
+          product: { name: item.product.name },
+          quantity: item.quantity,
+          price_at_sale: item.product.discount_price ?? item.product.price,
+          size: item.selectedSize,
+          color: item.selectedColor,
+        })),
+      });
     } catch (err) {
       console.error("Error creating order:", err);
       const errorMessage = err instanceof Error ? err.message : (typeof err === "object" && err !== null && "message" in err) ? String((err as { message: unknown }).message) : typeof err === "string" ? err : JSON.stringify(err);
@@ -330,6 +318,14 @@ export default function CheckoutPage() {
         </div>
 
       </div>
+
+      {confirmedOrder && (
+        <PurchaseContinueDialog
+          order={confirmedOrder.order}
+          items={confirmedOrder.items}
+          onDismiss={() => setConfirmedOrder(null)}
+        />
+      )}
     </div>
   );
 }
