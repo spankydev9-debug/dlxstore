@@ -653,17 +653,18 @@ export function MannequinStudio({
         {/* Left — what the figure is wearing, in wearing order */}
         <aside className="flex min-w-0 flex-col gap-5">
           <section>
-            <div className="mb-2 flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5 text-[#d4af37]/70" aria-hidden />
-              <StudioLabel>{t.nowWearing}</StudioLabel>
-              <span className="ml-auto text-xs text-white/45">{resolvedOutfit.length}</span>
-            </div>
+            <AtelierSectionTitle count={resolvedOutfit.length}>{t.nowWearing}</AtelierSectionTitle>
             <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
           </section>
 
           <section>
-            <StudioLabel className="mb-2">{t.fitHeading}</StudioLabel>
-            <FitNarration avatar={avatar} product={selectedProduct} />
+            <FitNarration
+              avatar={avatar}
+              product={selectedProduct}
+              selectedSize={selectedSize}
+              onPickSize={setSizeChoice}
+              variant="full"
+            />
           </section>
         </aside>
 
@@ -689,7 +690,7 @@ export function MannequinStudio({
           <div className="mx-auto mt-3 w-full max-w-[600px] space-y-4 px-1">
             {selectedProduct ? variantRails : null}
             <FitNarration avatar={avatar} product={selectedProduct} />
-            <p className="pb-1 text-center text-[10px] uppercase tracking-[0.3em] text-white/25">
+            <p className="pb-1 text-center font-serif text-sm italic tracking-wide text-[#d4af37]/70">
               {t.figureCaptionDefault}
             </p>
           </div>
@@ -778,7 +779,7 @@ export function MannequinStudio({
           {selectedProduct ? (
             <div className="mt-2">{variantRails}</div>
           ) : (
-            <p className="mt-3 pb-1 text-center text-[10px] uppercase tracking-[0.3em] text-white/25">
+            <p className="mt-3 pb-1 text-center font-serif text-sm italic tracking-wide text-[#d4af37]/70">
               {t.figureCaptionDefault}
             </p>
           )}
@@ -855,6 +856,7 @@ export function MannequinStudio({
                   </div>
                 ) : mobileSheet === "tenue" ? (
                   <div className="pb-4">
+                    <AtelierSectionTitle count={resolvedOutfit.length}>{t.outfit}</AtelierSectionTitle>
                     <AtelierLayers outfit={resolvedOutfit} onRemove={handleRemoveFromOutfit} />
                   </div>
                 ) : (
@@ -1028,13 +1030,22 @@ function SourceBadge({ source }: { source: RenderSource }) {
  * Every word is derived from the avatar's persisted `clothingSize` and the
  * product's published `sizes[]`. No size is invented, no range is assumed,
  * and "unavailable" is stated instead of guessed.
+ *
+ * `variant="full"` (the atelier's fiche de coupe) also exposes the product's
+ * own size rail — tappable, so the garment the figure wears follows.
  */
 function FitNarration({
   avatar,
   product,
+  selectedSize,
+  onPickSize,
+  variant = "compact",
 }: {
   avatar: CustomerAvatar | null;
   product: Product | null;
+  selectedSize?: string;
+  onPickSize?: (size: string) => void;
+  variant?: "full" | "compact";
 }) {
   const { t } = useLanguage();
   const verdict = describeFit(avatar?.attributes, product?.sizes);
@@ -1059,15 +1070,73 @@ function FitNarration({
   let body = t[fitBodyKey(verdict.status) as keyof typeof t] as string;
   body = body.replace("{size}", verdict.avatarSize ?? "").replace("{bound}", verdict.bound ?? "");
 
+  const productSizes = product?.sizes ?? [];
+
   return (
-    <div className={`rounded-xl border px-3 py-2.5 text-[11px] leading-relaxed ${tone}`}>
-      <p className="flex items-center justify-between gap-2 font-semibold">
-        <span>{t.fitHeading}</span>
-        <span className="font-normal opacity-80">
+    <div className={`rounded-2xl border px-3.5 py-3 text-[11px] leading-relaxed ${tone}`}>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-serif text-base italic leading-none">{t.fitHeading}</p>
+        <span className="text-[10px] font-medium uppercase tracking-[0.14em] opacity-80">
           {t.avatarSizeIs.replace("{size}", verdict.avatarSize ?? "—")}
         </span>
-      </p>
-      <p className="mt-1 opacity-90">{body}</p>
+      </div>
+
+      <p className="mt-2.5 opacity-90">{body}</p>
+
+      {variant === "full" && productSizes.length > 0 ? (
+        <div className="mt-3 border-t border-white/[0.08] pt-2.5">
+          <div className="flex flex-wrap gap-1.5">
+            {productSizes.map((size) => {
+              const chosen = size === selectedSize;
+              const isAvatarFit = size === verdict.avatarSize;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => onPickSize?.(size)}
+                  aria-pressed={chosen}
+                  title={isAvatarFit ? t.avatarSizeIs.replace("{size}", size) : undefined}
+                  className={`relative inline-flex min-h-11 items-center justify-center rounded-full border px-3.5 text-xs font-medium transition-colors ${
+                    chosen
+                      ? "border-[#d4af37]/70 bg-[#d4af37]/16 text-[#f6e6b4]"
+                      : "border-white/10 bg-white/[0.035] text-white/60 hover:border-white/25 hover:text-white/90"
+                  }`}
+                >
+                  {size}
+                  {isAvatarFit && !chosen ? (
+                    <span
+                      aria-hidden
+                      className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-current bg-[#050506]/80"
+                      style={{ boxShadow: "0 0 6px rgba(212,175,55,0.8)" }}
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Editorial folio heading — a serif title with an optional count, the
+ * recurring voice of the atelier's secondary surfaces (En ce moment, Garde-ro­be).
+ */
+function AtelierSectionTitle({
+  children,
+  count,
+}: {
+  children: React.ReactNode;
+  count?: number;
+}) {
+  return (
+    <div className="mb-2.5 flex items-end justify-between gap-3">
+      <h2 className="font-serif text-lg italic leading-none text-[#f2e8cf]">{children}</h2>
+      {typeof count === "number" ? (
+        <span className="text-[11px] font-medium tabular-nums text-[#d4af37]/75">{count}</span>
+      ) : null}
     </div>
   );
 }
@@ -1099,10 +1168,14 @@ function AtelierMasthead({
       </Link>
 
       <div className="pointer-events-none shrink-0 text-center">
-        <p className="text-sm font-semibold uppercase leading-none tracking-[0.32em] text-white/95 lg:text-lg">
+        <p className="text-[9px] font-semibold uppercase leading-none tracking-[0.46em] text-[#d4af37]/60">
+          DLX
+        </p>
+        <hr className="dlx-gold-rule mx-auto mb-1" style={{ width: 44 }} />
+        <p className="font-serif text-xl italic leading-none text-[#f2e8cf] lg:text-2xl">
           {t.atelier}
         </p>
-        <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.22em] text-[#d4af37]/60 lg:text-[10px]">
+        <p className="mt-1 text-[9px] font-medium uppercase leading-none tracking-[0.28em] text-[#d4af37]/65 lg:text-[10px]">
           {t.studioTitle}
         </p>
       </div>
@@ -1139,7 +1212,11 @@ function AtelierTabs<T extends string>({
     <div
       role="tablist"
       aria-label={t.atelier}
-      className="flex shrink-0 gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1"
+      className={`flex shrink-0 gap-1 p-1 ${
+        variant === "sheet"
+          ? "mx-0 rounded-none border-b border-white/[0.06] bg-transparent"
+          : "rounded-full border border-white/10 bg-white/[0.03]"
+      }`}
     >
       {tabs.map((tab) => {
         const active = tab.id === value;

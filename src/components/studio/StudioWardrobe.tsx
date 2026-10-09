@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Check, Shirt } from "lucide-react";
 import { ProductImage } from "../shared/ProductImage";
 import { useLanguage } from "../../context/LanguageContext";
@@ -22,6 +22,10 @@ const SLOT_KEY: Record<GarmentSlot, string> = {
  * each article sits on the body (top / bottom / outer / full / footwear /
  * accessory) so the shopper composes a look the way they dress. Choosing a
  * garment places it on the mannequin in the correct slot.
+ *
+ * The folio opens with an editorial heading and a slot rail, so the catalogue
+ * reads as a rail of garments to try — not as a long unstyled list. Filtering
+ * is purely presentational; every product stays reachable.
  */
 export function StudioWardrobe({
   products,
@@ -37,6 +41,7 @@ export function StudioWardrobe({
   className?: string;
 }) {
   const { t } = useLanguage();
+  const [filter, setFilter] = useState<"all" | GarmentSlot>("all");
 
   const groups = useMemo(() => {
     const worn = new Set(outfit.map((item) => item.productId));
@@ -73,17 +78,66 @@ export function StudioWardrobe({
     };
   }, [products, categoryNames, outfit, t]);
 
+  const total = useMemo(
+    () => groups.sections.reduce((sum, section) => sum + section.products.length, 0),
+    [groups.sections]
+  );
+
+  const visible = useMemo(
+    () => (filter === "all" ? groups.sections : groups.sections.filter((s) => s.slot === filter)),
+    [groups.sections, filter]
+  );
+
   const labelOf = (product: Product) =>
     [product.brand, product.name].filter(Boolean).join(" · ");
 
   return (
     <div className={className}>
-      {groups.sections.length === 0 ? (
+      {/* Folio heading + slot rail */}
+      <div className="mb-1">
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-serif text-xl italic leading-none text-[#f2e8cf]">{t.wardrobe}</h2>
+          <p className="shrink-0 rounded-full border border-[#d4af37]/25 bg-[#d4af37]/10 px-2.5 py-1 text-[10px] font-medium tabular-nums text-[#f0dfae]">
+            {total}
+          </p>
+        </div>
+        <hr className="dlx-gold-rule mt-2.5" />
+        {groups.sections.length > 1 ? (
+          <div className="dlx-rail -mx-1 mt-2.5 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            <button
+              type="button"
+              className="dlx-folio-chip"
+              aria-pressed={filter === "all"}
+              data-wardrobe-filter="all"
+              onClick={() => setFilter("all")}
+            >
+              {t.wardrobeAll}
+            </button>
+            {groups.sections.map((section) => (
+              <button
+                key={section.slot}
+                type="button"
+                className="dlx-folio-chip"
+                aria-pressed={filter === section.slot}
+                data-wardrobe-filter={section.slot}
+                onClick={() =>
+                  setFilter((current) => (current === section.slot ? "all" : section.slot))
+                }
+              >
+                {section.label}
+                <span className="text-[9px] text-white/35">{section.products.length}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {visible.length === 0 ? (
         <p className="rounded-xl border border-white/[0.08] bg-black/25 px-3 py-4 text-xs leading-relaxed text-white/55">
           {t.composePrompt}
         </p>
       ) : (
-        groups.sections.map((section) => (
+        visible.map((section) => (
           <section key={section.slot} aria-label={section.label}>
             <div className="mb-2 mt-4 flex items-baseline justify-between gap-2 first:mt-0">
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#d4af37]/70">

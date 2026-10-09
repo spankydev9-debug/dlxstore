@@ -752,6 +752,7 @@ const fr = {
   noGarmentOnMannequin: "Aucun vêtement posé. Ouvrez la garde-robe.",
   figureCaptionDefault: "Habillez, composez, portez.",
   atelierCta: "Explorer l'atelier",
+  wardrobeAll: "Tout",
 };
 
 const en: typeof fr = {
@@ -1498,6 +1499,7 @@ const en: typeof fr = {
   avatarIntoAtelier: "Your mannequin is waiting in the atelier.",
   noGarmentOnMannequin: "Nothing on the mannequin yet. Open the wardrobe.",
   figureCaptionDefault: "Dress, compose, wear.",
+  wardrobeAll: "All",
   atelierCta: "Explore the atelier",
 };
 
@@ -2245,6 +2247,7 @@ const sw: typeof fr = {
   enterAtelier: "Ingia atelier",
   avatarIntoAtelier: "Mannequin yako inakusubiri atelier.",
   noGarmentOnMannequin: "Hakuna nguo kwenye mannequin. Fungua wodi.",
+  wardrobeAll: "Zote",
   figureCaptionDefault: "Vaa, changanya, ubebe.",
   atelierCta: "Chunguza atelier",
 };
@@ -2992,6 +2995,7 @@ const ln: typeof fr = {
   addGarment: "Lakisa elamba",
   enterAtelier: "Kota na atelier",
   avatarIntoAtelier: "Mannequin na yo ezali kozela yo na atelier.",
+  wardrobeAll: "Nyoso",
   noGarmentOnMannequin: "Elamba moko te na mannequin. Fungola garde-robe.",
   figureCaptionDefault: "Lata, bongisa, mema.",
   atelierCta: "Tala atelier",
@@ -3739,6 +3743,7 @@ const tl: typeof fr = {
   nowWearing: "Unavaa sasa",
   addGarment: "Ongeza nguo",
   enterAtelier: "Ingia atelier",
+  wardrobeAll: "Nyoso",
   avatarIntoAtelier: "Mannequin yako inakusubiri atelier.",
   noGarmentOnMannequin: "Hakuna nguo kwenye mannequin. Fungua wodi.",
   figureCaptionDefault: "Vaa, changanya, ubebe.",
@@ -4463,6 +4468,7 @@ const kg: typeof fr = {
   leaveAtelier: "Bika atelier",
   nowWearing: "Kuvwala sasudia",
   addGarment: "Yika nvwala",
+  wardrobeAll: "Nyoso",
   enterAtelier: "Kota mu atelier",
   avatarIntoAtelier: "Mannequin na nge ke kufidisila mu atelier.",
   noGarmentOnMannequin: "Ka nvwala mosi ko. Zibula garde-robe.",
