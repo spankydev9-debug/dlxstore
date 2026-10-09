@@ -3,7 +3,7 @@
 import { FormEvent, KeyboardEvent, useState, useEffect, useRef } from "react";
 import { 
   Clock, Send, MessageSquare, Wifi, WifiOff, 
-  Image, Video, Mic, Smile, MoreVertical,
+  Image, Video, Mic, Smile, MoreVertical, X,
   Pin, Reply, Edit, Trash2, ThumbsUp,
   Check, CheckCheck, Eye
 } from "lucide-react";
@@ -11,6 +11,7 @@ import { ConversationMessage, TypingIndicator, MessageReaction } from "../../typ
 import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp, RelativeTimestamp, useHydrationSafeTime } from "./chatTime";
+import { ChatMediaService } from "../../services/media/chat-media";
 
 // Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
 // formatChatTime() directly during render reintroduces the hydration mismatch unless
@@ -77,14 +78,17 @@ export function MessageBubble({
     return myStatus?.status || null;
   };
 
-  return (
-    <div 
+return (
+    <div
       ref={bubbleRef}
       className={`flex w-full ${isMine ? "justify-end" : "justify-start"}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => {
         if (!showReactions) setShowActions(false);
       }}
+      // Touch devices have no hover: tapping the bubble toggles its actions.
+      onClick={() => setShowActions((current) => !current)}
+      data-chat-message-actions={showActions ? "open" : "closed"}
     >
       <div className="relative max-w-[85%]">
         {!isMine && (
@@ -183,7 +187,10 @@ export function MessageBubble({
 
         {/* Message actions */}
         {showActions && (
-          <div className={`absolute flex gap-1 ${isMine ? "-left-2 top-0" : "-right-2 top-0"}`}>
+          <div
+            className={`absolute flex gap-1 ${isMine ? "-left-2 top-0" : "-right-2 top-0"}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="bg-background border border-border rounded-lg shadow-lg p-1 flex gap-1">
               <button
                 onClick={() => setShowReactions(!showReactions)}
@@ -275,7 +282,7 @@ export function MessageComposer({
   sending,
   onTypingChange,
 }: {
-  onSend: (body: string, media?: any[]) => void;
+  onSend: (body: string, files?: File[]) => Promise<boolean>;
   disabled?: boolean;
   sending?: boolean;
   placeholder: string;
@@ -283,37 +290,55 @@ export function MessageComposer({
 }) {
   const [draft, setDraft] = useState("");
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [showMediaPreview, setShowMediaPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
+  const { error: sendError, clearError } = useChat();
 
-  const submit = (event?: FormEvent) => {
+  // Revoke local preview URLs whenever the attached set changes so we never
+  // leak blob objects for the life of the session.
+  useEffect(() => {
+    return () => {
+      mediaUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setFiles = (files: File[]) => {
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setMediaFiles(files);
+    setMediaUrls(urls);
+    setShowMediaPreview(files.length > 0);
+  };
+
+  const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     const body = draft.trim();
-    if ((!body && mediaFiles.length === 0) || disabled) return;
-    
-    // Prepare media data
-    const mediaItems = mediaFiles.map(file => ({
-      media_type: file.type.startsWith("image/") ? "image" : 
-                  file.type.startsWith("video/") ? "video" : 
-                  file.type.startsWith("audio/") ? "audio" : "document",
-      file_url: URL.createObjectURL(file), // In real app, upload first
-      file_name: file.name,
-      file_size: file.size,
-      mime_type: file.type,
-    }));
-    
-    onSend(body, mediaItems);
-    setDraft("");
-    setMediaFiles([]);
-    setShowMediaPreview(false);
+    if ((!body && mediaFiles.length === 0) || disabled || sending) return;
+    setValidationError(null);
     onTypingChange?.(false);
+    // Pass the real File objects: the media service uploads them. The previous
+    // code passed plain descriptors with blob: URLs, which failed validation
+    // (no .type/.size) and were silently discarded.
+    const ok = await onSend(body, mediaFiles);
+    if (ok) {
+      mediaUrls.forEach((url) => URL.revokeObjectURL(url));
+      setDraft("");
+      setMediaUrls([]);
+      setMediaFiles([]);
+      setShowMediaPreview(false);
+    } else {
+      // Keep the draft and attachments so a failed send is retryable, never
+      // silently consumed.
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submit();
+      void submit();
     }
   };
 
@@ -322,21 +347,70 @@ export function MessageComposer({
     onTypingChange?.(value.trim().length > 0);
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setMediaFiles(prev => [...prev, ...files.slice(0, 5)]); // Limit to 5 files
-    setShowMediaPreview(true);
+    const next = [...mediaFiles];
+    const rejected: string[] = [];
+    for (const file of files) {
+      if (next.length >= 5) {
+        rejected.push(`${file.name} — maximum 5 files`);
+        continue;
+      }
+      const validation = await ChatMediaService.validateFile(file);
+      if (validation.valid) {
+        next.push(file);
+      } else {
+        rejected.push(`${file.name} — ${validation.error ?? "unsupported file"}`);
+      }
+    }
+    if (rejected.length > 0) {
+      setValidationError(
+        rejected.length === 1
+          ? rejected[0]
+          : `${rejected.length} file(s) not added:\n${rejected
+              .map((r) => `• ${r}`)
+              .join("\n")}`
+      );
+    } else {
+      setValidationError(null);
+    }
+    setFiles(next);
+    event.target.value = "";
   };
 
   const removeMedia = (index: number) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-    if (mediaFiles.length === 1) {
-      setShowMediaPreview(false);
-    }
+    const next = mediaFiles.filter((_, i) => i !== index);
+    const nextUrls = mediaUrls.filter((_, i) => i !== index);
+    if (mediaUrls[index]) URL.revokeObjectURL(mediaUrls[index]);
+    setFiles(next);
+    setMediaUrls(nextUrls);
+    if (next.length === 0) setShowMediaPreview(false);
   };
 
   return (
     <div className="border-t border-border bg-card/60">
+      {/* Attachment validation / status line (also our upload feedback surface) */}
+      {(validationError || sendError) && (
+        <div
+          data-chat-error
+          className="border-b border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="whitespace-pre-line">{validationError || sendError}</p>
+            {!validationError && sendError && (
+              <button
+                type="button"
+                onClick={clearError}
+                className="shrink-0 text-destructive/70 hover:text-destructive"
+                aria-label="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Media preview */}
       {showMediaPreview && mediaFiles.length > 0 && (
         <div className="px-3 pt-3 pb-2 border-b border-border">
@@ -347,20 +421,22 @@ export function MessageComposer({
             <button
               type="button"
               onClick={() => {
-                setMediaFiles([]);
+                mediaUrls.forEach((url) => URL.revokeObjectURL(url));
+                setFiles([]);
                 setShowMediaPreview(false);
+                setValidationError(null);
               }}
               className="text-xs text-destructive hover:text-destructive/80"
             >
               Clear all
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2" data-chat-media-preview>
             {mediaFiles.map((file, index) => (
               <div key={index} className="relative shrink-0">
                 {file.type.startsWith("image/") ? (
                   <img
-                    src={URL.createObjectURL(file)}
+                    src={mediaUrls[index]}
                     alt={file.name}
                     className="h-16 w-16 object-cover rounded-lg"
                   />
@@ -374,13 +450,14 @@ export function MessageComposer({
                   </div>
                 ) : (
                   <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center">
-                    <File className="h-6 w-6 text-muted-foreground" />
+                    <FileIcon className="h-6 w-6 text-muted-foreground" />
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={() => removeMedia(index)}
                   className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-[10px]"
+                  aria-label={`Remove ${file.name}`}
                 >
                   ×
                 </button>
@@ -399,7 +476,8 @@ export function MessageComposer({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
+            disabled={disabled || sending}
+            data-chat-attach={mediaFiles.length > 0 ? "true" : "false"}
             className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
             title="Attach file"
           >
@@ -409,14 +487,15 @@ export function MessageComposer({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,video/*,audio/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg,audio/mpeg,audio/wav,audio/ogg,audio/webm,application/pdf,text/plain"
             onChange={handleFileSelect}
             className="hidden"
+            data-chat-file-input
           />
           
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || sending}
             className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
             title="Emoji"
           >
@@ -438,9 +517,10 @@ export function MessageComposer({
           type="submit"
           disabled={disabled || (!draft.trim() && mediaFiles.length === 0) || sending}
           aria-label="Send"
+          data-chat-send
           className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
         >
-          <Send className="h-4.5 w-4.5" />
+          {sending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" /> : <Send className="h-4.5 w-4.5" />}
         </button>
       </form>
     </div>
@@ -448,7 +528,7 @@ export function MessageComposer({
 }
 
 // Helper component for file icon
-function File({ className }: { className?: string }) {
+function FileIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}

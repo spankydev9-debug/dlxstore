@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useState } from "react";
-import { Clock, Send, MessageSquare, Wifi, WifiOff } from "lucide-react";
+import { Clock, Send, MessageSquare, Wifi, WifiOff, FileDown } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp } from "./chatTime";
@@ -36,6 +36,32 @@ export function MessageBubble({
           </p>
         )}
         <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+        {(message.media ?? []).length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(message.media ?? []).map((media, index) =>
+              media.media_type === "image" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={index}
+                  src={media.file_url}
+                  alt={media.file_name || ""}
+                  className="max-h-48 max-w-full rounded-lg object-cover"
+                />
+              ) : (
+                <a
+                  key={index}
+                  href={media.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs font-medium underline-offset-2 hover:underline"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  {media.file_name || "Attachment"}
+                </a>
+              )
+            )}
+          </div>
+        )}
         <p
           className={`mt-1 flex items-center gap-1 text-[10px] ${
             isMine ? "text-primary-foreground/70" : "text-muted-foreground"

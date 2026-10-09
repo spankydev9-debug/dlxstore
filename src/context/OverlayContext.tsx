@@ -109,9 +109,16 @@ export function OverlayProvider({ children }: { children: React.ReactNode }) {
   }, [commitOverlay]);
 
   // Lock background scrolling while a primary overlay is open so the page behind
-  // the sheet cannot pan (the overlay owns scrolling).
+  // the sheet cannot pan. The assistant is a small popover, not a full-screen
+  // sheet, so it must NOT lock the page — locking it freezes the document the
+  // popover floats above, which feels broken on desktop and mobile alike.
   useEffect(() => {
-    if (typeof document === "undefined" || activeOverlay === null) return;
+    if (
+      typeof document === "undefined" ||
+      activeOverlay === null ||
+      activeOverlay === "assistant"
+    )
+      return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {

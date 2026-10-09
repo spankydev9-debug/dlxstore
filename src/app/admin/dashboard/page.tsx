@@ -63,7 +63,16 @@ function AdminDashboardContent() {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const tabParam = searchParams.get("tab") || "analytics";
-  const [activeTab, setActiveTab] = useState(tabParam);
+  // Unknown ?tab= values must not render a blank card — fall back to the default
+  // tab instead of trusting an arbitrary query string.
+  const VALID_TABS = new Set([
+    "analytics", "orders", "products", "deliveries", "inventory", "sessions",
+    "partners", "marketplace", "food", "coupons", "notifications", "reports",
+    "support", "internal", "visuals", "catalog-ai", "business",
+  ]);
+  const [activeTab, setActiveTab] = useState(
+    VALID_TABS.has(tabParam) ? tabParam : "analytics"
+  );
 
   // DB States
   const [products, setProducts] = useState<Product[]>([]);
@@ -119,7 +128,7 @@ function AdminDashboardContent() {
 
   // Sync Tab
   useEffect(() => {
-    setActiveTab(tabParam);
+    setActiveTab(VALID_TABS.has(tabParam) ? tabParam : "analytics");
   }, [tabParam]);
 
   // Load Data

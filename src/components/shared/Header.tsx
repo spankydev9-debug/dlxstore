@@ -490,14 +490,25 @@ export default function Header() {
                           <Flame className="h-4 w-4 text-orange-500" />
                           {t.streakTitle}
                         </Link>
-                        <Link
-                          href="/partner/dashboard"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-                        >
-                          <Store className="h-4 w-4 text-muted-foreground" />
-                          {t.sellerDashboardTitle}
-                        </Link>
+                        {user.role === "customer" ? (
+                          <Link
+                            href="/partner"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                          >
+                            <Store className="h-4 w-4 text-muted-foreground" />
+                            {t.partner}
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/partner/dashboard"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                          >
+                            <Store className="h-4 w-4 text-muted-foreground" />
+                            {t.sellerDashboardTitle}
+                          </Link>
+                        )}
                         <Link
                           href="/dashboard?tab=wishlist"
                           onClick={() => setIsUserMenuOpen(false)}

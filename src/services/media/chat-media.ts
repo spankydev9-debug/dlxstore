@@ -11,6 +11,13 @@ const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm
 const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+export const IMAGE_TYPES_LABEL = "JPG, PNG, WEBP, GIF";
+
+// Chat attachments live in their own bucket. The catalogue bucket
+// (product-images) is admin-write-only; a customer sending a photo must not be
+// routed into it. Created by 20261020090000... migration (awaiting approval).
+const CHAT_MEDIA_BUCKET = "chat-media";
+
 export interface MediaFile {
   file: File;
   type: MediaType;
@@ -51,7 +58,12 @@ export class ChatMediaService {
     const isDocument = ALLOWED_DOCUMENT_TYPES.includes(fileType);
 
     if (!isImage && !isVideo && !isAudio && !isDocument) {
-      return { valid: false, error: "File type not supported" };
+      return {
+        valid: false,
+        error: fileType
+          ? `File type not supported (${fileType}). Images: ${IMAGE_TYPES_LABEL}.`
+          : `File type not recognized. Images: ${IMAGE_TYPES_LABEL}.`,
+      };
     }
 
     return { valid: true };
@@ -148,16 +160,23 @@ export class ChatMediaService {
 
     // Upload main file
     const { error: uploadError } = await supabase.storage
-      .from("product-images")
+      .from(CHAT_MEDIA_BUCKET)
       .upload(filePath, mediaFile.file, {
         cacheControl: "3600",
         upsert: false,
       });
 
-    if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+    if (uploadError) {
+      if (uploadError.message?.match(/bucket not found|not found|404/i)) {
+        throw new Error(
+          "Photo upload is not configured yet — the DLX team is enabling the chat media storage."
+        );
+      }
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
 
     const { data: urlData } = supabase.storage
-      .from("product-images")
+      .from(CHAT_MEDIA_BUCKET)
       .getPublicUrl(filePath);
 
     let thumbnailUrl: string | undefined;
@@ -169,7 +188,7 @@ export class ChatMediaService {
         if (thumbnailBlob) {
           const thumbPath = `chat-media/${conversationId}/thumbnails/${timestamp}-${randomId}-thumb.jpg`;
           const { error: thumbError } = await supabase.storage
-            .from("product-images")
+            .from(CHAT_MEDIA_BUCKET)
             .upload(thumbPath, thumbnailBlob, {
               cacheControl: "3600",
               upsert: false,
@@ -177,7 +196,7 @@ export class ChatMediaService {
 
           if (!thumbError) {
             const { data: thumbUrlData } = supabase.storage
-              .from("product-images")
+              .from(CHAT_MEDIA_BUCKET)
               .getPublicUrl(thumbPath);
             thumbnailUrl = thumbUrlData.publicUrl;
           }
@@ -287,13 +306,14 @@ export class ChatMediaService {
     files: File[]
   ): Promise<ProcessedMedia[]> {
     const processedFiles: ProcessedMedia[] = [];
-    
+    const rejected: string[] = [];
+
     for (const file of files) {
       try {
         // Validate file
         const validation = await this.validateFile(file);
         if (!validation.valid) {
-          console.warn(`Skipping invalid file ${file.name}: ${validation.error}`);
+          rejected.push(`${file.name} — ${validation.error}`);
           continue;
         }
 
@@ -317,10 +337,23 @@ export class ChatMediaService {
         const processed = await this.uploadMedia(conversationId, mediaFile);
         processedFiles.push(processed);
       } catch (error) {
-        console.error(`Failed to process file ${file.name}:`, error);
+        rejected.push(
+          `${file.name} — ${error instanceof Error ? error.message : "upload failed"}`
+        );
       }
     }
-    
+
+    // Fail loudly instead of silently sending a text-only message. The previous
+    // behaviour (log + skip) turned every failed photo into a bare text message
+    // and "lost" media-only sends entirely.
+    if (processedFiles.length === 0 || rejected.length >= files.length) {
+      throw new Error(
+        rejected.length > 0
+          ? rejected.slice(0, 3).join("\n")
+          : "No supported files selected."
+      );
+    }
+
     return processedFiles;
   }
 

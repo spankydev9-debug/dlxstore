@@ -212,6 +212,7 @@ const fr = {
   shopUnavailable: "La boutique est indisponible",
   retry: "Réessayer",
   newsletterThanks: "Merci de vous être abonné !",
+  newsletterSoon: "Bientôt disponible — les inscriptions ne sont pas encore connectées.",
   // Footer
   footerFreeDelivery: "Livraison Gratuite",
   footerFreeDeliveryDesc: "Livraison gratuite garantie partout dans la ville de Goma à votre porte.",
@@ -960,6 +961,7 @@ const en: typeof fr = {
   shopUnavailable: "The shop is unavailable",
   retry: "Retry",
   newsletterThanks: "Thank you for subscribing!",
+  newsletterSoon: "Coming soon — sign-ups are not connected yet.",
   // Footer
   footerFreeDelivery: "Free Delivery",
   footerFreeDeliveryDesc: "Free delivery guaranteed throughout Goma city to your door.",
@@ -1751,6 +1753,7 @@ const sw: typeof fr = {
   shopUnavailable: "Duka halipatikani",
   retry: "Jaribu tena",
   newsletterThanks: "Asante kwa kujiunga!",
+  newsletterSoon: "Inakuja hivi karibuni — uandikishaji haujaunganishwa bado.",
 
 // Home FAQ
   faq1Q: "Usafiri wa bure Goma unafanyaje kazi?",
@@ -2500,6 +2503,7 @@ const ln: typeof fr = {
   shopUnavailable: "Duka halipatikani",
   retry: "Jaribu tena",
   newsletterThanks: "Asante kwa kujiunga!",
+  newsletterSoon: "Inakuja hivi karibuni — uandikishaji haujaunganishwa bado.",
 
 // Home FAQ
   faq1Q: "Kotámbisa ya pámba na Goma esalaka ndé nini?",
@@ -3207,6 +3211,7 @@ const tl: typeof fr = {
   shopUnavailable: "Duka halipatikani",
   retry: "Jaribu tena",
   newsletterThanks: "Asante kwa kujiunga!",
+  newsletterSoon: "Inakuja hivi karibuni — uandikishaji haujaunganishwa bado.",
   // Footer
   footerFreeDelivery: "Kutambula ya Bure",
   footerFreeDeliveryDesc: "Kutambula ya bare ekangamí mbala na mbala na Goma yina kuna mlango cīmu.",
@@ -3993,6 +3998,7 @@ const kg: typeof fr = {
   shopUnavailable: "Zandu yena kukonda",
   retry: "Sudikila diaka",
   newsletterThanks: "Matondo samu na kusonama!",
+  newsletterSoon: "Ekozala pɛpɛnɛ — boponami ekomelami te.",
   // Footer
   footerFreeDelivery: "Kutambula ya Bure",
   footerFreeDeliveryDesc: "Kutambula ya bare ekangamí mbala na mbala na Goma yina kuna mlango yaku.",

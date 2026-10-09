@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Truck, ShieldCheck, MapPin, MessageSquare } from "lucide-react";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Footer() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -85,7 +87,7 @@ export default function Footer() {
             <li><Link href="/shop" className="hover:text-foreground transition-colors">{t.footerAllProducts}</Link></li>
             <li><Link href="/about" className="hover:text-foreground transition-colors">{t.footerAboutUs}</Link></li>
             <li><Link href="/contact" className="hover:text-foreground transition-colors">{t.footerContactUs}</Link></li>
-            <li><Link href="/dashboard" className="hover:text-foreground transition-colors">{t.footerMyAccount}</Link></li>
+            <li><Link href={user ? "/dashboard" : "/auth?mode=login"} className="hover:text-foreground transition-colors">{user ? t.footerMyAccount : t.signIn}</Link></li>
           </ul>
         </div>
 

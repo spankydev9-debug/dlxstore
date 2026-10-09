@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { StoreSettings } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 
@@ -28,7 +28,6 @@ export function ComingSoon({ settings }: { settings: StoreSettings }) {
         {!settings.launch.starts_at && <p className="text-sm text-neutral-400">La date de lancement sera annoncée prochainement.</p>}
         <div className="flex flex-col justify-center gap-3 sm:flex-row">
           <Link href="/partner" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black"><Building2 className="h-4 w-4" />{t.partner}</Link>
-          <a href="#updates" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm font-semibold">Suivre le lancement <ArrowRight className="h-4 w-4" /></a>
         </div>
       </div>
     </section>

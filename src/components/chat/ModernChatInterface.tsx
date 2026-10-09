@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { 
-  MessageSquare, Users, Search, MoreVertical, Pin, 
+  MessageSquare, Users, Search, 
   CheckCircle, AlertCircle, UserPlus, Settings,
   ArrowLeft, Filter, Archive, Trash2
 } from "lucide-react";
@@ -54,10 +54,23 @@ export function ModernChatInterface() {
   const [showNewChat, setShowNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Whether the user is reading the latest messages. New messages only jump the
+  // list when they are already near the bottom, so history stays readable.
+  const nearBottomRef = useRef(true);
 
-  // Auto-scroll to bottom when new messages arrive
+  const handleContainerScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  // Auto-scroll to bottom when new messages arrive — but only when the reader is
+  // already at (or near) the latest message, so scrolling through history is never
+  // yanked back down.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (nearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   // Mark messages as delivered when they become visible
@@ -104,14 +117,15 @@ export function ModernChatInterface() {
     return true;
   });
 
-  const handleSendMessage = useCallback(async (body: string, media?: any[]) => {
-    if (!activeConversation) return;
-    
+  const handleSendMessage = useCallback(async (body: string, media?: File[]): Promise<boolean> => {
+    if (!activeConversation) return false;
     try {
-      await sendMessage(body, media);
+      const sent = await sendMessage(body, media);
       setTypingStatus(false);
+      return sent !== null;
     } catch (err) {
       console.error("Error sending message:", err);
+      return false;
     }
   }, [activeConversation, sendMessage, setTypingStatus]);
 
@@ -180,6 +194,7 @@ export function ModernChatInterface() {
         key={conversation.id}
         onClick={() => {
           setActiveConversationId(conversation.id);
+          nearBottomRef.current = true;
           // On phones the sidebar is a full-width drawer, so opening a
           // conversation must reveal the message pane behind it.
           if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
@@ -269,7 +284,7 @@ export function ModernChatInterface() {
   };
 
   return (
-    <div className="flex h-dvh bg-background">
+    <div className="flex h-full bg-background">
       {/* Sidebar. On phones it is a full-width drawer that is mutually exclusive
           with the conversation pane; from lg up it sits beside it. */}
       <div className={`${isSidebarOpen ? "w-full lg:w-80" : "w-0 overflow-hidden"} shrink-0 border-r border-border bg-background transition-all duration-300 flex flex-col`}>
@@ -295,9 +310,6 @@ export function ModernChatInterface() {
                     aria-label="Hide sidebar"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                  </button>
-                  <button className="p-1 hover:bg-muted rounded">
-                    <MoreVertical className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -445,17 +457,6 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
                 
                 <div className="flex items-center gap-2">
                   <TypingIndicatorDisplay indicators={typingIndicators} />
-                  <div className="flex gap-1">
-                    <button className="p-2 hover:bg-muted rounded">
-                      <Search className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 hover:bg-muted rounded">
-                      <Pin className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 hover:bg-muted rounded">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -463,6 +464,7 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
             {/* Messages area */}
             <div 
               ref={messagesContainerRef}
+              onScroll={handleContainerScroll}
               className="flex-1 overflow-y-auto p-4 space-y-4"
             >
               {messages.length === 0 ? (

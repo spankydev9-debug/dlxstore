@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bot, X } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { useOverlay } from "../../context/OverlayContext";
@@ -119,6 +120,7 @@ function savePos(pos: Pos, vw: number, vh: number): void {
 export function DLXAssistantFab() {
   const { t } = useLanguage();
   const { activeOverlay, openOverlay, closeOverlay } = useOverlay();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -135,6 +137,26 @@ export function DLXAssistantFab() {
   const suppressClickRef = useRef(false);
 
   const open = activeOverlay === "assistant";
+
+  // Close when the route changes. Product/suggested links inside the panel
+  // navigate via the router; leaving the popover open across pages would leave a
+  // stale assistant floating over unrelated content.
+  useEffect(() => {
+    if (open) closeOverlay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // A link clicked inside the panel navigates but does not trigger the
+  // outside-click handler — close explicitly.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    const onPanelClick = (event: MouseEvent) => {
+      if ((event.target as HTMLElement | null)?.closest?.("a")) closeOverlay();
+    };
+    panel.addEventListener("click", onPanelClick);
+    return () => panel.removeEventListener("click", onPanelClick);
+  }, [open, closeOverlay]);
 
   // Mount: measure the viewport, restore (or place) the control.
   useEffect(() => {
@@ -274,7 +296,7 @@ export function DLXAssistantFab() {
           style={panelStyle}
           data-fab-panel
         >
-          <div className="rounded-2xl border border-border/60 bg-card/95 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/5">
+          <div className="rounded-2xl border border-border/60 bg-card/90 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur-2xl ring-1 ring-black/5 dark:ring-white/5">
             <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">

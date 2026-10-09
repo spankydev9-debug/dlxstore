@@ -430,7 +430,7 @@ export async function uploadMessageMedia(
       .substring(2)}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("product-images")
+      .from("chat-media")
       .upload(filePath, media.file, {
         cacheControl: "3600",
         upsert: false,
@@ -439,7 +439,7 @@ export async function uploadMessageMedia(
     if (uploadError) throw new Error("Unable to upload media file.");
 
     const { data: urlData } = supabase.storage
-      .from("product-images")
+      .from("chat-media")
       .getPublicUrl(filePath);
 
     let thumbnailUrl: string | undefined;
@@ -452,7 +452,7 @@ export async function uploadMessageMedia(
         .substring(2)}.${thumbExt}`;
 
       const { error: thumbError } = await supabase.storage
-        .from("product-images")
+        .from("chat-media")
         .upload(thumbPath, media.thumbnail, {
           cacheControl: "3600",
           upsert: false,

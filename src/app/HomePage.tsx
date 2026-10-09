@@ -367,23 +367,7 @@ export default function HomePage() {
             {t.newsletterSubtitle}
           </p>
         </div>
-        <form
-          onSubmit={(e) => { e.preventDefault(); alert(t.newsletterThanks); }}
-          className="mx-auto flex max-w-md gap-2 rounded-full bg-white/5 border border-white/10 p-1"
-        >
-          <input
-            type="email"
-            placeholder={t.yourEmail}
-            required
-            className="flex-1 bg-transparent px-4 py-2 text-xs sm:text-sm text-white placeholder-neutral-400 outline-none"
-          />
-          <button
-            type="submit"
-            className="rounded-full bg-white text-black px-4 sm:px-6 py-2 text-xs font-semibold hover:bg-neutral-100 transition-colors"
-          >
-            {t.subscribe}
-          </button>
-        </form>
+        <p className="text-[11px] text-neutral-300/70">{t.newsletterSoon}</p>
       </section>
 
     </div>

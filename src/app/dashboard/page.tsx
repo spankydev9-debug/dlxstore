@@ -54,7 +54,16 @@ function DashboardContent() {
   const { t, language, setLanguage } = useLanguage();
 
   const tabParam = searchParams.get("tab") || "orders";
-  const [activeTab, setActiveTab] = useState(tabParam);
+  // Unknown ?tab= values (typos, stale links) must not render a blank card —
+  // fall back to the default tab instead of trusting the query blindly.
+  const VALID_TABS = new Set([
+    "orders", "wishlist", "notifications", "friends", "stories", "assistant",
+    "shares", "streak", "addresses", "avatar", "rewards", "loyalty", "privacy",
+    "language", "settings",
+  ]);
+  const [activeTab, setActiveTab] = useState(
+    VALID_TABS.has(tabParam) ? tabParam : "orders"
+  );
 
   // States
   const [orders, setOrders] = useState<Order[]>([]);
@@ -88,7 +97,7 @@ function DashboardContent() {
 
   // Sync Tab
   useEffect(() => {
-    setActiveTab(tabParam);
+    setActiveTab(VALID_TABS.has(tabParam) ? tabParam : "orders");
   }, [tabParam]);
 
   // Auth Guard

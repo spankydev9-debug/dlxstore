@@ -62,7 +62,7 @@ type ChatContextType = {
   typingIndicators: TypingIndicator[];
   // Core actions
   setActiveConversationId: (id: string | null) => void;
-  sendMessage: (body: string, media?: any[]) => Promise<ConversationMessage | null>;
+  sendMessage: (body: string, media?: File[]) => Promise<ConversationMessage | null>;
   markRead: (conversationId: string) => Promise<void>;
   markDelivered: (messageId: string) => Promise<void>;
   // Conversation management
@@ -408,14 +408,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setIsSending(true);
       try {
         let message;
+        // Media-only sends need a non-empty body until the migration relaxes
+        // send_conversation_message_v2 — use a neutral fallback so the photo is
+        // never dropped by the RPC's empty-body guard.
+        const text = body.trim() || (mediaFiles && mediaFiles.length > 0 ? "📎" : "");
         
         if (mediaFiles && mediaFiles.length > 0) {
           // Process and send media files
           const processedMedia = await ChatMediaService.processMultipleFiles(id, mediaFiles);
-          message = await sendMessageWithMedia(id, body.trim(), processedMedia);
+          message = await sendMessageWithMedia(id, text, processedMedia);
         } else {
           // Send text-only message
-          message = await dbSendMessage(id, body.trim());
+          message = await dbSendMessage(id, text);
         }
         
         // Delivery status needs the realtime schema; never let it fail a successful send.

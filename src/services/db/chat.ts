@@ -152,7 +152,41 @@ export async function getMessages(
       .order("created_at", { ascending: true });
 
     if (error) throw new Error(error.message || "Unable to load messages.");
-    return (data ?? []) as ConversationMessage[];
+    const messages = (data ?? []) as ConversationMessage[];
+
+    if (messages.length === 0) return messages;
+
+    // Attach media rows so attachments actually render. `message_media` lives in
+    // its own table (the v2 send path writes there); without a join here the
+    // media block in every bubble is dead and sent photos never appear.
+    const { data: mediaRows, error: mediaError } = await supabase
+      .from("message_media")
+      .select("*")
+      .in(
+        "message_id",
+        messages.map((m) => m.id)
+      );
+
+    if (mediaError) {
+      console.warn("Unable to load message attachments:", mediaError.message);
+      return messages;
+    }
+
+    if (mediaRows && mediaRows.length > 0) {
+      const byMessage = new Map<string, ConversationMessage["media"]>();
+      for (const row of mediaRows) {
+        const media = (row as unknown) as NonNullable<ConversationMessage["media"]>[number];
+        const list = byMessage.get(media.message_id) ?? [];
+        list.push(media);
+        byMessage.set(media.message_id, list);
+      }
+      return messages.map((m) => ({
+        ...m,
+        media: byMessage.get(m.id),
+      }));
+    }
+
+    return messages;
   }
   if (!isDemoMode) throw new Error(mockError());
   return readMockChat().messagesByConversation[conversationId] ?? [];
