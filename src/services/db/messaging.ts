@@ -1,4 +1,5 @@
 import type {
+  Campaign,
   CampaignSendResult,
   MarketingAudience,
   MessageOptIns,
@@ -387,60 +388,13 @@ export async function upsertMessageTemplate(input: {
 
 // ---------------------------------------------------------------------------
 // Campaign listing
+//
+// The campaigns table itself belongs to `campaigns.ts` — its type, its read and
+// its date-window rule all live there so the Message Center and the storefront
+// banner cannot disagree about what "live" means. This is the re-export the
+// Message Center was written against.
 // ---------------------------------------------------------------------------
 
-/**
- * The minimal campaign shape the Message Center needs. Campaigns are owned by
- * P11 Growth & Loyalty; this reads the existing table (admin-readable through its
- * `is_admin()` policy) rather than duplicating the growth data layer.
- */
-export type MessagingCampaign = {
-  id: string;
-  name: string;
-  slug: string;
-  channel: string;
-  segment: string;
-  discount_percent: number | null;
-  coupon_code: string | null;
-  starts_at: string | null;
-  ends_at: string | null;
-  is_active: boolean;
-};
+export type MessagingCampaign = Campaign;
 
-/** A campaign that is currently inside its date window and switched on. */
-export function isCampaignLive(campaign: MessagingCampaign): boolean {
-  if (!campaign.is_active) return false;
-  const now = Date.now();
-  if (campaign.starts_at && Date.parse(campaign.starts_at) > now) return false;
-  if (campaign.ends_at && Date.parse(campaign.ends_at) < now) return false;
-  return true;
-}
-
-export async function getCampaigns(): Promise<MessagingCampaign[]> {
-  if (!isSupabaseConfigured) {
-    noMessaging();
-    return [];
-  }
-
-  const { data, error } = await supabase!
-    .from("campaigns")
-    .select("id, name, slug, channel, segment, discount_percent, coupon_code, starts_at, ends_at, is_active")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw new Error(error.message || "Unable to load campaigns.");
-
-  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
-    id: str(row.id),
-    name: str(row.name),
-    slug: str(row.slug),
-    channel: str(row.channel, "whatsapp"),
-    segment: str(row.segment, "all"),
-    discount_percent: row.discount_percent === null || row.discount_percent === undefined
-      ? null
-      : num(row.discount_percent),
-    coupon_code: (row.coupon_code as string) ?? null,
-    starts_at: (row.starts_at as string) ?? null,
-    ends_at: (row.ends_at as string) ?? null,
-    is_active: bool(row.is_active),
-  }));
-}
+export { getCampaigns, isCampaignLive } from "./campaigns";

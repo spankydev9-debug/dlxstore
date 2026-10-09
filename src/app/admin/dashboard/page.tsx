@@ -17,6 +17,7 @@ import { MarketplaceConsole } from "../../../components/admin/MarketplaceConsole
 import { CustomOrdersConsole } from "../../../components/admin/CustomOrdersConsole";
 import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
 import { CouponControls } from "../../../components/admin/CouponControls";
+import { CampaignControls } from "../../../components/admin/CampaignControls";
 import { NotificationBroadcast } from "../../../components/admin/NotificationBroadcast";
 import { SupportInbox } from "../../../components/admin/SupportInbox";
 import { InternalChat } from "../../../components/admin/InternalChat";
@@ -43,6 +44,7 @@ import {
   Store,
   UtensilsCrossed,
   TicketPercent,
+  Megaphone,
   Plus,
   Edit2,
   Trash2,
@@ -69,7 +71,7 @@ function AdminDashboardContent() {
   // tab instead of trusting an arbitrary query string.
   const VALID_TABS = new Set([
     "analytics", "orders", "products", "deliveries", "inventory", "sessions",
-    "partners", "marketplace", "custom-orders", "food", "coupons", "notifications", "reports",
+    "partners", "marketplace", "custom-orders", "food", "coupons", "campaigns", "notifications", "reports",
     "support", "internal", "visuals", "catalog-ai", "business",
   ]);
   const [activeTab, setActiveTab] = useState(
@@ -451,6 +453,7 @@ function AdminDashboardContent() {
     { key: "custom-orders", label: "Commandes sur mesure", icon: PackageSearch },
     { key: "food", label: "DLX Food", icon: UtensilsCrossed },
     { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
+    { key: "campaigns", label: "Campagnes", icon: Megaphone },
     { key: "notifications", label: "Notifications", icon: Bell },
     { key: "reports", label: "Abuse Reports", icon: AlertTriangle },
     { key: "support", label: "Support Client", icon: MessageSquare },
@@ -927,6 +930,8 @@ function AdminDashboardContent() {
               {activeTab === "food" && <FoodVendorControls />}
 
               {activeTab === "coupons" && <CouponControls />}
+
+              {activeTab === "campaigns" && <CampaignControls />}
 
               {activeTab === "notifications" && (
                 <div className="space-y-6">

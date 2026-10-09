@@ -1315,6 +1315,27 @@ export interface BundleSummary {
   item_count: number;
 }
 
+/**
+ * A row of `public.campaigns` (20261014090000). `channel` and `segment` stay
+ * strings because the database CHECK lists are the authority; the editor offers
+ * exactly the values it accepts.
+ */
+export interface Campaign {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  channel: string;
+  segment: string;
+  discount_percent: number | null;
+  min_order: number;
+  coupon_code: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  is_active: boolean;
+  created_at: string | null;
+}
+
 export interface PersonalizedPromotion {
   id: string;
   title: string;

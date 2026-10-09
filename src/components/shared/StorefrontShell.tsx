@@ -12,6 +12,7 @@ import { isDemoMode, isSupabaseConfigured } from "../../services/db";
 import { LanguagePrompt } from "./LanguagePrompt";
 import { DLXAssistantFab } from "./DLXAssistantFab";
 import { CategoryRailWrapper } from "./CategoryRailWrapper";
+import { CampaignBanner } from "./CampaignBanner";
 
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings);
@@ -23,6 +24,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     <>
       <LanguagePrompt />
       <Header />
+      <CampaignBanner />
       <CategoryRailWrapper />
       <main className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         {children}
