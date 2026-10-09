@@ -154,6 +154,39 @@ Built 2026-10-09. tsc/eslint/build green. Reuses existing `Product` fields — n
 
 ---
 
+## P4b — Cart/checkout safety against the live catalogue
+
+Built 2026-10-09 on top of P4. See `docs/CHECKPOINT-P4B-CART-SAFETY.md`. tsc/eslint/build green and the
+stale-cart fix verified in a real browser against live production data.
+
+| Item | Status | Notes |
+|---|---|---|
+| Cart availability came from a stale localStorage snapshot | **FIXED** | `revalidateCart()` re-reads the existing `getProducts()` service, swaps in live price/stock, clamps quantity to real stock, and marks a product absent from the sellable catalogue unavailable (kept, never deleted). Called after hydration and on `/cart` + `/checkout` mount. Without this, P4's "handle stale carts safely" was untrue: `create_customer_order` recomputes gross from live prices and rejected the order at the final step. |
+| Checkout prefill deleted by P1 | **FIXED** | `73e47bf` emptied two `useEffect` bodies and left the comments. Restored name/phone from the profile and the default neighborhood. Not browser-verified (needs a signed-in account). |
+| False "added to cart" alert | **FIXED** | `addToCart` returns `boolean`; the product page only confirms success and otherwise shows `addToCartUnavailableAlert` (new key × 6 locales). |
+| Coupon could drift under a revalidated total | **FIXED** | Checkout tracks the subtotal a coupon was quoted against and re-quotes on drift, so the discount matches what `apply_order_coupon` recomputes. |
+| Order discount forgeable from the client? | **NO — verified** | A `BEFORE INSERT` trigger re-resolves the coupon, enforces active/expiry/max_uses/min_order/reward ownership, recomputes `expected_discount` and RAISES on any mismatch. |
+| Custom-order reads hid the unapplied state | **FIXED** | `getMyCustomOrders()` returned `[]` on a missing RPC, making the panel's honest "not available" branch dead code; it now throws `CustomOrdersUnavailableError`. |
+| `staff` cannot reach the custom-orders reviewer console | **OPEN — decision** | DB gates reviewers as admin/staff; `/admin/dashboard` renders for `role === "admin"` only. UI is stricter than the DB, so not a security hole. Widening admin access is the owner's call. |
+
+## P5 — Campaigns, launch banner & welcome rewards
+
+**NOT STARTED.** Next approved increment per §P3 follow-ups: real campaign banners/modals, admin
+controls, welcome rewards/coupons/loyalty, and the "We are now open" launch campaign. Never
+fabricate savings.
+
+---
+
+## Blocking decisions (need the owner)
+
+| ID | Item | Status |
+|---|---|---|
+| DEP-1a | Apply `20261018090000` + `20261019090000` | **BLOCKED — approval required. Highest urgency: these gate features that are ALREADY on production.** The deployed bundle (`main` @ `276e759`) calls `get_trending_products`, `get_product_social_proof` and `get_or_create_direct_conversation`; probed live 2026-10-09 they return `42P10`, `42804` and "function does not exist" respectively. So `/discover`'s trending shelf, product social proof and "message this person" are broken for real customers **right now**, and applying these two migrations fixes them with **no deploy needed**. `20261018090000` replaces two read-only function bodies only; `20261019090000` adds the DM RPC. Neither can be dry-run locally (no Postgres, Docker unavailable). |
+| DEP-1b | Apply `20261020090000` + `20261021090000` | **BLOCKED — approval required.** Not live defects: their callers were first committed on 2026-10-09 and are undeployed. Must land chronologically, before or with the DEP-2 deploy, or chat media and custom orders go dark on day one. |
+| DEP-2 | Push the 7 local commits and deploy | **BLOCKED — approval required.** Corrected state: production **is** deployed — `dlxstore-flax.vercel.app` serves `276e759` (= `origin/main`), built 2026-10-08 22:39. `/discover`, `/studio`, `/partner/dashboard` return 200, so the handoff's old "not deployed / 404" note was stale. What is missing is P0–P4b (`fa4d510`→`c61132f`) plus the uncommitted P4b fixes. |
+
+---
+
 ## P4–P6 — Later roadmap phases (reconciled, not yet started)
 
 Phase 4 AI Product Studio (Ghost Mannequin, Model Studio, Lifestyle Studio, batch) · Phase 5 AI Catalog Automation · (Friends/Streaks/Stories/Social/Discover/Assistant/Notifications/Safety/Growth/Analytics/Communication/Scale/Mobile delivered in prior phases). Studio & Avatar remain **paused by project direction — do not modify without authorization.**

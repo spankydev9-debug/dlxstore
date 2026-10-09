@@ -20,8 +20,9 @@ import type {
 //   * A price is never invented client-side. `budget_cents` is the customer's
 //     own optional hint; a quote's `price_cents` is always a reviewer's number.
 //
-// If the migration is unapplied, reads return empty and mutations throw
-// `CustomOrdersUnavailableError`, so the surrounding UI degrades honestly.
+// If the migration is unapplied, every call throws `CustomOrdersUnavailableError`
+// so the surrounding UI can say plainly that custom orders are not available —
+// rather than showing an empty list and a form that cannot possibly submit.
 // ---------------------------------------------------------------------------
 
 /** Thrown when the custom-order RPCs are missing, i.e. the migration is unapplied. */
@@ -150,10 +151,7 @@ function mapReviewItem(row: Record<string, unknown>): CustomOrderReviewItem {
 export async function getMyCustomOrders(limit = 50): Promise<CustomOrderRequest[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.rpc("get_my_custom_order_requests", { p_limit: limit });
-    if (error) {
-      if (isMissingRpc(error)) return [];
-      throw new Error(error.message || "Could not load your requests.");
-    }
+    if (error) rethrow(error);
     return (Array.isArray(data) ? data : []).map((row) => mapRequest(row as Record<string, unknown>));
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");

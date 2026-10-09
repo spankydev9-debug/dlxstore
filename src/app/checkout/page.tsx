@@ -15,7 +15,7 @@ import PurchaseContinueDialog, { PurchaseContinueItem } from "../../components/c
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, purchasableItems, total, clearCart, hasOnlyUnavailable, unavailableItems } = useCart();
+  const { items, purchasableItems, total, clearCart, hasOnlyUnavailable, unavailableItems, revalidateCart } = useCart();
   const { user } = useAuth();
   const { t } = useLanguage();
 
@@ -31,6 +31,8 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState<CouponValidation | null>(null);
   const [couponNotice, setCouponNotice] = useState("");
+  // The subtotal the applied coupon was quoted against.
+  const [couponBase, setCouponBase] = useState<number | null>(null);
 
   // Order confirmation + purchase continuation (DLX Chat / WhatsApp choice).
   const [confirmedOrder, setConfirmedOrder] = useState<{ order: Order; items: PurchaseContinueItem[] } | null>(null);
@@ -38,6 +40,8 @@ export default function CheckoutPage() {
   // Sync with logged-in user details if available
   useEffect(() => {
     if (user) {
+      setCustomerName(user.full_name);
+      setPhoneNumber(user.phone || "");
     }
   }, [user]);
 
@@ -45,16 +49,49 @@ export default function CheckoutPage() {
   useEffect(() => {
     const list = GOMA_MUNICIPALITIES[municipality] || [];
     if (list.length > 0) {
+      setNeighborhood(list[0]);
     }
   }, [municipality]);
+
+  // The cart can have been sitting in localStorage since before a restock or a
+  // price change. Confirm availability against the live catalogue here, because
+  // create_customer_order rejects any total that no longer matches it.
+  useEffect(() => {
+    void revalidateCart();
+  }, [revalidateCart]);
 
   const applyCoupon = async () => {
     try {
       const result = await validateCoupon(couponCode, total, false);
       setCoupon(result);
+      setCouponBase(result ? total : null);
       setCouponNotice(result ? t.couponApplied : t.couponInvalid);
-    } catch { setCoupon(null); setCouponNotice(t.couponUnavailable); }
+    } catch { setCoupon(null); setCouponBase(null); setCouponNotice(t.couponUnavailable); }
   };
+
+  // A quoted discount belongs to the subtotal it was computed against. When the
+  // live catalogue moves that subtotal — a price change, or a line dropping out
+  // of stock — the database recomputes a different discount and rejects the
+  // order, so re-quote against the current total rather than fail at submission.
+  useEffect(() => {
+    if (!coupon || couponBase === null || couponBase === total) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await validateCoupon(coupon.coupon.code, total, false);
+        if (cancelled) return;
+        setCoupon(result);
+        setCouponBase(result ? total : null);
+        setCouponNotice(result ? t.couponApplied : t.couponInvalid);
+      } catch {
+        if (cancelled) return;
+        setCoupon(null);
+        setCouponBase(null);
+        setCouponNotice(t.couponUnavailable);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [total, coupon, couponBase, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

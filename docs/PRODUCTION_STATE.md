@@ -3,6 +3,12 @@
 Production environment, deployment, and backup reference. Generated 2026-09-28.
 All values verified read-only. No production change was made.
 
+> **Correction — 2026-10-09.** The §1 table below is superseded. Production has been redeployed
+> many times since 2026-09-09; the alias `https://dlxstore-flax.vercel.app` now serves
+> `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, built 2026-10-08 22:39 CAT from **`main` @ `276e759`**
+> (= `origin/main`), and its build functions still report `iad1`.
+> Evidence, plus the live RPC defects this build exposes: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1.
+
 ---
 
 ## 1. Deployment

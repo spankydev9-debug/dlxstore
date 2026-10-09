@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { ProductImage } from "../../components/shared/ProductImage";
 import { useCart } from "../../context/CartContext";
@@ -8,8 +8,12 @@ import { useLanguage } from "../../context/LanguageContext";
 import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export default function CartPage() {
-  const { items, purchasableItems, unavailableItems, subtotal, total, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { items, purchasableItems, unavailableItems, subtotal, total, updateQuantity, removeFromCart, clearCart, revalidateCart } = useCart();
   const { t } = useLanguage();
+
+  useEffect(() => {
+    void revalidateCart();
+  }, [revalidateCart]);
 
   if (items.length === 0) {
     return (

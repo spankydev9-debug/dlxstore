@@ -332,6 +332,7 @@ const fr = {
   noReviews: "Aucun avis rédigé pour le moment.",
   similarProducts: "Articles similaires",
   addedToCartAlert: "Produit ajouté au panier !",
+  addToCartUnavailableAlert: "Ce produit n'est plus disponible pour le moment.",
   reviewPublishedAlert: "Votre avis a été publié !",
   reviewErrorAlert: "Erreur lors de la publication de votre avis.",
   // Partner application
@@ -1149,6 +1150,7 @@ const en: typeof fr = {
   noReviews: "No reviews written yet.",
   similarProducts: "Similar items",
   addedToCartAlert: "Product added to cart!",
+  addToCartUnavailableAlert: "This product is not available right now.",
   reviewPublishedAlert: "Your review has been published!",
   reviewErrorAlert: "An error occurred while publishing your review.",
   // Partner application
@@ -1967,6 +1969,7 @@ const sw: typeof fr = {
   noReviews: "Hakuna maoni yaliyoandikwa bado.",
   similarProducts: "Bidhaa zinazofanana",
   addedToCartAlert: "Bidhaa imeongezwa kwenye gari!",
+  addToCartUnavailableAlert: "Bidhaa hii haipatikani kwa sasa.",
   reviewPublishedAlert: "Maoni yako yamechapishwa!",
   reviewErrorAlert: "Hitilafu ilitokea wakati wa kuchapisha maoni yako.",
   // Partner application
@@ -2849,6 +2852,7 @@ const ln: typeof fr = {
   noReviews: "Avis moko ezalí té.",
   similarProducts: "Biléi bisúsu ya lolenge oyo",
   addedToCartAlert: "Produit eteyami na gari!",
+  addToCartUnavailableAlert: "Produit oyo ezali te sikoyo.",
   reviewPublishedAlert: "Avis na yo ebimí!",
   reviewErrorAlert: "Libabá esalemaki na kobimisa avis na yo.",
   // Partner application
@@ -3667,6 +3671,7 @@ const tl: typeof fr = {
   noReviews: "Kakidi mulumbu kadi.",
   similarProducts: "Bintu bionsuana",
   addedToCartAlert: "Kintu kituadi mu ngiba!",
+  addToCartUnavailableAlert: "Kintu kabiyi ko.",
   reviewPublishedAlert: "Mulumbu wenu ubiongwekele!",
   reviewErrorAlert: "Bulume bukebenshibwa mu kubiongola mulumbu wenu.",
   // Partner application
@@ -4463,6 +4468,7 @@ const kg: typeof fr = {
   noReviews: "Kukonda masesa ntete.",
   similarProducts: "Bima yike yilanda",
   addedToCartAlert: "Kintu kia tiamwa na kitumba!",
+  addToCartUnavailableAlert: "Ikintu kele ve.",
   reviewPublishedAlert: "Masesa maku mameka!",
   reviewErrorAlert: "Dikambu dimonika na kusoneka masesa maku.",
   // Partner application

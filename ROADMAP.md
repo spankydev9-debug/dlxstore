@@ -31,7 +31,20 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | **P14** | **20 Scale the business** (marketplace) | complete, local verified; no live seller or payout yet; `tl`/`kg`/`ln` strings need native-speaker review |
 | **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; Core Web Vitals + PERF-4 still open |
-| **Audit** | **Production readiness (P9–P16)** | local code production-ready; **production is not deployed** — 37 read-only RPCs missing and 9 live browser defects. Go-live requires migration + deploy approval. See `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
+| **Audit** | **Production readiness (P9–P16)** | local code production-ready. Re-checked 2026-10-09: **production IS deployed** (`dlxstore-flax.vercel.app` ← `main` @ `276e759`, the `git-main` alias) and the old "37 RPCs missing" figure is obsolete — the ledger is **45/45 at `20261017093000` with 4 pending**. See `docs/CHECKPOINT-PRODUCTION-READINESS.md`, corrected in `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1 |
+| **P0–P4b** | **2026-10-09 working series** (commits `18f250b`→`c61132f` + uncommitted P4b) | See the section below; each advances an existing roadmap phase rather than opening a new one |
+
+### 2026-10-09 working series — where each increment landed
+
+| P | Delivered | Roadmap phase advanced | Live on production? |
+|---|---|---|---|
+| P0 | Chat media repaired, honest errors, UX cleanup (`18f250b`) | 7 DLX Chat | No — undeployed. Media also needs `20261020090000` |
+| P1 | Explicit purchase continuation: DLX Chat vs WhatsApp (`73e47bf`) | 3 Commerce · 7 DLX Chat | No — undeployed |
+| P2 | Global horizontal category rail from real catalogue categories (`98f3e68`) | 2 UX · 3 Commerce | No — undeployed |
+| P3 | Chat product cards, product→Story sharing, custom orders (`46ccaa3`) | 11 Social commerce · 10 Stories · 3 Commerce | Cards work on text; custom orders gated on `20261021090000` |
+| P4 | Availability classifier + purchasable/unavailable split (`c61132f`) | 3 Commerce · 6 Inventory | No — undeployed |
+| P4b | Cart revalidation against the live catalogue, checkout prefill, coupon drift, false-alert and dead-code fixes | 3 Commerce · 6 Inventory | **Built + browser-verified, uncommitted.** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
+| P5 | Campaigns, launch banner/modals, admin controls, welcome rewards, "We are now open" | 17 Growth & loyalty · 19 Communication | **NOT STARTED** — next approved increment |
 
 Roadmap Phase 12 (DLX Profiles) has no separate P-series entry; the profile, privacy and
 identity surfaces it describes were delivered inside P6 and P10.
@@ -141,7 +154,11 @@ cart, check out, find an order, and find Chat, Profile, Stories, and Rewards. Ev
 
 ## Phase 3 — Commerce experience
 
-Not started. `BACKLOG.md` COM-1 … COM-5.
+**Partially delivered — not closed.** P2 (category rail), P1 (purchase continuation) and P4/P4b
+(availability classifier, cart revalidation against the live catalogue, coupon/total safety) landed
+2026-10-09; see `docs/CHECKPOINT-P4B-CART-SAFETY.md`. Remaining: discovery breadth (deals, new
+arrivals, related, recently viewed, filters/sorting), product-page reviews & Q&A, order status
+timeline and cancellation surfaces. `BACKLOG.md` COM-1 … COM-5.
 
 Make shopping excellent before expanding the social ecosystem.
 
@@ -504,6 +521,13 @@ product → another customer discovers it → cycle repeats.
 16. Marketplace expansion
 17. PWA / native evaluation
 18. Full DLX ecosystem
+
+**Current position (2026-10-09).** Steps 1–3 are in progress, not finished: commerce polish advanced
+through P1–P4b while Phase 1 QA items remain open. The next approved increment is **P5 — campaigns,
+launch banner & welcome rewards** (step 13), because it is customer-facing and needs no new schema.
+**AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
+Nothing below reaches a customer without two owner decisions: apply the 4 pending migrations, and
+push + deploy local `main` (production is still at `276e759`). See `BACKLOG.md` DEP-1a/DEP-1b/DEP-2.
 
 ---
 

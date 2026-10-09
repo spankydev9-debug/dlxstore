@@ -145,8 +145,12 @@ export default function ProductDetailPage({
 
   const handleAddToCart = () => {
     if (!product) return;
-    addToCart(product, quantity, selectedSize, selectedColor);
-    alert(t.addedToCartAlert);
+    const added = addToCart(product, quantity, selectedSize, selectedColor);
+    if (added) {
+      alert(t.addedToCartAlert);
+    } else {
+      alert(t.addToCartUnavailableAlert);
+    }
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {

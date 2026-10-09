@@ -1,6 +1,18 @@
 # CHECKPOINT — SEC-01: Confirmed Security Findings
 
 **Status: 2 vulnerabilities FIXED AND VERIFIED · 1 confirmed already-fixed · 1 confirmed correct**
+
+> **2026-10-09 UPDATE — these findings are LIVE IN PRODUCTION and the §8 checklist is obsolete.**
+> Read-only SQL against `szhkesvvrgcxbxucodzz` confirms `20261011090000` and `20261011100000` are
+> both in the remote ledger (production is 45/45, latest `20261017093000`) and both fixes are in
+> effect: `get_shop_stats` and `quote_coupon` ACLs contain **no `anon`**. Coupon validation works for
+> customers today — it is not broken. §6.2 is resolved: the live `is_admin()` body uses
+> `role = 'admin'` (single quotes), so policies depending on it function. §5's count of 52 was a
+> scratch-DB artefact; production holds 83 `anon=X` definers, of which only 18 lack an internal
+> guard and 16 of those are `RETURNS trigger` (not callable via PostgREST). The remaining callable
+> pair — `get_active_bundles`, `get_active_flash_sales` — is the intended public storefront read
+> path and exposes only public retail prices. **No additional exposure found.** See
+> `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1.
 **Branch:** `main` @ `e760c09` (uncommitted working tree)
 **Scope:** ONLY the four already-documented findings. No broad audit was performed.
 **Environment:** local scratch Supabase Postgres 17.6.1 (`supabase_db_dlxstore`,

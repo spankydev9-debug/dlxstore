@@ -1,9 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Product } from "../types";
 import { useAuth } from "./AuthContext";
 import { markCartRecovered, trackAbandonedCart } from "../services/db/loyalty";
+import { getProducts } from "../services/db/products";
+import { isSupabaseConfigured } from "../services/db/index";
 import { getProductAvailability, type ProductAvailability } from "../lib/product-availability";
 
 export interface CartItem {
@@ -26,10 +28,12 @@ type CartContextType = {
   total: number;
   /** True when the cart has items but none of them can be bought. */
   hasOnlyUnavailable: boolean;
-  addToCart: (product: Product, quantity?: number, size?: string, color?: string) => void;
+  addToCart: (product: Product, quantity?: number, size?: string, color?: string) => boolean;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, qty: number) => void;
   clearCart: () => void;
+  /** Re-read the live catalogue so availability and totals reflect what the store can sell now. */
+  revalidateCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -71,10 +75,67 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, mounted]);
 
-  const addToCart = (product: Product, quantity = 1, size?: string, color?: string) => {
-    // Never add a product that cannot be bought. This is the first line of
-    // defence; the server re-validates stock at checkout regardless.
-    if (!getProductAvailability(product).purchasable) return;
+  // Cart lines persist in localStorage, so each one carries a snapshot of the
+  // product taken when it was added. Stock and prices move on the server, and
+  // create_customer_order rejects any order whose total does not match the live
+  // catalogue — so a stale snapshot fails only at the final step, after the
+  // customer has filled in their address. Revalidate against the real catalogue
+  // so availability and totals are computed from what the store can sell now.
+  const itemsRef = useRef<CartItem[]>(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  const inFlightRef = useRef<Promise<void> | null>(null);
+  const revalidateCart = useCallback(async (): Promise<void> => {
+    if (!isSupabaseConfigured) return;
+    if (inFlightRef.current) return inFlightRef.current;
+    if (itemsRef.current.length === 0) return;
+
+    const task = (async () => {
+      try {
+        const live = await getProducts();
+        // An empty catalogue means the read told us nothing usable. Marking every
+        // line unavailable here would silently zero the total, so leave the cart
+        // as it is and let the server validate at submission.
+        if (live.length === 0) return;
+        const byId = new Map(live.map((product) => [product.id, product]));
+        setItems((prev) =>
+          prev.map((item) => {
+            const current = byId.get(item.product.id);
+            if (!current) {
+              // Withdrawn, deactivated or deleted: no longer sellable. Keep the
+              // line for reference and let the UI mark it unavailable.
+              return { ...item, product: { ...item.product, is_active: false } };
+            }
+            const max = Number.isFinite(current.stock_quantity)
+              ? Math.max(1, Math.trunc(current.stock_quantity))
+              : 1;
+            return { ...item, product: current, quantity: Math.min(item.quantity, max) };
+          }),
+        );
+      } catch {
+        // A failed lookup must never destroy the cart. Availability stays as
+        // last known, and the server still re-validates stock and price.
+      }
+    })();
+
+    inFlightRef.current = task;
+    try {
+      await task;
+    } finally {
+      inFlightRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) void revalidateCart();
+  }, [mounted, revalidateCart]);
+
+  const addToCart = (product: Product, quantity = 1, size?: string, color?: string): boolean => {
+    // Never add a product that cannot be bought. Report it, so the caller does
+    // not tell the customer something was added when nothing was.
+    if (!getProductAvailability(product).purchasable) return false;
 
     setItems(prevItems => {
       const cartItemId = `${product.id}-${size || ""}-${color || ""}`;
@@ -99,6 +160,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
       ];
     });
+
+    return true;
   };
 
   const removeFromCart = (cartItemId: string) => {
@@ -179,7 +242,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addToCart,
         removeFromCart,
         updateQuantity,
-        clearCart
+        clearCart,
+        revalidateCart
       }}
     >
       {children}

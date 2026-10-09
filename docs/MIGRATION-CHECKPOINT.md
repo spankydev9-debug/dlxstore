@@ -1,5 +1,23 @@
 # Production Migration Checkpoint
 
+> **2026-10-09 RE-CHECKED.** `supabase migration list --linked` again
+> reports **45/45 applied, latest `20261017093000`, gapless**, and the repo now holds 49 migrations.
+> **4 are local-only and pending:** `20261018090000_fix_social_rpc_return_types`,
+> `20261019090000_direct_chat`, `20261020090000_chat_media_and_commerce_fix`,
+> `20261021090000_custom_orders`. They must be applied in that chronological order and **require
+> explicit owner approval**; none has been dry-run anywhere, because there is no local Postgres and
+> Docker is unavailable.
+>
+> **The gap is not merely "dark once deployed" — part of it is breaking production today.**
+> Production is deployed at `main` @ `276e759`, which already ships the callers of the first two
+> migrations. Probed live on 2026-10-09: `get_trending_products` → `42P10`, `get_product_social_proof`
+> → `42804`, `get_or_create_direct_conversation` → absent from `pg_proc`. Applying `20261018090000`
+> and `20261019090000` therefore fixes three live customer-facing features **with no deploy**.
+> `20261020090000` and `20261021090000` gate code committed 2026-10-09 that is not deployed yet —
+> they must simply land before or with the next deploy, or chat media and custom orders go dark on
+> day one. Evidence: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1. Everything below is the 2026-10-04
+> snapshot.
+
 **Project:** `szhkesvvrgcxbxucodzz`
 **Date:** 2026-10-04
 **Status:** COMPLETE — 45 of 45 applied and verified. No pending migrations.
