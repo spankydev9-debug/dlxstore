@@ -1,7 +1,7 @@
 # AGENT_HANDOFF.md
 
 Canonical handoff contract for every agent working on DLXSTORE.
-Last updated: 2026-10-09 (P4b cart/checkout safety pass). Owner: Lead / Architect agent.
+Last updated: 2026-10-09 (P5 campaigns, storefront banner, admin editor). Owner: Lead / Architect agent.
 
 ---
 
@@ -11,16 +11,20 @@ Last updated: 2026-10-09 (P4b cart/checkout safety pass). Owner: Lead / Architec
 >
 > | | |
 > |---|---|
-> | Branch / HEAD | `main` @ `8a2fd56` — **8 commits ahead of `origin/main`** (`276e759`); nothing pushed, pushing needs owner approval. `scripts/` is untracked. The `e760c09` / `mobile-ux-hardening` / `bb81f9d` figures below are historical |
-> | Newest work | P0 `18f250b` (chat media) · P1 `73e47bf` (purchase continuation) · P2 `98f3e68` (category rail) · P3 `46ccaa3` (product cards, Story sharing, custom orders) · P4 `c61132f` (availability + cart) · **P4b `8a2fd56` (cart/checkout safety against the live catalogue).** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
+> | Branch / HEAD | `main` @ `48085a5` — **10 commits ahead of `origin/main`** (`276e759`); nothing pushed, pushing needs owner approval. `scripts/` is untracked. The `e760c09` / `mobile-ux-hardening` / `bb81f9d` figures below are historical |
+> | Newest work | P0 `18f250b` (chat media) · P1 `73e47bf` (purchase continuation) · P2 `98f3e68` (category rail) · P3 `46ccaa3` (product cards, Story sharing, custom orders) · P4 `c61132f` (availability + cart) · P4b `8a2fd56` (cart/checkout safety against the live catalogue) · **P5 `48085a5` (campaign data layer, storefront banner, admin campaign editor, coupon-honesty guard).** See `docs/CHECKPOINT-P5-CAMPAIGNS.md` |
+> | **Campaign data** | `campaigns` and `personalized_promotions` are **empty in production** — the P5 banner therefore renders nothing today. `coupons` has 3 rows and **none can redeem**: `DLX2001` (20%) expired 2026-08-30, `2073` (35%) expired 2026-08-29, and the only unexpired code is `active = false`. Because `campaigns.coupon_code` has an FK to `coupons(code)` and P5's guard refuses a campaign whose coupon cannot deliver, **the "We are now open" launch is two ordered production writes (BACKLOG DEP-3), not one** |
 > | P9–P16 status | complete and locally verified — see `docs/CHECKPOINT-P14-MARKETPLACE.md`, `-P15-MOBILE-PWA.md`, `-P16-PERFORMANCE.md` |
-> | **Production deploy state** | **Deployed, but behind local `main`.** Re-checked 2026-10-09: the production alias `https://dlxstore-flax.vercel.app` serves deployment `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, created 2026-10-08 22:39 CAT from **`main` @ `276e759`** (= `origin/main`). `/discover`, `/studio`, `/partner/dashboard` return **200** — the earlier "not deployed / 404" note is obsolete. Everything from `fa4d510` onward (P0–P4b) is **not** on production. Build functions report region `iad1` on this deployment, which conflicts with the `cpt1` cold-start measurement in `docs/CHECKPOINT-P16-PERFORMANCE.md` — re-measure before quoting either |
+> | **Production deploy state** | **Deployed, but behind local `main`.** Re-checked 2026-10-09: the production alias `https://dlxstore-flax.vercel.app` serves deployment `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, created 2026-10-08 22:39 CAT from **`main` @ `276e759`** (= `origin/main`). `/discover`, `/studio`, `/partner/dashboard` return **200** — the earlier "not deployed / 404" note is obsolete. Everything from `fa4d510` onward (P0–P5) is **not** on production. **Verify a deploy in a browser with the Service Worker caches cleared** — `/sw.js` (`dlxstore-shell-v4`, `dlxstore-static-v4`) re-registers on every load and was observed serving an outdated bundle, so an alias can look unchanged for reasons that have nothing to do with the deploy. Build functions report region `iad1` on this deployment, which conflicts with the `cpt1` cold-start measurement in `docs/CHECKPOINT-P16-PERFORMANCE.md` — re-measure before quoting either |
 > | **Production DB state** | **45/45 migrations applied, latest `20261017093000`; 4 pending** (`20261018090000`, `20261019090000`, `20261020090000`, `20261021090000`). The "missing 37 of 40 RPCs" figure below is obsolete. Live defects re-probed 2026-10-09 **against the deployed bundle** — i.e. these are user-facing on production right now: `get_trending_products` → HTTP 400 `42P10 "ORDER BY position 9 is not in select list"` (silently kills the `/discover` trending shelf), `get_product_social_proof` → HTTP 400 `42804 "Returned type bigint … column 2"` (product social proof never renders), and `get_or_create_direct_conversation` **does not exist** in `pg_proc` (starting a DM throws "Unable to start the conversation."). The first two are repaired by `20261018090000`; applying it fixes live traffic without any deploy. `20261019090000` gates DMs. `20261020090000` / `20261021090000` belong to code that is not deployed yet, so they are not live defects |
 > | Deploy region | Unresolved: the current production build reports `iad1`, the P16 audit measured `cpt1` cold starts. Re-measure rather than trusting either |
 > | Latest audit | `docs/CHECKPOINT-PRODUCTION-READINESS.md` — go-live checklist, live browser defects, accepted risks |
-> | Latest work | `docs/CHECKPOINT-P4B-CART-SAFETY.md` — the 5 cart/checkout defects fixed and how each was verified |
+> | Latest work | `docs/CHECKPOINT-P5-CAMPAIGNS.md` — what P5 built, the production campaign/coupon facts, the 20 validator and coupon-guard cases, and exactly what stays unverified |
 >
-> Shipping what is already built needs **both**: apply the 4 pending migrations (chronologically, with owner approval) **and** push + deploy local `main`. Production currently runs `276e759`.
+> Shipping what is already built needs **three** owner decisions: apply the pending migrations
+> (DEP-1a first — its absence breaks RPCs that are live for customers right now, and needs no
+> deploy), push + deploy local `main` (DEP-2), and seed a redeemable coupon **before** the campaign
+> that advertises it (DEP-3). Production currently runs `276e759`.
 
 ---
 

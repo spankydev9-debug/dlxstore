@@ -32,7 +32,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; Core Web Vitals + PERF-4 still open |
 | **Audit** | **Production readiness (P9–P16)** | local code production-ready. Re-checked 2026-10-09: **production IS deployed** (`dlxstore-flax.vercel.app` ← `main` @ `276e759`, the `git-main` alias) and the old "37 RPCs missing" figure is obsolete — the ledger is **45/45 at `20261017093000` with 4 pending**. See `docs/CHECKPOINT-PRODUCTION-READINESS.md`, corrected in `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1 |
-| **P0–P4b** | **2026-10-09 working series** (commits `18f250b`→`8a2fd56`, 8 ahead of `origin/main`) | See the section below; each advances an existing roadmap phase rather than opening a new one |
+| **P0–P5** | **2026-10-09 working series** (commits `18f250b`→`48085a5`, 10 ahead of `origin/main`) | See the section below; each advances an existing roadmap phase rather than opening a new one |
 
 ### 2026-10-09 working series — where each increment landed
 
@@ -44,7 +44,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | P3 | Chat product cards, product→Story sharing, custom orders (`46ccaa3`) | 11 Social commerce · 10 Stories · 3 Commerce | Cards work on text; custom orders gated on `20261021090000` |
 | P4 | Availability classifier + purchasable/unavailable split (`c61132f`) | 3 Commerce · 6 Inventory | No — undeployed |
 | P4b | Cart revalidation against the live catalogue, checkout prefill, coupon drift, false-alert and dead-code fixes (`8a2fd56`) | 3 Commerce · 6 Inventory | **Committed locally; browser-verified; not pushed, not deployed.** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
-| P5 | Campaigns, launch banner/modals, admin controls, welcome rewards, "We are now open" | 17 Growth & loyalty · 19 Communication | **NOT STARTED** — next approved increment |
+| P5 | Campaign data layer, storefront banner, admin campaign editor, coupon-honesty guard (`48085a5`) | 17 Growth & loyalty · 19 Communication | **Partially delivered — code only.** Banner, editor, `campaigns.ts` and the anti-fabrication guard are built, type-safe, lint-clean, built and browser-verified. **Not pushed, not deployed, nothing seeded.** Still open in this phase: the "We are now open" launch (DEP-3 — a redeemable coupon must exist before a campaign may advertise it) and a launch modal. See `docs/CHECKPOINT-P5-CAMPAIGNS.md` |
 
 Roadmap Phase 12 (DLX Profiles) has no separate P-series entry; the profile, privacy and
 identity surfaces it describes were delivered inside P6 and P10.
@@ -523,11 +523,14 @@ product → another customer discovers it → cycle repeats.
 18. Full DLX ecosystem
 
 **Current position (2026-10-09).** Steps 1–3 are in progress, not finished: commerce polish advanced
-through P1–P4b while Phase 1 QA items remain open. The next approved increment is **P5 — campaigns,
-launch banner & welcome rewards** (step 13), because it is customer-facing and needs no new schema.
+through P1–P4b and **P5 is delivered as code** (`48085a5` — campaign layer, storefront banner, admin
+editor, coupon-honesty guard), while Phase 1 QA items remain open. The next approved increment is
+**P6 — advertising beyond the banner (launch modal), then the feedback page and honest external
+sharing** (step 13 → 14).
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
-Nothing below reaches a customer without two owner decisions: apply the 4 pending migrations, and
-push + deploy local `main` (production is still at `276e759`). See `BACKLOG.md` DEP-1a/DEP-1b/DEP-2.
+Nothing below reaches a customer without three owner decisions: apply the pending migrations
+(DEP-1a is the urgent pair — its absence breaks features already live), push and deploy local `main`
+(production is still at `276e759`), and seed a redeemable coupon plus the launch campaign (DEP-3). See `BACKLOG.md` DEP-1a/DEP-1b/DEP-2/DEP-3.
 
 ---
 

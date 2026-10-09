@@ -134,8 +134,8 @@ Built 2026-10-09. See `docs/CHECKPOINT-P3-SOCIAL-COMMERCE-CONTINUATION.md`. tsc/
 
 **Next known follow-ups (not complete):**
 - P4 — Inventory & cart — **DONE (local)** 2026-10-09. See below.
-- P5 — In-app advertising, campaigns & rewards (real campaign banners/modals, admin controls, welcome rewards/coupons/loyalty, "We are now open" launch campaign). Never fabricate savings.
-- P6 — Feedback page + external marketing/sharing (honest about permissions; do not pretend a post published).
+- P5 — In-app advertising, campaigns & rewards — **DONE (code) `48085a5`** 2026-10-09; banner + admin controls + coupon-honesty guard. **Open:** the "We are now open" launch itself (DEP-3, two ordered production writes) and a launch modal. Never fabricate savings.
+- P6 — In-app advertising surfaces beyond the banner (modal), then the feedback page + external marketing/sharing (honest about permissions; do not pretend a post published).
 
 ---
 
@@ -171,9 +171,19 @@ stale-cart fix verified in a real browser against live production data.
 
 ## P5 — Campaigns, launch banner & welcome rewards
 
-**NOT STARTED.** Next approved increment per §P3 follow-ups: real campaign banners/modals, admin
-controls, welcome rewards/coupons/loyalty, and the "We are now open" launch campaign. Never
-fabricate savings.
+**DELIVERED (code) at `48085a5` — not pushed, no migration, nothing seeded.** Evidence:
+`docs/CHECKPOINT-P5-CAMPAIGNS.md`.
+
+| Item | Status | Detail |
+|---|---|---|
+| Campaign data layer | **DONE** | `src/services/db/campaigns.ts` is the one owner of `public.campaigns` (table shipped in `20261014090000`; no new table, no migration). `messaging.ts` re-exports `getCampaigns` / `isCampaignLive` / `MessagingCampaign` instead of keeping its own copy. |
+| Admin campaign controls | **DONE (code)** | `src/components/admin/CampaignControls.tsx` behind a new dashboard **Campagnes** tab. Renders and validates in a dev session; channel/segment options come from the same constants the validator and the DB CHECKs use. **Save/update never run as an admin** — no admin session exists locally and none was created on production. |
+| Storefront campaign banner | **DONE (code)** | `src/components/shared/CampaignBanner.tsx` in `StorefrontShell`, shop routes only (`/cart` confirmed banner-free), per-slug dismissal in `localStorage`, all copy built from campaign fields, `fr`/`en` copy and `formatMoney` verified in a real browser. Populated states verified through a temporary stub that is **reverted** — never a production write. |
+| **Never fabricate savings** | **ENFORCED** | Two rules now hold: the banner prints no percentage and no threshold unless the row carries them (verified with `discount_percent: null`, `min_order: 0`); and `describeCouponProblem` refuses a campaign whose banner promises what its coupon cannot deliver — missing code, switched off, expired, exhausted, expiring before the campaign ends, fixed-amount coupon under a `%` claim, or a different percentage. 20 validator + coupon-guard cases all behaved as designed. |
+| Coupon code reaches the customer | **DONE** | `campaigns.discount_percent` is **not** applied at checkout — the coupon code is the only real saving — so the banner now shows the code as a copy chip (`aria-label` reuses `rewardsCouponCopy`/`rewardsCouponCopied`; no new keys). Copy verified with a stubbed clipboard; a blocked clipboard leaves the code visible. |
+| "We are now open" launch campaign | **BLOCKED — owner decision, two writes in order** | `campaigns` **and** `personalized_promotions` are empty in production, and `coupons` holds 3 rows of which **none can redeem**: `DLX2001` expired 2026-08-30, `2073` expired 2026-08-29, and the only unexpired code is `active = false`. So the launch needs a real coupon first (its expiry **at or after** the campaign end, or the new guard rejects the campaign), then the campaign row. |
+| Welcome rewards | **NO UI TO BUILD** | `getPersonalizedPromotions` / `dismissPromotion` + `LoyaltyPanel` already are the surface; the table is empty. Remaining work is data/segment, not code. |
+| Client-side campaign window | **DONE — mitigation only** | The customer SELECT policy filters on `is_active` **alone**, so a scheduled campaign publishes its coupon code early. `getLiveInAppCampaigns()` windows by date after the read; the real fix is a policy change (see §Blocking decisions / checkpoint §7). |
 
 ---
 
@@ -183,7 +193,8 @@ fabricate savings.
 |---|---|---|
 | DEP-1a | Apply `20261018090000` + `20261019090000` | **BLOCKED — approval required. Highest urgency: these gate features that are ALREADY on production.** The deployed bundle (`main` @ `276e759`) calls `get_trending_products`, `get_product_social_proof` and `get_or_create_direct_conversation`; probed live 2026-10-09 they return `42P10`, `42804` and "function does not exist" respectively. So `/discover`'s trending shelf, product social proof and "message this person" are broken for real customers **right now**, and applying these two migrations fixes them with **no deploy needed**. `20261018090000` replaces two read-only function bodies only; `20261019090000` adds the DM RPC. Neither can be dry-run locally (no Postgres, Docker unavailable). |
 | DEP-1b | Apply `20261020090000` + `20261021090000` | **BLOCKED — approval required.** Not live defects: their callers were first committed on 2026-10-09 and are undeployed. Must land chronologically, before or with the DEP-2 deploy, or chat media and custom orders go dark on day one. |
-| DEP-2 | Push the 8 local commits and deploy | **BLOCKED — approval required.** Corrected state: production **is** deployed — `dlxstore-flax.vercel.app` serves `276e759` (= `origin/main`), built 2026-10-08 22:39. `/discover`, `/studio`, `/partner/dashboard` return 200, so the handoff's old "not deployed / 404" note was stale. What is missing is P0–P4b (`fa4d510`→`8a2fd56`, 8 commits ahead). |
+| DEP-2 | Push the 10 local commits and deploy | **BLOCKED — approval required.** Corrected state: production **is** deployed — `dlxstore-flax.vercel.app` serves `276e759` (= `origin/main`), built 2026-10-08 22:39. `/discover`, `/studio`, `/partner/dashboard` return 200, so the handoff's old "not deployed / 404" note was stale. What is missing is P0–P5 (`fa4d510`→`48085a5`, 10 commits ahead). Until this deploys, `campaigns` has no editor and the storefront has no banner in production. **Verify through the browser, not just the alias: the installed Service Worker serves stale bundles (checkpoint §7).** |
+| DEP-3 | Seed the "We are now open" launch | **BLOCKED — approval required, and it is two writes in order.** `campaigns` and `personalized_promotions` are empty; `coupons` holds 3 rows and **none can redeem** (`DLX2001` expired 2026-08-30, `2073` expired 2026-08-29, the only unexpired code is `active = false`). `campaigns.coupon_code` has an FK to `coupons(code)`, and the new `describeCouponProblem` guard rejects a campaign whose coupon is missing, off, expired, exhausted, expiring before the campaign ends, or offering a different percentage than the banner states. So: create the coupon first (expiry ≥ campaign end), then the campaign. Values are the owner's. |
 
 ---
 
