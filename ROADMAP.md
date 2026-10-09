@@ -32,7 +32,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; Core Web Vitals + PERF-4 still open |
 | **Audit** | **Production readiness (P9–P16)** | local code production-ready. Re-checked 2026-10-09: **production IS deployed** (`dlxstore-flax.vercel.app` ← `main` @ `276e759`, the `git-main` alias) and the old "37 RPCs missing" figure is obsolete — the ledger is **45/45 at `20261017093000` with 4 pending**. See `docs/CHECKPOINT-PRODUCTION-READINESS.md`, corrected in `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1 |
-| **P0–P5** | **2026-10-09 working series** (commits `18f250b`→`48085a5`, 10 ahead of `origin/main`) | See the section below; each advances an existing roadmap phase rather than opening a new one |
+| **P0–P5** | **2026-10-09 working series** (commits `18f250b`→`48085a5`, all local) | See the section below; each advances an existing roadmap phase rather than opening a new one |
 
 ### 2026-10-09 working series — where each increment landed
 
