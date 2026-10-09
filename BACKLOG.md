@@ -133,9 +133,24 @@ Built 2026-10-09. See `docs/CHECKPOINT-P3-SOCIAL-COMMERCE-CONTINUATION.md`. tsc/
 | SC-C | Custom orders & quotations | **DONE (local), migration UNAPPLIED** | `20261021090000_custom_orders.sql` written, **not applied — needs explicit approval**. Customer request + reference images + reviewer quote flow. UI shows honest "not available" until applied. |
 
 **Next known follow-ups (not complete):**
-- P4 — Inventory & cart (available / out-of-stock / coming-soon, server-side stock validation, stale-cart safety).
+- P4 — Inventory & cart — **DONE (local)** 2026-10-09. See below.
 - P5 — In-app advertising, campaigns & rewards (real campaign banners/modals, admin controls, welcome rewards/coupons/loyalty, "We are now open" launch campaign). Never fabricate savings.
 - P6 — Feedback page + external marketing/sharing (honest about permissions; do not pretend a post published).
+
+---
+
+## P4 — Inventory & cart
+
+Built 2026-10-09. tsc/eslint/build green. Reuses existing `Product` fields — no speculative schema.
+
+| Item | Status | Where |
+|---|---|---|
+| Distinguish available / out-of-stock / withdrawn | **DONE** | `src/lib/product-availability.ts` — `getProductAvailability()` → `available` / `low_stock` / `out_of_stock` / `unavailable` (archived or deactivated). One classifier used by cart + checkout. |
+| Preserve cart items / variants / historical refs | **DONE** | Cart still keeps every line item with its size/color/variant; unavailable items are retained for reference, not deleted. |
+| Exclude unavailable from eligible totals + block purchase | **DONE** | `CartContext` splits `purchasableItems` vs `unavailableItems`; `subtotal`/`total` count purchasable only; checkout sends only `purchasableItems` and refuses to open when `hasOnlyUnavailable`. |
+| Validate stock server-side + prevent overselling | **ALREADY DONE (verified)** | `create_customer_order` locks each product `FOR UPDATE`, checks `is_active`/`is_archived` and `stock_quantity >= quantity`, and validates the total against the live catalogue. Not modified — confirmed correct. |
+| Handle stock changes + stale carts safely | **DONE** | A product that goes OOS/archived after being added stays visible but excluded from totals; `addToCart` refuses non-purchasable products; cart page shows an honest "unavailable" section. |
+| Restock dates | **DEFERRED (honest)** | No per-product restock-date column exists and none was invented. Low-stock is surfaced from real `stock_quantity`/`low_stock_threshold`. A restock-ETA field is a schema decision for a future approved migration. |
 
 ---
 

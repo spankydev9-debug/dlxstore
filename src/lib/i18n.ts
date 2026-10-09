@@ -813,6 +813,15 @@ const fr = {
   customQuotePriceLabel: "Prix du devis ($)",
   customQuoteMessageLabel: "Message (facultatif)",
   customQuoteMessagePlaceholder: "Délai, disponibilité, options…",
+  cartUnavailableTitle: "Articles indisponibles",
+  cartUnavailableBody: "Ces articles ne sont plus disponibles et ne sont pas inclus dans le total. Retirez-les ou remplacez-les pour continuer.",
+  cartItemWithdrawn: "Retiré de la vente",
+  cartItemOutOfStock: "Rupture de stock",
+  cartLowStock: "Plus que {count} en stock",
+  cartCannotCheckout: "Aucun article de votre panier ne peut être acheté pour le moment.",
+  checkoutUnavailableTitle: "Paiement indisponible",
+  checkoutUnavailableBody: "Aucun article de votre panier n'est disponible actuellement. Revenez au panier pour mettre à jour vos articles.",
+  checkoutExcludedUnavailable: "{count} article(s) indisponible(s) exclu(s) de cette commande.",
 };
 
 const en: typeof fr = {
@@ -1621,6 +1630,15 @@ const en: typeof fr = {
   customQuotePriceLabel: "Quote price ($)",
   customQuoteMessageLabel: "Message (optional)",
   customQuoteMessagePlaceholder: "Lead time, availability, options…",
+  cartUnavailableTitle: "Unavailable items",
+  cartUnavailableBody: "These items are no longer available and are not included in the total. Remove or replace them to continue.",
+  cartItemWithdrawn: "No longer sold",
+  cartItemOutOfStock: "Out of stock",
+  cartLowStock: "Only {count} left in stock",
+  cartCannotCheckout: "Nothing in your cart can be purchased right now.",
+  checkoutUnavailableTitle: "Checkout unavailable",
+  checkoutUnavailableBody: "Nothing in your cart is available right now. Go back to your cart to update your items.",
+  checkoutExcludedUnavailable: "{count} unavailable item(s) excluded from this order.",
 };
 
 // Basic Kiswahili translations (widely spoken in Eastern DRC/Goma)
@@ -2430,6 +2448,15 @@ const sw: typeof fr = {
   customQuotePriceLabel: "Bei ya kuweka ($)",
   customQuoteMessageLabel: "Ujumbe (hiari)",
   customQuoteMessagePlaceholder: "Muda, upatikanaji, chaguo…",
+  cartUnavailableTitle: "Bidhaa zisizopatikana",
+  cartUnavailableBody: "Bidhaa hizi hazipatikani tena na hazijumo katika jumla. Ondoa au badilisha ili uendelee.",
+  cartItemWithdrawn: "Haiondolewi tena",
+  cartItemOutOfStock: "Imeisha",
+  cartLowStock: "Zimebaki {count} tu",
+  cartCannotCheckout: "Hakuna kitu kwenye kikapu chako kinachonunuliwa sasa.",
+  checkoutUnavailableTitle: "Malipo hayapatikani",
+  checkoutUnavailableBody: "Hakuna kitu kwenye kikapu chako kinapatikana sasa. Rudi kikapuni kusasisha.",
+  checkoutExcludedUnavailable: "Bidhaa {count} zisizopatikana zimeondolewa kwenye oda hii.",
 };
 
 // Basic Lingála translations (widely spoken in Western DRC/Kinshasa)
@@ -3239,6 +3266,15 @@ const ln: typeof fr = {
   customQuotePriceLabel: "Motuya ya kotya ($)",
   customQuoteMessageLabel: "Message (option)",
   customQuoteMessagePlaceholder: "Eleko, possibilité…",
+  cartUnavailableTitle: "Biloko ezali te",
+  cartUnavailableBody: "Biloko oyo ezali lisusu te mpe ezali te na total. Longola to kubongisa po okobaka.",
+  cartItemWithdrawn: "Ezamwi lisusu te",
+  cartItemOutOfStock: "Esili te",
+  cartLowStock: "Esili {count} kaka",
+  cartCannotCheckout: "Eloko moko te na panier na yo ekoki kosombama sikoyo.",
+  checkoutUnavailableTitle: "Kofuta ezali te",
+  checkoutUnavailableBody: "Eloko moko te na panier na yo epai sikoyo. Zonga na panier mpo na kobongisa.",
+  checkoutExcludedUnavailable: "Biloko {count} esali te e longolami na commande oyo.",
 };
 
 // Basic Tshiluba translations (widely spoken in Central DRC/Kasai)
@@ -4048,6 +4084,15 @@ const tl: typeof fr = {
   customQuotePriceLabel: "Motuya wa kotaa ($)",
   customQuoteMessageLabel: "Message (option)",
   customQuoteMessagePlaceholder: "Tshikata, possibilité…",
+  cartUnavailableTitle: "Biloco kabiyi ko",
+  cartUnavailableBody: "Biloco bibi kebayi ko tshivhila pe kabimu mu tshimfuanyi. Longola anyi dibadijila.",
+  cartItemWithdrawn: "Kabena kote kesa",
+  cartItemOutOfStock: "Bishadile",
+  cartLowStock: "Bishale {count} kaka",
+  cartCannotCheckout: "Kuenaku kodi mu panier yebe kudipungula pa tshivhila.",
+  checkoutUnavailableTitle: "Kufuta kabiyi ko",
+  checkoutUnavailableBody: "Kuenaku kodi mu panier yebe pa tshivhila. Dibalukila ku panier.",
+  checkoutExcludedUnavailable: "Biloco {count} kebayi ko bilongolamu pa doda yayi.",
 };
 
 // Basic Kikongo translations (widely spoken in Western DRC/Bas-Congo)
@@ -4835,6 +4880,15 @@ const kg: typeof fr = {
   customQuotePriceLabel: "Makuki ya kusona ($)",
   customQuoteMessageLabel: "Message (option)",
   customQuoteMessagePlaceholder: "Thangu, possibilité…",
+  cartUnavailableTitle: "Bioda kele ve",
+  cartUnavailableBody: "Bioda biayi kele diaka ve ye kele ve mu total. Longola to sobha.",
+  cartItemWithdrawn: "Kele ve diaka",
+  cartItemOutOfStock: "Masadile",
+  cartLowStock: "Basadile {count} kaka",
+  cartCannotCheckout: "Kienaku kiodi mu panier yaku kusumbuka na ntangu yayi.",
+  checkoutUnavailableTitle: "Kufuta kele ve",
+  checkoutUnavailableBody: "Kienaku kiodi mu panier yaku na ntangu yayi. Vutuka ku panier.",
+  checkoutExcludedUnavailable: "Bioda {count} kele ve bilongolamu na doda yayi.",
 };
 
 export function translate(language: Language) {

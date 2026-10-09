@@ -5,10 +5,10 @@ import Link from "next/link";
 import { ProductImage } from "../../components/shared/ProductImage";
 import { useCart } from "../../context/CartContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck } from "lucide-react";
+import { Trash2, ArrowRight, ShoppingCart, Truck, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export default function CartPage() {
-  const { items, subtotal, total, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { items, purchasableItems, unavailableItems, subtotal, total, updateQuantity, removeFromCart, clearCart } = useCart();
   const { t } = useLanguage();
 
   if (items.length === 0) {
@@ -53,10 +53,47 @@ export default function CartPage() {
             </button>
           </div>
 
+          {/* Unavailable items are shown but never charged. A stale cart can hold
+              a product that has since sold out or been withdrawn. */}
+          {unavailableItems.length > 0 ? (
+            <div className="space-y-2 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
+              <p className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="h-4 w-4" />
+                {t.cartUnavailableTitle}
+              </p>
+              <p className="text-[11px] text-amber-700/90 dark:text-amber-400/90">{t.cartUnavailableBody}</p>
+              <ul className="divide-y divide-amber-500/20">
+                {unavailableItems.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted opacity-70">
+                        <ProductImage src={item.product.images[0]} alt={item.product.name} fill sizes="48px" className="object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{item.product.name}</p>
+                        <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                          {item.availability === "unavailable" ? t.cartItemWithdrawn : t.cartItemOutOfStock}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      title={t.removeItem}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="divide-y divide-border/40">
-            {items.map((item) => {
+            {purchasableItems.map((item) => {
               const price = item.product.discount_price ?? item.product.price;
               const hasDiscount = !!item.product.discount_price;
+              const lowStock = item.product.stock_quantity <= (item.product.low_stock_threshold ?? 3);
               return (
                 <div key={item.id} className="flex flex-col sm:flex-row py-4 sm:items-center justify-between gap-4">
                   {/* Image & Details */}
@@ -77,6 +114,11 @@ export default function CartPage() {
                       <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
                         {item.product.brand}
                       </p>
+                      {lowStock ? (
+                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                          {t.cartLowStock.replace("{count}", String(item.product.stock_quantity))}
+                        </p>
+                      ) : null}
                       {/* Attributes */}
                       <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                         {item.selectedSize && (
@@ -160,13 +202,19 @@ export default function CartPage() {
             </div>
 
             <div className="pt-2">
-              <Link
-                href="/checkout"
-                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md"
-              >
-                {t.checkoutCta}
-                <ArrowRight className="h-4.5 w-4.5" />
-              </Link>
+              {purchasableItems.length === 0 ? (
+                <p className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-center text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  {t.cartCannotCheckout}
+                </p>
+              ) : (
+                <Link
+                  href="/checkout"
+                  className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-full bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md"
+                >
+                  {t.checkoutCta}
+                  <ArrowRight className="h-4.5 w-4.5" />
+                </Link>
+              )}
             </div>
           </div>
 

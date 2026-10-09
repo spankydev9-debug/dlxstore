@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { Product } from "../types";
 import { useAuth } from "./AuthContext";
 import { markCartRecovered, trackAbandonedCart } from "../services/db/loyalty";
+import { getProductAvailability, type ProductAvailability } from "../lib/product-availability";
 
 export interface CartItem {
   id: string; // unique item representation: productId + size + color
@@ -15,10 +16,16 @@ export interface CartItem {
 
 type CartContextType = {
   items: CartItem[];
+  /** Only the items that can actually be bought right now. Drives checkout. */
+  purchasableItems: CartItem[];
+  /** Items that are out of stock or withdrawn; shown but excluded from totals. */
+  unavailableItems: Array<CartItem & { availability: ProductAvailability }>;
   cartCount: number;
   subtotal: number;
   deliveryFee: 0;
   total: number;
+  /** True when the cart has items but none of them can be bought. */
+  hasOnlyUnavailable: boolean;
   addToCart: (product: Product, quantity?: number, size?: string, color?: string) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, qty: number) => void;
@@ -65,6 +72,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, mounted]);
 
   const addToCart = (product: Product, quantity = 1, size?: string, color?: string) => {
+    // Never add a product that cannot be bought. This is the first line of
+    // defence; the server re-validates stock at checkout regardless.
+    if (!getProductAvailability(product).purchasable) return;
+
     setItems(prevItems => {
       const cartItemId = `${product.id}-${size || ""}-${color || ""}`;
       const existing = prevItems.find(item => item.id === cartItemId);
@@ -82,7 +93,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         {
           id: cartItemId,
           product,
-          quantity,
+          quantity: Math.min(product.stock_quantity, Math.max(1, quantity)),
           selectedSize: size,
           selectedColor: color
         }
@@ -112,13 +123,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = items.reduce((sum, item) => {
+
+  // Split by buyability. A stale cart can hold a product that has since gone
+  // out of stock or been archived; those stay visible for reference but must
+  // not count toward what the customer is asked to pay.
+  const purchasableItems = items.filter((item) => getProductAvailability(item.product).purchasable);
+  const unavailableItems = items
+    .filter((item) => !getProductAvailability(item.product).purchasable)
+    .map((item) => ({ ...item, availability: getProductAvailability(item.product).availability }));
+
+  const subtotal = purchasableItems.reduce((sum, item) => {
     const price = item.product.discount_price ?? item.product.price;
     return sum + price * item.quantity;
   }, 0);
-  
+
   const deliveryFee = 0; // Free delivery always
   const total = subtotal;
+  const hasOnlyUnavailable = items.length > 0 && purchasableItems.length === 0;
 
   // Abandoned-cart recovery (Phase 11). Debounced and sign-in gated so that
   // browsing does not generate a write per render, and anonymous visitors
@@ -126,9 +147,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // marketing feature and must never interrupt shopping.
   const trackedRef = useRef<string>("");
   useEffect(() => {
-    if (!mounted || !user || items.length === 0 || subtotal <= 0) return;
+    if (!mounted || !user || purchasableItems.length === 0 || subtotal <= 0) return;
 
-    const payload = items.map((item) => ({
+    const payload = purchasableItems.map((item) => ({
       id: item.product.id,
       qty: item.quantity,
       size: item.selectedSize ?? null,
@@ -142,16 +163,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       void trackAbandonedCart(payload, subtotal);
     }, 2500);
     return () => clearTimeout(timer);
-  }, [items, subtotal, mounted, user]);
+  }, [purchasableItems, subtotal, mounted, user]);
 
   return (
     <CartContext.Provider
       value={{
         items,
+        purchasableItems,
+        unavailableItems,
         cartCount,
         subtotal,
         deliveryFee,
         total,
+        hasOnlyUnavailable,
         addToCart,
         removeFromCart,
         updateQuantity,

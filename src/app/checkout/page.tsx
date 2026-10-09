@@ -15,7 +15,7 @@ import PurchaseContinueDialog, { PurchaseContinueItem } from "../../components/c
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, total, clearCart } = useCart();
+  const { items, purchasableItems, total, clearCart, hasOnlyUnavailable, unavailableItems } = useCart();
   const { user } = useAuth();
   const { t } = useLanguage();
 
@@ -58,7 +58,9 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0) return;
+    // Only purchasable items are ever sent. Unavailable items are excluded from
+    // the total already, and the server re-validates stock regardless.
+    if (purchasableItems.length === 0) return;
     if (!user) {
       router.push("/auth?mode=login&next=/checkout");
       return;
@@ -80,7 +82,7 @@ export default function CheckoutPage() {
         total_amount: Math.max(0, total - (coupon?.discount || 0))
       };
 
-      const orderItems = items.map(item => ({
+      const orderItems = purchasableItems.map(item => ({
         product_id: item.product.id,
         quantity: item.quantity,
         price_at_sale: item.product.discount_price ?? item.product.price,
@@ -92,7 +94,7 @@ export default function CheckoutPage() {
       clearCart();
       setConfirmedOrder({
         order: newOrder,
-        items: items.map((item) => ({
+        items: purchasableItems.map((item) => ({
           product: { name: item.product.name },
           quantity: item.quantity,
           price_at_sale: item.product.discount_price ?? item.product.price,
@@ -115,6 +117,18 @@ export default function CheckoutPage() {
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center space-y-4 animate-fade-in">
         <h1 className="text-2xl font-bold">{t.cartEmpty}</h1>
         <Link href="/shop" className="inline-flex min-h-11 items-center text-primary hover:underline font-semibold text-sm">{t.backToShop}</Link>
+      </div>
+    );
+  }
+
+  // Nothing in the cart can be bought right now. Do not pretend an order is
+  // possible; send the customer back to the cart to resolve the unavailable items.
+  if (hasOnlyUnavailable) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 text-center">
+        <h1 className="text-2xl font-bold">{t.checkoutUnavailableTitle}</h1>
+        <p className="text-sm text-muted-foreground">{t.checkoutUnavailableBody}</p>
+        <Link href="/cart" className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">{t.backToCart}</Link>
       </div>
     );
   }
@@ -273,7 +287,12 @@ export default function CheckoutPage() {
 
             {/* Items Summary */}
             <div className="max-h-80 overflow-y-auto divide-y divide-border/40 pr-1">
-              {items.map((item) => {
+              {unavailableItems.length > 0 ? (
+                <p className="pb-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                  {t.checkoutExcludedUnavailable.replace("{count}", String(unavailableItems.length))}
+                </p>
+              ) : null}
+              {purchasableItems.map((item) => {
                 const price = item.product.discount_price ?? item.product.price;
                 return (
                   <div key={item.id} className="flex justify-between py-3 text-xs sm:text-sm first:pt-0">
