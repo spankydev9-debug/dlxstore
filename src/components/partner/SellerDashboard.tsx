@@ -15,7 +15,8 @@ import {
   Star,
   Store,
   Trash2,
-  Truck
+  Truck,
+  Wand2
 } from "lucide-react";
 import {
   MyVendor,
@@ -244,13 +245,41 @@ function Overview({ dash, t }: { dash: SellerDashboardData; t: T }) {
     { label: t.sellerPendingPayoutNet, value: formatMoney(dash.pending_payout_net) }
   ];
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {cells.map((cell) => (
-        <div key={cell.label} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-          <p className="text-xs font-semibold text-muted-foreground">{cell.label}</p>
-          <p className="mt-1 break-words text-2xl font-bold">{cell.value}</p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {cells.map((cell) => (
+          <div key={cell.label} className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+            <p className="text-xs font-semibold text-muted-foreground">{cell.label}</p>
+            <p className="mt-1 break-words text-2xl font-bold">{cell.value}</p>
+          </div>
+        ))}
+      </div>
+      {/* AI Tools quick-launch */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Outils IA</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Link href="/ai-studio"
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-4 transition-colors hover:border-primary/40 hover:bg-primary/5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Wand2 className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">AI Product Studio</p>
+              <p className="text-xs text-muted-foreground">Mannequin fantôme · Fond · Enhancement</p>
+            </div>
+          </Link>
+          <Link href="/ai-catalog"
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-4 transition-colors hover:border-primary/40 hover:bg-primary/5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Star className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Catalogue IA</p>
+              <p className="text-xs text-muted-foreground">Titre · Description · Catégorie · Attributs</p>
+            </div>
+          </Link>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

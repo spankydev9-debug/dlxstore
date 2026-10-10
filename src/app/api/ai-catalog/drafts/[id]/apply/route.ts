@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
   isMissingSchemaError,
-  readCallerRole,
   requireCaller,
   UserScopeAuthError,
 } from "../../../../../../services/server/user-scope";
@@ -36,11 +35,6 @@ export async function POST(
     return NextResponse.json({ error: "invalid_id" }, { status: 400 });
   }
 
-  const role = await readCallerRole(caller.client, caller.userId);
-  if (role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
   const { data, error } = await caller.client.rpc("apply_ai_catalog_draft", {
     p_draft_id: id,
   });
@@ -49,7 +43,8 @@ export async function POST(
     if (isMissingSchemaError(error)) {
       return NextResponse.json({ error: "schema_unavailable" }, { status: 503 });
     }
-    return NextResponse.json({ error: "rejected", detail: error.message }, { status: 400 });
+    const forbidden = /permission denied/i.test(error.message);
+    return NextResponse.json({ error: forbidden ? "forbidden" : "rejected", detail: error.message }, { status: forbidden ? 403 : 400 });
   }
 
   return NextResponse.json({ result: data });

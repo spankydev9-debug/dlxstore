@@ -10,7 +10,6 @@ import { buildRuleBasedSuggestion } from "../../../../services/ai-catalog/rule-b
 import { validateProductImageUrl } from "../../../../lib/product-image";
 import {
   isMissingSchemaError,
-  readCallerRole,
   requireCaller,
   UserScopeAuthError,
 } from "../../../../services/server/user-scope";
@@ -51,13 +50,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "unauthorized", reason: error.reason }, { status: 401 });
     }
     return NextResponse.json({ error: "server_not_configured" }, { status: 503 });
-  }
-
-  // Catalog automation is an operator function. The database is the authority
-  // (admin-only RLS on the drafts table); this avoids pointless work.
-  const role = await readCallerRole(caller.client, caller.userId);
-  if (role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   let body: AnalyzeBody;
@@ -116,7 +108,9 @@ export async function POST(request: Request) {
   const sourceMediaId = String(mediaRow.id);
   const sourceImageUrl = String(mediaRow.image_url);
 
-  // Real product, so suggestions are grounded in actual catalogue data.
+  // RLS exposes only an active seller's own listings (or an admin's listings)
+  // after the seller-AI authorization migration. The database repeats that
+  // ownership check on the staging insert; this lookup is never the authority.
   const { data: product, error: productError } = await caller.client
     .from("products")
     .select("id, name, brand, category_id, sizes, colors, slug")
@@ -239,6 +233,9 @@ export async function POST(request: Request) {
         },
         { status: 409 }
       );
+    }
+    if (insertError.code === "42501") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
     return NextResponse.json(
       { error: "draft_failed", detail: insertError.message },
