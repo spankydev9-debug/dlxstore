@@ -1,5 +1,27 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §27 (2026-10-10) — RECONCILED RELEASE SHIPPED (`main` @ `aa5ad33`)
+>
+> First release to combine the marketplace fixes (P0–P5) **and** the second agent's seller-AI work, with
+> `chat-media`/`custom-order-media` made **private** (authorized signed access), six migrations applied, and
+> a production deploy. Supersedes the "not deployed / migrations pending" picture in §26 and §9.
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `main` @ `aa5ad33` (= `origin/main`) |
+> | Release commits | `f262a8c` private media (chat + custom orders) · `15ca951` seller AI F1/F2 + ownership RLS · `aa5ad33` mobile tab-bar contrast |
+> | Migrations applied | production `szhkesvvrgcxbxucodzz`, 6 in order: `20261018090000`, `20261019090000`, `20261020090000`, `20261021090000`, `20261022090000`, `20261023090000`; ledger now through `20261023090000` |
+> | Deployment | `dpl_BruDMUXPQfc7fFnv3zogjtBtAnSn` (READY), alias `https://dlxstore-flax.vercel.app`, built from `main` @ `aa5ad33` |
+> | Static gates | `tsc` 0 errors · `eslint` 0 errors / 142 warnings · `next build` success (`BUILD_ID jXHuZ-Z0TAX9xpU9tkt0_`) · `git diff --check` clean |
+> | DB verification | local postgres:17 harness on the real prod schema: 12 media/RLS + 9 seller-AI ownership + 5 RPC smoke tests, all pass. Live prod: `get_trending_products` 200 (was 400 `42P10`), `get_product_social_proof` 200 (was 400 `42804`), `get_or_create_direct_conversation` now exists (was missing) |
+> | Storage | `chat-media` + `custom-order-media` now `public=false` (limits 10 MB / 5 MB); 8 `storage.objects` policies, all `TO authenticated`; zero public policies remain |
+> | RPCs present | `can_manage_ai_product`, `create_custom_order_request`, `get_conversation_with_realtime_data`, `get_or_create_direct_conversation`, `get_product_social_proof`, `get_trending_products`, `seller_list_my_products`, `send_conversation_message_v2` |
+> | Routes | `/`, `/discover`, `/ai-studio`, `/ai-catalog`, `/partner/dashboard`, `/studio` all HTTP 200 on the prod alias |
+> | Recovery | logical dump (roles/schema/data) taken pre-apply. **PITR disabled, zero managed backups on the free org** → recovery risk remains |
+> | **Still unavailable** | AI image generation (ghost-mannequin / enhancement / catalog AI) needs `DLX_CATALOG_AI_PROVIDER` + `DLX_CATALOG_AI_API_KEY` (unset → jobs queue, rule-based catalog suggestions only); push notifications (no VAPID); Try-On (no provider); migrations validated against a local harness, not a production-derived branch |
+>
+> Detail: `docs/CHECKPOINT-F1-F2-SELLER-AI-2026-10-10.md`.
+
 > ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
 >
 > **Current state: `main` @ `e760c09`.** The `mobile-ux-hardening` @ `fa7c30a` snapshot in the §25 header is stale.
