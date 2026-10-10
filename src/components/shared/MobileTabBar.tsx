@@ -71,7 +71,7 @@ export function MobileTabBar() {
           safe-area clearance so the content scrolls *under* it instead of
           stopping at it. Width adapts to the viewport (side gutters + max),
           never a hardcoded strip. */}
-      <ul className="relative mx-auto flex h-[3.75rem] w-full max-w-md items-stretch gap-1 overflow-hidden rounded-[1.35rem] border border-black/[0.07] bg-card/72 px-1.5 shadow-[0_18px_44px_-14px_rgba(0,0,0,0.75),0_2px_10px_-6px_rgba(0,0,0,0.45)] ring-1 ring-black/[0.06] backdrop-blur-2xl supports-[backdrop-filter]:bg-card/58 dark:border-white/10 dark:ring-white/[0.06]">
+      <ul className="relative mx-auto flex h-[3.75rem] w-full max-w-md items-stretch gap-1 overflow-hidden rounded-[1.35rem] border border-black/[0.07] bg-card/85 px-1.5 shadow-[0_14px_34px_-14px_rgba(0,0,0,0.55),0_2px_8px_-6px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] backdrop-blur-xl supports-[backdrop-filter]:bg-card/45 dark:border-white/10 dark:ring-white/[0.06]">
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-4 top-px h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"
