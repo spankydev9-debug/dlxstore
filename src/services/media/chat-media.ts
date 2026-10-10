@@ -175,10 +175,8 @@ export class ChatMediaService {
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
-    const { data: urlData } = supabase.storage
-      .from(CHAT_MEDIA_BUCKET)
-      .getPublicUrl(filePath);
-
+    // `chat-media` is private. Persist the object path; authorized readers
+    // receive a short-lived signed URL when messages are loaded.
     let thumbnailUrl: string | undefined;
 
     // Create and upload thumbnail for images and videos
@@ -194,12 +192,7 @@ export class ChatMediaService {
               upsert: false,
             });
 
-          if (!thumbError) {
-            const { data: thumbUrlData } = supabase.storage
-              .from(CHAT_MEDIA_BUCKET)
-              .getPublicUrl(thumbPath);
-            thumbnailUrl = thumbUrlData.publicUrl;
-          }
+          if (!thumbError) thumbnailUrl = thumbPath;
         }
       } catch (error) {
         console.warn("Failed to create thumbnail:", error);
@@ -208,7 +201,7 @@ export class ChatMediaService {
 
     return {
       media_type: mediaFile.type,
-      file_url: urlData.publicUrl,
+      file_url: filePath,
       file_name: mediaFile.file.name,
       file_size: mediaFile.file.size,
       mime_type: mediaFile.file.type,

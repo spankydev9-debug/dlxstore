@@ -24,11 +24,11 @@
 --   customer author their own quotation or set their own status to 'fulfilled'.
 --   The RPCs are the single, validated write path, mirroring share_product()
 --   and create_story().
--- * Reference images live in a PUBLIC `custom-order-media` bucket (like
---   chat-media): the customer uploads with their own JWT under their own folder,
---   and the DLX team reads them without a service-role key. Public read is
---   acceptable because these are the customer's own shared references, not
---   private media — the same trade-off chat-media already makes.
+-- * Reference images live in a PRIVATE `custom-order-media` bucket: the customer
+--   uploads with their own JWT under their own folder, and only that customer or
+--   an admin/staff reviewer can read the object. The application stores object
+--   paths and resolves them to short-lived signed URLs after that authorization
+--   passes — no permanent public URL is created.
 -- * Status is a small, explicit state machine. The customer may only cancel or
 --   accept/decline a quote; advancing to quoted/declined/fulfilled is a reviewer
 --   action. This is enforced in the RPC, not just the UI.
@@ -50,7 +50,9 @@ CREATE TABLE IF NOT EXISTS public.custom_order_requests (
   -- How the customer wants to be contacted about this request.
   contact_preference   TEXT NOT NULL DEFAULT 'chat'
                          CHECK (contact_preference IN ('chat', 'whatsapp')),
-  -- Public URLs of reference images the customer uploaded. Bounded by the RPC.
+  -- Private object paths (`<profile_id>/<file>`) of reference images the
+  -- customer uploaded; resolved to signed URLs for authorized viewers. Bounded
+  -- by the RPC, which also verifies each path is inside the caller's folder.
   reference_image_urls TEXT[] NOT NULL DEFAULT '{}',
   status               TEXT NOT NULL DEFAULT 'open'
                          CHECK (status IN ('open', 'quoted', 'accepted', 'declined', 'cancelled', 'fulfilled')),
@@ -107,32 +109,53 @@ CREATE POLICY "Reviewers read all custom order quotes"
   USING (EXISTS (SELECT 1 FROM public.profiles me WHERE me.id = auth.uid() AND me.role IN ('admin', 'staff')));
 
 -- ============================================================================
--- 2. Reference media bucket
+-- 2. Reference media bucket (PRIVATE)
 -- ============================================================================
--- Public read (like chat-media): the team opens these without a service key.
--- Writes are scoped to the caller's own folder: `<profile_id>/<...>`.
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('custom-order-media', 'custom-order-media', true)
-ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+-- Object layout is `<profile_id>/<...>`, so the owner is the first path segment.
+-- A customer may write only inside its own folder; only that customer or an
+-- admin/staff reviewer may read the object. Signed URLs are minted after this
+-- authorization passes.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'custom-order-media', 'custom-order-media', false, 5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE
+  SET public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Remove the earlier broad public-read policy if a prior run created it.
 DROP POLICY IF EXISTS "Public can read custom order media" ON storage.objects;
-CREATE POLICY "Public can read custom order media"
-  ON storage.objects FOR SELECT USING (bucket_id = 'custom-order-media');
+
+DROP POLICY IF EXISTS "Owners and reviewers read custom order media" ON storage.objects;
+CREATE POLICY "Owners and reviewers read custom order media"
+  ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'custom-order-media'
+    AND (
+      split_part(name, '/', 1) = auth.uid()::TEXT
+      OR EXISTS (
+        SELECT 1 FROM public.profiles me
+        WHERE me.id = auth.uid() AND me.role IN ('admin', 'staff')
+      )
+    )
+  );
 
 DROP POLICY IF EXISTS "Authenticated users upload their own custom order media" ON storage.objects;
 CREATE POLICY "Authenticated users upload their own custom order media"
-  ON storage.objects FOR INSERT
+  ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'custom-order-media' AND split_part(name, '/', 1) = auth.uid()::TEXT);
 
 DROP POLICY IF EXISTS "Custom order media owners replace own objects" ON storage.objects;
 CREATE POLICY "Custom order media owners replace own objects"
-  ON storage.objects FOR UPDATE
+  ON storage.objects FOR UPDATE TO authenticated
   USING (bucket_id = 'custom-order-media' AND split_part(name, '/', 1) = auth.uid()::TEXT)
   WITH CHECK (bucket_id = 'custom-order-media' AND split_part(name, '/', 1) = auth.uid()::TEXT);
 
 DROP POLICY IF EXISTS "Custom order media owners delete own objects" ON storage.objects;
 CREATE POLICY "Custom order media owners delete own objects"
-  ON storage.objects FOR DELETE
+  ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'custom-order-media' AND split_part(name, '/', 1) = auth.uid()::TEXT);
 
 -- ============================================================================
@@ -172,6 +195,15 @@ BEGIN
   END IF;
   IF array_length(v_images, 1) > 6 THEN
     RAISE EXCEPTION 'You can attach up to 6 reference images';
+  END IF;
+  -- Every reference image must be an object the caller uploaded to its own
+  -- private folder. Legacy absolute URLs stay tolerated; new entries are paths.
+  IF EXISTS (
+    SELECT 1 FROM unnest(v_images) AS img
+    WHERE COALESCE(img, '') !~* '^https?:'
+      AND split_part(img, '/', 1) <> v_uid::TEXT
+  ) THEN
+    RAISE EXCEPTION 'Reference images must be uploaded under your own account';
   END IF;
 
   INSERT INTO public.custom_order_requests (
@@ -489,7 +521,7 @@ GRANT EXECUTE ON FUNCTION public.set_custom_order_request_status(UUID, TEXT) TO 
 --   DROP POLICY IF EXISTS "Custom order media owners delete own objects" ON storage.objects;
 --   DROP POLICY IF EXISTS "Custom order media owners replace own objects" ON storage.objects;
 --   DROP POLICY IF EXISTS "Authenticated users upload their own custom order media" ON storage.objects;
---   DROP POLICY IF EXISTS "Public can read custom order media" ON storage.objects;
+--   DROP POLICY IF EXISTS "Owners and reviewers read custom order media" ON storage.objects;
 --   DELETE FROM storage.buckets WHERE id = 'custom-order-media';
 --   DROP TABLE IF EXISTS public.custom_order_quotes;
 --   DROP TABLE IF EXISTS public.custom_order_requests;

@@ -27,6 +27,17 @@ function mockError() {
   return "DLXSTORE is not configured.";
 }
 
+async function resolveChatMediaPath(value: string | null | undefined): Promise<string | undefined> {
+  if (!value) return undefined;
+  // Existing public media remains renderable during the forward migration. New
+  // rows carry a private object path and require a caller-authorized signed URL.
+  if (/^(https?:|blob:)/i.test(value)) return value;
+  if (!supabase) return undefined;
+  const { data, error } = await supabase.storage.from("chat-media").createSignedUrl(value, 600);
+  if (error || !data?.signedUrl) return undefined;
+  return data.signedUrl;
+}
+
 function toClientConversation(row: Conversation): Conversation {
   return {
     ...row,
@@ -175,7 +186,11 @@ export async function getMessages(
     if (mediaRows && mediaRows.length > 0) {
       const byMessage = new Map<string, ConversationMessage["media"]>();
       for (const row of mediaRows) {
-        const media = (row as unknown) as NonNullable<ConversationMessage["media"]>[number];
+        const stored = (row as unknown) as NonNullable<ConversationMessage["media"]>[number];
+        const fileUrl = await resolveChatMediaPath(stored.file_url);
+        if (!fileUrl) continue;
+        const thumbnailUrl = await resolveChatMediaPath(stored.thumbnail_url);
+        const media = { ...stored, file_url: fileUrl, thumbnail_url: thumbnailUrl };
         const list = byMessage.get(media.message_id) ?? [];
         list.push(media);
         byMessage.set(media.message_id, list);

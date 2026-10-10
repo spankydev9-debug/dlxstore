@@ -5,37 +5,77 @@
 -- 1. Chat attachments get their own storage bucket. The catalogue bucket
 --    (product-images) is admin-write-only, so a customer sending a photo was
 --    rejected by RLS ("new row violates row-level security policy") and every
---    image silently disappeared. chat-media is public-read + authenticated-write
---    (files are public once shared, uploads require a signed-in user).
+--    image silently disappeared. chat-media is PRIVATE: only members of the
+--    conversation that owns an object may read it (or staff/admin on a
+--    customer-support thread, via can_access_conversation), and uploads are
+--    scoped to a conversation the caller can already access. The application
+--    stores object paths, never public URLs, and mints a short-lived signed URL
+--    only after that same authorization passes.
 --
 -- 2. send_conversation_message_v2 refused media-only messages ("Message cannot
 --    be empty"). A photo shared without a caption is a perfectly valid message,
 --    so the guard is relaxed: empty bodies are allowed whenever media is
 --    attached (stored as '📎' so the non-null body column stays happy).
 
--- --- chat-media bucket + storage policies -----------------------------------
+-- --- chat-media bucket + storage policies (PRIVATE) --------------------------
+--
+-- Object layout is `chat-media/<conversation_id>/<object>` (see
+-- ChatMediaService.uploadMedia and uploadMessageMedia), so the conversation is
+-- the second path segment. Authorization reuses can_access_conversation(), the
+-- same predicate every chat table already uses.
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('chat-media', 'chat-media', true)
-ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'chat-media', 'chat-media', false, 10485760,
+  ARRAY[
+    'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+    'video/mp4', 'video/webm', 'video/ogg',
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm',
+    'application/pdf', 'text/plain', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+)
+ON CONFLICT (id) DO UPDATE
+  SET public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Remove the earlier broad public-read policy if a prior run created it.
 DROP POLICY IF EXISTS "Public can read chat media" ON storage.objects;
-CREATE POLICY "Public can read chat media" ON storage.objects
-  FOR SELECT USING (bucket_id = 'chat-media');
 
+-- Read: only a participant of the owning conversation (or staff on a support
+-- thread) may select the object. createSignedUrl is therefore only issuable to
+-- an authorized reader.
+DROP POLICY IF EXISTS "Conversation participants read chat media" ON storage.objects;
+CREATE POLICY "Conversation participants read chat media" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'chat-media'
+    AND split_part(name, '/', 2) ~ '^[0-9a-fA-F-]{36}$'
+    AND public.can_access_conversation(split_part(name, '/', 2)::uuid)
+  );
+
+-- Write: a signed-in user may upload only into a conversation it can access.
 DROP POLICY IF EXISTS "Authenticated users can upload chat media" ON storage.objects;
-CREATE POLICY "Authenticated users can upload chat media" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'chat-media' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Authenticated participants upload chat media" ON storage.objects;
+CREATE POLICY "Authenticated participants upload chat media" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'chat-media'
+    AND split_part(name, '/', 2) ~ '^[0-9a-fA-F-]{36}$'
+    AND public.can_access_conversation(split_part(name, '/', 2)::uuid)
+  );
 
 DROP POLICY IF EXISTS "Chat media owners can update own objects" ON storage.objects;
 CREATE POLICY "Chat media owners can update own objects" ON storage.objects
-  FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (bucket_id = 'chat-media' AND owner = auth.uid())
   WITH CHECK (bucket_id = 'chat-media' AND owner = auth.uid());
 
 DROP POLICY IF EXISTS "Chat media owners can delete own objects" ON storage.objects;
 CREATE POLICY "Chat media owners can delete own objects" ON storage.objects
-  FOR DELETE USING (bucket_id = 'chat-media' AND owner = auth.uid());
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'chat-media' AND owner = auth.uid());
 
 -- --- media-only messages -----------------------------------------------------
 
@@ -73,6 +113,21 @@ BEGIN
 
   IF NOT public.can_access_conversation(p_conversation_id) THEN
     RAISE EXCEPTION 'Access denied';
+  END IF;
+
+  -- Every attachment must be an object in THIS conversation's folder (a legacy
+  -- absolute URL is tolerated for pre-migration rows, but new uploads are
+  -- private object paths). This stops a participant from attaching an object
+  -- belonging to a conversation it is not part of.
+  IF v_has_media THEN
+    IF EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(p_media) AS item
+      WHERE COALESCE(item->>'file_url', '') !~* '^https?:'
+        AND split_part(item->>'file_url', '/', 2) <> p_conversation_id::TEXT
+    ) THEN
+      RAISE EXCEPTION 'Attachment does not belong to this conversation';
+    END IF;
   END IF;
 
   SELECT full_name, role INTO v_sender FROM public.profiles WHERE id = v_uid;
@@ -139,7 +194,7 @@ GRANT EXECUTE ON FUNCTION public.send_conversation_message_v2(UUID, TEXT, JSONB)
 -- REVERSIBLE (rollback)
 --   DROP POLICY IF EXISTS "Chat media owners can delete own objects" ON storage.objects;
 --   DROP POLICY IF EXISTS "Chat media owners can update own objects" ON storage.objects;
---   DROP POLICY IF EXISTS "Authenticated users can upload chat media" ON storage.objects;
---   DROP POLICY IF EXISTS "Public can read chat media" ON storage.objects;
+--   DROP POLICY IF EXISTS "Authenticated participants upload chat media" ON storage.objects;
+--   DROP POLICY IF EXISTS "Conversation participants read chat media" ON storage.objects;
 --   DELETE FROM storage.buckets WHERE id = 'chat-media';
 --   (restore send_conversation_message_v2 from 20260929100000_chat_realtime_features.sql)

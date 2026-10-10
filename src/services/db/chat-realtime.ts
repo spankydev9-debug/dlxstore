@@ -438,10 +438,8 @@ export async function uploadMessageMedia(
 
     if (uploadError) throw new Error("Unable to upload media file.");
 
-    const { data: urlData } = supabase.storage
-      .from("chat-media")
-      .getPublicUrl(filePath);
-
+    // Persist private object paths. The chat read path mints signed URLs only
+    // after Storage/RLS authorizes the conversation participant.
     let thumbnailUrl: string | undefined;
     
     // Upload thumbnail if provided
@@ -458,16 +456,11 @@ export async function uploadMessageMedia(
           upsert: false,
         });
 
-      if (!thumbError) {
-        const { data: thumbUrlData } = supabase.storage
-          .from("product-images")
-          .getPublicUrl(thumbPath);
-        thumbnailUrl = thumbUrlData.publicUrl;
-      }
+        if (!thumbError) thumbnailUrl = thumbPath;
     }
 
     return {
-      fileUrl: urlData.publicUrl,
+      fileUrl: filePath,
       thumbnailUrl,
     };
   }

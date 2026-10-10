@@ -61,8 +61,9 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 /**
  * Upload one reference image for a custom-order request to the public
- * `custom-order-media` bucket, under the caller's own folder. Returns the
- * public URL. Throws a readable error on an unsupported or oversized file so
+ * private `custom-order-media` bucket, under the caller's own folder. Returns
+ * the object path; authorized views resolve it to a short-lived signed URL.
+ * Throws a readable error on an unsupported or oversized file so
  * the form can surface it inline rather than silently dropping the attachment.
  */
 export async function uploadCustomOrderImage(userId: string, file: File): Promise<string> {
@@ -89,9 +90,14 @@ export async function uploadCustomOrderImage(userId: string, file: File): Promis
   });
   if (error) throw new Error(error.message);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  if (!data.publicUrl) throw new Error("Could not resolve uploaded image URL.");
-  return data.publicUrl;
+  return path;
+}
+
+async function resolveCustomOrderImage(value: string): Promise<string> {
+  if (/^(https?:|blob:)/i.test(value) || !isSupabaseConfigured || !supabase) return value;
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(value, 600);
+  if (error || !data?.signedUrl) throw new Error("Could not authorize a reference image.");
+  return data.signedUrl;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,16 +115,17 @@ function mapQuote(value: unknown): CustomOrderQuote {
   };
 }
 
-function mapRequest(row: Record<string, unknown>): CustomOrderRequest {
+async function mapRequest(row: Record<string, unknown>): Promise<CustomOrderRequest> {
   const quotesRaw = row.quotes;
   const quotes = Array.isArray(quotesRaw) ? (quotesRaw as unknown[]).map(mapQuote) : [];
+  const referenceImagePaths = Array.isArray(row.reference_image_urls) ? (row.reference_image_urls as string[]) : [];
   return {
     id: String(row.id),
     title: String(row.title ?? ""),
     details: String(row.details ?? ""),
     budget_cents: row.budget_cents === null || row.budget_cents === undefined ? null : Number(row.budget_cents),
     contact_preference: (row.contact_preference as CustomOrderContactPreference) ?? "chat",
-    reference_image_urls: Array.isArray(row.reference_image_urls) ? (row.reference_image_urls as string[]) : [],
+    reference_image_urls: await Promise.all(referenceImagePaths.map(resolveCustomOrderImage)),
     status: (row.status as CustomOrderStatus) ?? "open",
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
@@ -126,14 +133,15 @@ function mapRequest(row: Record<string, unknown>): CustomOrderRequest {
   };
 }
 
-function mapReviewItem(row: Record<string, unknown>): CustomOrderReviewItem {
+async function mapReviewItem(row: Record<string, unknown>): Promise<CustomOrderReviewItem> {
+  const referenceImagePaths = Array.isArray(row.reference_image_urls) ? (row.reference_image_urls as string[]) : [];
   return {
     id: String(row.id),
     title: String(row.title ?? ""),
     details: String(row.details ?? ""),
     budget_cents: row.budget_cents === null || row.budget_cents === undefined ? null : Number(row.budget_cents),
     contact_preference: (row.contact_preference as CustomOrderContactPreference) ?? "chat",
-    reference_image_urls: Array.isArray(row.reference_image_urls) ? (row.reference_image_urls as string[]) : [],
+    reference_image_urls: await Promise.all(referenceImagePaths.map(resolveCustomOrderImage)),
     status: (row.status as CustomOrderStatus) ?? "open",
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
@@ -152,7 +160,7 @@ export async function getMyCustomOrders(limit = 50): Promise<CustomOrderRequest[
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.rpc("get_my_custom_order_requests", { p_limit: limit });
     if (error) rethrow(error);
-    return (Array.isArray(data) ? data : []).map((row) => mapRequest(row as Record<string, unknown>));
+    return Promise.all((Array.isArray(data) ? data : []).map((row) => mapRequest(row as Record<string, unknown>)));
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
   return [];
@@ -173,7 +181,7 @@ export async function listCustomOrdersForReview(
       p_limit: limit,
     });
     if (error) rethrow(error);
-    return (Array.isArray(data) ? data : []).map((row) => mapReviewItem(row as Record<string, unknown>));
+    return Promise.all((Array.isArray(data) ? data : []).map((row) => mapReviewItem(row as Record<string, unknown>)));
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
   return [];
