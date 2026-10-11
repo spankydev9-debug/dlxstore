@@ -42,6 +42,28 @@
 >
 > Regression suite: `supabase/tests/p17_launch_readiness.sql`. Working notes: this session.
 
+> ## ✅ §29 (2026-10-11) — POSITIONING / SCROLL-LOCK OVERHAUL, MOBILE BELL, MANNEQUIN COMING-SOON SHIPPED (`main` @ `c26ce9a`)
+>
+> First slice of the master repair / social mission. Supersedes §28's `/studio` auth-gate and the
+> "no mobile notification icon" state.
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `main` @ `c26ce9a` (= `origin/main`) |
+> | Deployment | `dpl_FNwUpiAXYupn5qrzzv99hHy1YwMU` (READY), aliases `https://dlxstore-flax.vercel.app` (+ `dlxstore-dlx2`, `dlxstore-git-main-dlx2`), built from `main` @ `c26ce9a` |
+> | Static gates | `tsc --noEmit` 0 errors · `eslint .` 0 errors (142 pre-existing warnings) · `next build` success (28 static pages) |
+> | Section 2 — positioning / scroll-lock | New ref-counted `src/lib/body-scroll-lock.ts` + `useBodyScrollLock`; shared `Modal` primitive on `.overlay-backdrop`/`.overlay-panel--auto`; migrated checkout `PurchaseContinueDialog`, `ProductShareSheet`, `ReportModal`; `StoryViewer` scrollable + lock; global `visualViewport` `--kb-offset` tracker (OverlayContext); chat action bar / reaction picker unclipped inside the thread's scroll container |
+> | Section 3 — mobile notification bell | Bell now present at every width (was `hidden @min-[50rem]`), panel re-anchored for narrow screens (`@max-[50rem]/header:fixed inset-x-3`), duplicate hamburger badge removed, header theme toggle moved to `@min-[50rem]` (still in the Account drawer) to free width |
+> | Section 7 — mannequin | Anonymous + customer `/studio` now renders a polished `MannequinComingSoon` ("DLX Mannequin arrive bientôt."); working atelier preserved behind `NEXT_PUBLIC_DLX_MANNEQUIN_STUDIO=full` (default off) |
+> | Section 8 — Messages social rail | Sidebar now exposes Stories, Friends and the live global daily streak (links to the real `/dashboard?tab=stories|friends|streak`) |
+> | i18n | 3 new keys (`studioComingSoonBadge/Title/Body`) added across all 6 locales |
+> | Live verification (anon, headless Chrome CDP vs prod alias) | `/studio` shows "DLX Mannequin arrive bientôt." with no editor tablist (S7) · `/shop` = 61 product links, no "indisponible" (S4) · `/` header renders (S3) · routes `/ /shop /discover /studio /checkout /chat /dashboard /auth /contact /product/nike-p-6000` all 200 |
+> | Not exercised live (need an authenticated session) | mobile bell tap + unread badge (S3), chat popover interaction, checkout continuation dialog, image-send regression, stories/friends/streak rail interaction, blocking enforcement. Verified by build + code review only |
+> | Blocking (S8-F) | enforced server-side (`block_profile`/`unblock_profile` RPCs; `search_profiles` and direct-conversation start exclude blocked pairs) — not modified this release |
+> | Recovery | unchanged — PITR disabled, zero managed backups on the free org → recovery risk remains |
+>
+> Remaining mission sections (4/5/6 live e2e, deeper S8 embedding, S9 empty-state, S10 sweep) are tracked in-session.
+
 > ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
 >
 > **Current state: `main` @ `e760c09`.** The `mobile-ux-hardening` @ `fa7c30a` snapshot in the §25 header is stale.
