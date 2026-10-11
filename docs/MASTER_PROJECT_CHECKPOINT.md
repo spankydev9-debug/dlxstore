@@ -22,6 +22,26 @@
 >
 > Detail: `docs/CHECKPOINT-F1-F2-SELLER-AI-2026-10-10.md`.
 
+> ## ✅ §28 (2026-10-11) — LAUNCH-READINESS FIXES SHIPPED (`main` @ `a90463e`)
+>
+> Seven customer-reported launch blockers fixed, deployed to production, and verified against the live
+> alias. Supersedes the "still unavailable" items where noted.
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `main` @ `a90463e` (= `origin/main`) |
+> | Fix summary | P1 overlay menu navigation · P2 anonymous storefront · P3 chat photo send · P4 header notifications · P5 checkout continuation · P6 try-on "coming soon" copy · P7 search |
+> | Migrations applied | production `szhkesvvrgcxbxucodzz`: `20261024090000_storefront_anon_authorization_fix.sql` (P2), `20261025090000_send_message_media_coercion.sql` (P3); ledger now through `20261025090000` |
+> | Deployment | `dpl_AJiyh8ai6dYbN52Kgjz3tPFCTfQr` (READY), alias `https://dlxstore-flax.vercel.app`, built from `main` @ `a90463e`, ref `main` |
+> | Static gates | `tsc --noEmit` 0 errors · `eslint .` 0 errors (pre-existing warnings only) · `next build` success |
+> | Live verification (anon, headless Chrome via CDP against the prod alias) | `/shop` renders **61 products**, no "Boutique indisponible" copy (P2) · Account & More drawer destination `/about` navigates correctly (P1) · search `impermeable` → 1 result (accenté "Veste Coupe-Vent Imperméable"), `cortez` → 3 Corteiz results (P7) · `/studio` auth-gates anonymous to a sign-in prompt (P6 gating) |
+> | Live verification (anon, Supabase REST with the production anon key) | `products?select=*,product_images(...)&is_active=eq.true&is_archived=eq.false` → **200** (was `401 42501`); `categories` → **200** (P2 root cause fixed) |
+> | P3 root cause + fix | clients sent `p_media` as `JSON.stringify(...)` (jsonb string scalar) → `jsonb_array_elements` raised `22023`. Clients now send the array; `send_conversation_message_v2` coerces legacy strings. Coercion verified by DB query; **end-to-end photo send not exercised (needs an authenticated chat session)** |
+> | Not exercised live | P4 notifications, P5 checkout continuation, P6 try-on copy — these surfaces require an authenticated session and/or a populated cart; verified by build + code, not by a live browser session. `supabase/tests/p17_launch_readiness.sql` written for P2/P3 but not executed (no local stack running) |
+> | Recovery | unchanged — PITR disabled, zero managed backups on the free org → recovery risk remains |
+>
+> Regression suite: `supabase/tests/p17_launch_readiness.sql`. Working notes: this session.
+
 > ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
 >
 > **Current state: `main` @ `e760c09`.** The `mobile-ux-hardening` @ `fa7c30a` snapshot in the §25 header is stale.
