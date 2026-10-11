@@ -141,22 +141,16 @@ export function DLXAssistantFab() {
   // Close when the route changes. Product/suggested links inside the panel
   // navigate via the router; leaving the popover open across pages would leave a
   // stale assistant floating over unrelated content.
+  //
+  // Links inside the panel are `OverlayLink`s, which call `navigateFromOverlay`
+  // and dismiss the overlay atomically. An earlier native "close on any <a>
+  // click" handler raced that navigation (its `history.back()` fired after the
+  // push and cancelled it), so navigation is now handled solely by OverlayLink
+  // and this route-change effect.
   useEffect(() => {
     if (open) closeOverlay();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
-  // A link clicked inside the panel navigates but does not trigger the
-  // outside-click handler — close explicitly.
-  useEffect(() => {
-    const panel = panelRef.current;
-    if (!open || !panel) return;
-    const onPanelClick = (event: MouseEvent) => {
-      if ((event.target as HTMLElement | null)?.closest?.("a")) closeOverlay();
-    };
-    panel.addEventListener("click", onPanelClick);
-    return () => panel.removeEventListener("click", onPanelClick);
-  }, [open, closeOverlay]);
 
   // Mount: measure the viewport, restore (or place) the control.
   useEffect(() => {

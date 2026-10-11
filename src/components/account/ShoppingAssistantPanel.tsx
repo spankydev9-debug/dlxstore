@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { OverlayLink } from "../shared/OverlayLink";
 import { Bot, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import {
@@ -169,7 +169,7 @@ return (
                 <ul className="space-y-1.5">
                   {message.products.map((product) => (
                     <li key={product.id}>
-                      <Link
+                      <OverlayLink
                         href={`/product/${product.slug}`}
                         className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-2 transition-colors hover:bg-muted"
                       >
@@ -199,7 +199,7 @@ return (
                             ) : null}
                           </span>
                         </span>
-                      </Link>
+                      </OverlayLink>
                     </li>
                   ))}
                 </ul>

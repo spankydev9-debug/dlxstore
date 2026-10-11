@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Clock3, Search, X } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { useOverlay } from "../../context/OverlayContext";
@@ -16,6 +14,7 @@ import {
 } from "../../lib/product-search";
 import type { Category, Product } from "../../types";
 import { ProductImage } from "./ProductImage";
+import { OverlayLink } from "./OverlayLink";
 
 /**
  * Full-screen mobile search surface.
@@ -30,8 +29,7 @@ import { ProductImage } from "./ProductImage";
  */
 export function MobileSearchSurface() {
   const { t } = useLanguage();
-  const { closeOverlay } = useOverlay();
-  const router = useRouter();
+  const { closeOverlay, navigateFromOverlay } = useOverlay();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,24 +58,22 @@ export function MobileSearchSurface() {
     };
   }, []);
 
-  const results = useMemo(() => matchProducts(products, query, 8), [products, query]);
+  const results = useMemo(() => matchProducts(products, query, 8, categories), [products, query, categories]);
   const totalMatches = useMemo(
-    () => (query.trim() ? matchProducts(products, query, products.length).length : 0),
-    [products, query]
+    () => (query.trim() ? matchProducts(products, query, products.length, categories).length : 0),
+    [products, query, categories]
   );
 
   const submit = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
     setRecents(rememberSearch(trimmed));
-    closeOverlay();
-    router.push(buildSearchHref(trimmed));
+    navigateFromOverlay(buildSearchHref(trimmed));
   };
 
   const chooseResult = (slug: string) => {
     if (query.trim()) setRecents(rememberSearch(query.trim()));
-    closeOverlay();
-    router.push(`/product/${slug}`);
+    navigateFromOverlay(`/product/${slug}`);
   };
 
   return (
@@ -216,13 +212,12 @@ export function MobileSearchSurface() {
               <ul className="mt-2 grid grid-cols-2 gap-2">
                 {categories.map((category) => (
                   <li key={category.id}>
-                    <Link
+                    <OverlayLink
                       href={`/shop?category=${encodeURIComponent(category.slug)}`}
-                      onClick={closeOverlay}
                       className="flex min-h-11 items-center rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium transition-colors hover:border-primary/50 hover:text-primary"
                     >
                       <span className="truncate">{category.name}</span>
-                    </Link>
+                    </OverlayLink>
                   </li>
                 ))}
               </ul>

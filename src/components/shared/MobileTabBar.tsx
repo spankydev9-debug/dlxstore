@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, Shirt, ShoppingBag, User, MessageCircle } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useOverlay } from "../../context/OverlayContext";
+import { OverlayLink } from "./OverlayLink";
 
 /**
  * Mobile primary navigation — one of the two *intentionally designed* layouts
@@ -137,17 +137,13 @@ export function MobileTabBar() {
           return (
             <li key={tab.id} className="flex flex-1">
               {tab.href ? (
-                <Link
+                <OverlayLink
                   href={tab.href}
                   aria-current={active ? "page" : undefined}
-                  onClick={() => {
-                    // Navigating commits intent: close any open search surface.
-                    if (activeOverlay) closeOverlay();
-                  }}
                   className={baseClass}
                 >
                   {content}
-                </Link>
+                </OverlayLink>
               ) : (
                 <button
                   type="button"

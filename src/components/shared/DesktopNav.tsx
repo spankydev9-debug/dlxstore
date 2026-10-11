@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, LayoutGrid, Shirt } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { useOverlay } from "../../context/OverlayContext";
 import { getCategories } from "../../services/db/products";
 import type { Category } from "../../types";
 import { AvatarBadge } from "../account/AvatarBadge";
+import { OverlayLink } from "./OverlayLink";
 
 /**
  * Desktop primary navigation — one of the two *intentionally designed* layouts
@@ -32,7 +31,6 @@ export function DesktopNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { closeOverlay } = useOverlay();
   const [categories, setCategories] = useState<Category[]>([]);
   const [megaOpen, setMegaOpen] = useState(false);
   const megaRef = useRef<HTMLDivElement>(null);
@@ -94,17 +92,13 @@ export function DesktopNav() {
       aria-label={t.menu}
       className="hidden items-center gap-1 text-sm font-medium md:flex"
     >
-      <Link
+      <OverlayLink
         href="/shop"
         aria-current={current("/shop")}
-        onClick={() => {
-          closeOverlay();
-
-        }}
         className={linkClass("/shop")}
       >
         {t.shop}
-      </Link>
+      </OverlayLink>
 
       {/* Categories — a mega-menu built from the real `categories` table, so the
           entry point reflects what the catalogue actually contains. Gives way
@@ -132,60 +126,44 @@ export function DesktopNav() {
             role="menu"
             className="absolute left-0 top-full z-50 mt-1 w-[min(34rem,calc(100vw-2rem))] rounded-xl border border-border/70 bg-card p-3 shadow-2xl animate-fade-in"
           >
-            <Link
+            <OverlayLink
               href="/shop"
-              onClick={() => {
-                setMegaOpen(false);
-                closeOverlay();
-
-              }}
+              onClick={() => setMegaOpen(false)}
               role="menuitem"
               className="mb-1 flex min-h-11 items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
             >
               {t.browseCategories}
-            </Link>
+            </OverlayLink>
             <div className="grid grid-cols-2 gap-1">
               {categories.map((category) => (
-                <Link
+                <OverlayLink
                   key={category.id}
                   href={`/shop?category=${encodeURIComponent(category.slug)}`}
-                  onClick={() => {
-                    setMegaOpen(false);
-                    closeOverlay();
-
-                  }}
+                  onClick={() => setMegaOpen(false)}
                   role="menuitem"
                   className="min-h-11 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   {category.name}
-                </Link>
+                </OverlayLink>
               ))}
             </div>
           </div>
         )}
       </div>
 
-      <Link
+      <OverlayLink
         href="/discover"
         aria-current={current("/discover")}
-        onClick={() => {
-          closeOverlay();
-
-        }}
         className={`${linkClass("/discover")} @max-[58.75rem]/header:hidden`}
       >
         {t.discoverTab}
-      </Link>
+      </OverlayLink>
 
       {/* Studio gets identity rather than being a sixth arbitrary text link: a
           signed-in customer sees their own mannequin; a visitor sees the CTA. */}
-      <Link
+      <OverlayLink
         href="/studio"
         aria-current={current("/studio")}
-        onClick={() => {
-          closeOverlay();
-
-        }}
         title={user ? t.studio : t.navStudioCreate}
         className={`${navClass} ${
           current("/studio") ? "text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -204,19 +182,15 @@ export function DesktopNav() {
         ) : (
           <span className="hidden lg:inline">{t.navStudioCreate}</span>
         )}
-      </Link>
+      </OverlayLink>
 
-      <Link
+      <OverlayLink
         href="/food"
         aria-current={current("/food")}
-        onClick={() => {
-          closeOverlay();
-
-        }}
         className={`${linkClass("/food")} @max-[58.75rem]/header:hidden`}
       >
         {t.food}
-      </Link>
+      </OverlayLink>
     </nav>
   );
 }

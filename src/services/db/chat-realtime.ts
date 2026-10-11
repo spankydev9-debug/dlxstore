@@ -491,11 +491,13 @@ export async function sendMessageWithMedia(
   }>
 ): Promise<any> {
   if (isSupabaseConfigured && supabase) {
-    const mediaJson = mediaItems ? JSON.stringify(mediaItems) : null;
+    // PostgREST delivers a JS value as JSON. Passing a pre-stringified value
+    // would arrive as a JSON *string* scalar, and the RPC's jsonb_array_elements
+    // would fail with "cannot extract elements from a scalar". Send the array.
     const { data, error } = await supabase.rpc("send_conversation_message_v2", {
       p_conversation_id: conversationId,
       p_body: body.trim(),
-      p_media: mediaJson,
+      p_media: mediaItems && mediaItems.length > 0 ? mediaItems : null,
     });
     if (error) throw new Error(error.message || "Unable to send the message.");
     return data;

@@ -95,6 +95,8 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Re-entrancy guard: never create two orders from a double submit.
+    if (isSubmitting) return;
     // Only purchasable items are ever sent. Unavailable items are excluded from
     // the total already, and the server re-validates stock regardless.
     if (purchasableItems.length === 0) return;
@@ -149,7 +151,9 @@ export default function CheckoutPage() {
     }
   };
 
-  if (items.length === 0) {
+  // The post-order continuation dialog must survive the cart being cleared on
+  // success. Only show the empty state when there is no confirmed order.
+  if (items.length === 0 && !confirmedOrder) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center space-y-4 animate-fade-in">
         <h1 className="text-2xl font-bold">{t.cartEmpty}</h1>

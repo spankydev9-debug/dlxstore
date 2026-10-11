@@ -398,7 +398,7 @@ export class ChatMediaService {
     const { data, error } = await supabase.rpc("send_conversation_message_v2", {
       p_conversation_id: conversationId,
       p_body: text.trim(),
-      p_media: JSON.stringify(processedMedia),
+      p_media: processedMedia && processedMedia.length > 0 ? processedMedia : null,
     });
     
     if (error) throw new Error(`Failed to send message: ${error.message}`);

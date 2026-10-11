@@ -38,6 +38,10 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // The header badge must reflect the TRUE unread total, not the count of the
+  // (capped at 50, channel-filtered) page currently loaded. We keep the server
+  // summary separately and reconcile it optimistically on read.
+  const [unreadTotal, setUnreadTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [activeChannel, setActiveChannel] = useState<NotificationChannel | null>(null);
   const [preferences, setPreferences] = useState<Record<string, { enabled: boolean; mandatory: boolean }>>({});
@@ -45,6 +49,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const refreshNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
+      setUnreadTotal(0);
       return;
     }
     setIsLoading(true);
@@ -56,6 +61,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         offset: 0
       });
       setNotifications(list);
+      // Server-side true total (independent of the active channel and page cap).
+      try {
+        const summary = await getNotificationSummary();
+        setUnreadTotal(summary.unread);
+      } catch {
+        setUnreadTotal(list.filter((n) => !n.is_read).length);
+      }
     } catch (err) {
       console.error("Error fetching notifications:", err);
     } finally {
@@ -121,11 +133,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [refreshNotifications, user]);
 
   const markAsRead = async (id: string) => {
+    const wasUnread = notifications.find((n) => n.id === id)?.is_read === false;
     try {
       await dbMarkAsRead(id);
       setNotifications(prev =>
         prev.map(n => (n.id === id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n))
       );
+      if (wasUnread) setUnreadTotal(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error("Error marking notification as read:", err);
     }
@@ -136,15 +150,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await dbMarkAllAsRead(user.id, channel);
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+      if (!channel) setUnreadTotal(0);
+      // Channel-scoped reads need the server total to stay exact.
+      void refreshNotifications();
     } catch (err) {
       console.error("Error marking all notifications as read:", err);
     }
   };
 
   const deleteNotif = async (id: string) => {
+    const wasUnread = notifications.find((n) => n.id === id)?.is_read === false;
     try {
       await dbDeleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
+      if (wasUnread) setUnreadTotal(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error("Error deleting notification:", err);
     }
@@ -170,7 +189,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = unreadTotal;
 
   return (
     <NotificationContext.Provider

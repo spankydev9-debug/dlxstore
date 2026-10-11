@@ -10,6 +10,7 @@ import { Star, Search, SlidersHorizontal, RotateCcw, PackageX } from "lucide-rea
 import { useLanguage } from "../../context/LanguageContext";
 import { ProductImage } from "../../components/shared/ProductImage";
 import { SocialRecommendationsRail } from "../../components/product/SocialRecommendationsRail";
+import { matchesProductQuery } from "../../lib/product-search";
 
 function ShopContent() {
   const searchParams = useSearchParams();
@@ -108,13 +109,11 @@ function ShopContent() {
   // Filter & Sort Logic
   const filteredProducts = products
     .filter(p => {
-      // 1. Search Query
+      // 1. Search Query — one shared matcher (name, brand, SKU, category, tags,
+      //    description) with partial + typo tolerance, so the results page and
+      //    the header/mobile autocomplete always agree.
       if (search.trim()) {
-        const query = search.toLowerCase();
-        const matchesName = p.name.toLowerCase().includes(query);
-        const matchesBrand = p.brand.toLowerCase().includes(query);
-        const matchesSku = p.sku.toLowerCase().includes(query);
-        if (!matchesName && !matchesBrand && !matchesSku) return false;
+        if (!matchesProductQuery(p, search, categories)) return false;
       }
       
       // 2. Category

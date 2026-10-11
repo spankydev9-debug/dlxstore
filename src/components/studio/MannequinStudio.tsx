@@ -1434,9 +1434,9 @@ function CapabilityNotice({
     <div className="rounded-xl border border-[#d4af37]/25 bg-[#d4af37]/[0.06] px-3 py-2.5 text-xs">
       <p className="flex items-start gap-2 font-medium text-[#f0dfae]">
         <LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        {t.capabilityMissing}
+        {t.tryOnComingSoonTitle}
       </p>
-      <p className="mt-1 text-[#f0dfae]/70">{t.capabilityMissingBody}</p>
+      <p className="mt-1 text-[#f0dfae]/70">{t.tryOnComingSoonBody}</p>
     </div>
   );
 }

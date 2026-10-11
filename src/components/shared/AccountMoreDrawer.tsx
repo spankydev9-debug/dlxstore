@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Bell,
   Bot,
@@ -35,9 +33,11 @@ import { useOverlay } from "../../context/OverlayContext";
 import { useStreakContext } from "../../context/StreakContext";
 import { DownloadApp } from "./DownloadApp";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { OverlayLink } from "./OverlayLink";
 import { useTheme } from "./ThemeProvider";
 import { AvatarBadge } from "../account/AvatarBadge";
 import type { Notification } from "../../types";
+import { notificationDestination } from "../../lib/notification-destination";
 
 /**
  * "Account & More" — the secondary navigation control center, opened from the
@@ -69,10 +69,12 @@ function Row({
       : "text-foreground hover:bg-muted"
   }`;
   if (href) {
+    // OverlayLink (not a plain Link) so the drawer's history marker is consumed
+    // by the navigation instead of racing it via history.back().
     return (
-      <Link href={href} onClick={onClick} className={cls}>
+      <OverlayLink href={href} className={cls}>
         {children}
-      </Link>
+      </OverlayLink>
     );
   }
   return (
@@ -90,52 +92,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Where a notification actually leads.
- *
- * We only ever store a `type` (never a deep entity id), so the destination is
- * the surface that owns that type: an order goes to orders, a friend request to
- * friends, a new drop to the shop. Clicking a notification must always land
- * somewhere real — marking it read with no visible consequence is a dead
- * interaction.
- */
-function notificationDestination(notification: Notification): string {
-  switch (notification.type) {
-    case "order_status":
-    case "new_order":
-      return "/dashboard?tab=orders";
-    case "reward":
-      return "/dashboard?tab=rewards";
-    case "friend_request":
-    case "friend_accepted":
-      return "/dashboard?tab=friends";
-    case "story_reaction":
-    case "story_mention":
-      return "/dashboard?tab=stories";
-    case "streak_milestone":
-      return "/dashboard?tab=streak";
-    case "product_share":
-    case "product_reaction":
-      return "/dashboard?tab=shares";
-    case "partner_application":
-      return "/partner";
-    case "chat_message":
-      return "/chat";
-    case "promotion":
-    case "new_drop":
-    case "low_stock":
-      return "/shop";
-    default:
-      return "/dashboard?tab=notifications";
-  }
-}
-
 export function AccountMoreDrawer() {
-  const router = useRouter();
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const { closeOverlay, toggleOverlay } = useOverlay();
+  const { closeOverlay, toggleOverlay, navigateFromOverlay } = useOverlay();
   const { streak } = useStreakContext();
   const { cartCount } = useCart();
   const {
@@ -159,8 +120,7 @@ export function AccountMoreDrawer() {
       toggleOverlay("chat");
       return;
     }
-    done();
-    router.push(destination);
+    navigateFromOverlay(destination);
   };
 
   return (
@@ -197,7 +157,7 @@ export function AccountMoreDrawer() {
           {/* Identity */}
           {user ? (
             <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3">
-              <button type="button" className="shrink-0 rounded-full" onClick={() => { done(); router.push("/dashboard"); }} aria-label={t.myAccount}>
+              <button type="button" className="shrink-0 rounded-full" onClick={() => navigateFromOverlay("/dashboard")} aria-label={t.myAccount}>
                 <AvatarBadge user={user} className="h-11 w-11" linked={false} />
               </button>
               <div className="min-w-0 flex-1">
@@ -206,10 +166,7 @@ export function AccountMoreDrawer() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  done();
-                  router.push("/dashboard");
-                }}
+                onClick={() => navigateFromOverlay("/dashboard")}
                 className="shrink-0 text-xs font-semibold text-primary"
               >
                 {t.myAccount}
@@ -218,10 +175,7 @@ export function AccountMoreDrawer() {
           ) : (
             <button
               type="button"
-              onClick={() => {
-                done();
-                router.push("/auth?mode=login");
-              }}
+              onClick={() => navigateFromOverlay("/auth?mode=login")}
               className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               {t.signIn}
@@ -233,20 +187,20 @@ export function AccountMoreDrawer() {
             <>
               <SectionTitle>{t.myAccount}</SectionTitle>
               <div className="grid grid-cols-2 gap-2">
-                <Row href="/dashboard?tab=orders" onClick={done}>
+                <Row href="/dashboard?tab=orders">
                   <Package className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                   {t.myOrders}
                 </Row>
-                <Row href="/studio" onClick={done}>
+                <Row href="/studio">
                   <Shirt className="h-4.5 w-4.5 text-[#d4af37]" aria-hidden />
                   {t.studio}
                 </Row>
-                <Row href="/dashboard?tab=rewards" onClick={done}>
+                <Row href="/dashboard?tab=rewards">
                   <Gift className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                   {t.rewardsTab}
                 </Row>
                 {user.role === "admin" ? (
-                  <Row href="/admin/dashboard" onClick={done}>
+                  <Row href="/admin/dashboard">
                     <Settings className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                     {t.adminDashboard}
                   </Row>
@@ -255,15 +209,15 @@ export function AccountMoreDrawer() {
 
               {/* SOCIAL */}
               <SectionTitle>{t.social}</SectionTitle>
-              <Row href="/dashboard?tab=friends" onClick={done}>
+              <Row href="/dashboard?tab=friends">
                 <Users className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                 {t.friendsTab}
               </Row>
-              <Row href="/dashboard?tab=stories" onClick={done}>
+              <Row href="/dashboard?tab=stories">
                 <Images className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                 {t.storiesTab}
               </Row>
-              <Row href="/dashboard?tab=streak" onClick={done}>
+              <Row href="/dashboard?tab=streak">
                 <Flame className="h-4.5 w-4.5 text-orange-500" aria-hidden />
                 {t.streakTitle}
                 {(streak?.current_count ?? 0) > 0 ? (
@@ -337,7 +291,7 @@ export function AccountMoreDrawer() {
                   )}
                 </ul>
                 <div className="mt-2 border-t border-border pt-2">
-                  <Row href="/dashboard?tab=notifications" onClick={done}>
+                  <Row href="/dashboard?tab=notifications">
                     <Bell className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
                     {t.viewAllNotifications}
                   </Row>
@@ -348,7 +302,7 @@ export function AccountMoreDrawer() {
 
           {/* SHOPPING */}
           <SectionTitle>{t.shop}</SectionTitle>
-          <Row href="/cart" onClick={done}>
+          <Row href="/cart">
             <ShoppingBag className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.cart}
             {cartCount > 0 ? (
@@ -358,20 +312,20 @@ export function AccountMoreDrawer() {
             ) : null}
           </Row>
           {user ? (
-            <Row href="/dashboard?tab=wishlist" onClick={done}>
+            <Row href="/dashboard?tab=wishlist">
               <Heart className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
               {t.wishlist}
             </Row>
           ) : null}
-          <Row href="/discover" onClick={done}>
+          <Row href="/discover">
             <History className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.discoverRecentlyViewed}
           </Row>
-          <Row href="/food" onClick={done}>
+          <Row href="/food">
             <Utensils className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.food}
           </Row>
-          <Row href="/partners" onClick={done}>
+          <Row href="/partners">
             <Store className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.shops}
           </Row>
@@ -427,15 +381,15 @@ export function AccountMoreDrawer() {
               ) : null}
             </Row>
           ) : null}
-          <Row href="/about" onClick={done}>
+          <Row href="/about">
             <Info className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.about}
           </Row>
-          <Row href="/contact" onClick={done}>
+          <Row href="/contact">
             <Mail className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.contact}
           </Row>
-          <Row href="/partner" onClick={done}>
+          <Row href="/partner">
             <Building className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.partner}
           </Row>
@@ -446,8 +400,7 @@ export function AccountMoreDrawer() {
                 danger
                 onClick={() => {
                   signOut();
-                  done();
-                  router.push("/");
+                  navigateFromOverlay("/");
                 }}
               >
                 <LogOut className="h-4.5 w-4.5" aria-hidden />

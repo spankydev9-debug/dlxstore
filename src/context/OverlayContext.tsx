@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 
 /**
  * Shared primary-overlay / navigation state.
@@ -36,6 +37,7 @@ interface OverlayContextValue {
   openOverlay: (id: OverlayId) => void;
   closeOverlay: () => void;
   toggleOverlay: (id: OverlayId) => void;
+  navigateFromOverlay: (href: string) => void;
 }
 
 const HISTORY_MARKER = "__dlx_overlay__";
@@ -43,6 +45,7 @@ const HISTORY_MARKER = "__dlx_overlay__";
 const OverlayContext = createContext<OverlayContextValue | undefined>(undefined);
 
 export function OverlayProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [activeOverlay, setActiveOverlay] = useState<OverlayId | null>(null);
   const activeOverlayRef = useRef<OverlayId | null>(null);
   const markerOnStackRef = useRef(false);
@@ -95,6 +98,43 @@ export function OverlayProvider({ children }: { children: React.ReactNode }) {
     [closeOverlay, openOverlay]
   );
 
+  /**
+   * Navigate to a real route from inside an open overlay.
+   *
+   * Callers must NOT use `closeOverlay()` immediately before a navigation.
+   * `closeOverlay` pops the virtual history marker with `history.back()`, and
+   * Next's `<Link>` runs our click handler *before* it pushes the destination
+   * (see next/dist/client/app-dir/link.js). The queued `history.back()` then
+   * lands on the destination and immediately backs out of it — the classic
+   * "tap does nothing / returns to the previous screen" bug.
+   *
+   * Instead we consume the marker by *replacing* it with the destination, so the
+   * destination is a single, correct history entry and Back still returns to the
+   * page the overlay was opened from.
+   */
+  const navigateFromOverlay = useCallback(
+    (href: string) => {
+      if (activeOverlayRef.current === null) {
+        router.push(href);
+        return;
+      }
+      commitOverlay(null);
+      const topState =
+        typeof window !== "undefined"
+          ? (window.history.state as Record<string, unknown> | null)
+          : null;
+      const markerIsTop =
+        markerOnStackRef.current && !!topState && topState[HISTORY_MARKER] === true;
+      markerOnStackRef.current = false;
+      if (markerIsTop) {
+        router.replace(href);
+      } else {
+        router.push(href);
+      }
+    },
+    [commitOverlay, router]
+  );
+
   // Browser/device Back: when the user lands back on our virtual history entry,
   // close the overlay instead of letting the navigation escape past it.
   useEffect(() => {
@@ -138,7 +178,7 @@ export function OverlayProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <OverlayContext.Provider
-      value={{ activeOverlay, openOverlay, closeOverlay, toggleOverlay }}
+      value={{ activeOverlay, openOverlay, closeOverlay, toggleOverlay, navigateFromOverlay }}
     >
       {children}
     </OverlayContext.Provider>

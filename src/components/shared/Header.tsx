@@ -8,8 +8,8 @@ import { useCart } from "../../context/CartContext";
 import { useNotifications } from "../../context/NotificationContext";
 import { useChat } from "../../context/ChatContext";
 import { useTheme } from "./ThemeProvider";
-import { getProducts } from "../../services/db/products";
-import { Product } from "../../types";
+import { getProducts, getCategories } from "../../services/db/products";
+import { Product, Notification, Category } from "../../types";
 import {
   Check,
   Globe,
@@ -35,10 +35,12 @@ import { useLanguage } from "../../context/LanguageContext";
 import { useStreakContext } from "../../context/StreakContext";
 import { useOverlay } from "../../context/OverlayContext";
 import { buildSearchHref, matchProducts, rememberSearch } from "../../lib/product-search";
+import { notificationDestination } from "../../lib/notification-destination";
 import { AccountMoreDrawer } from "./AccountMoreDrawer";
 import { AvatarBadge } from "../account/AvatarBadge";
 import { DesktopNav } from "./DesktopNav";
 import { MobileSearchSurface } from "./MobileSearchSurface";
+import { OverlayLink } from "./OverlayLink";
 import { CustomerSupportChat } from "../chat/CustomerSupportChat";
 
 /**
@@ -92,6 +94,7 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -104,11 +107,12 @@ export default function Header() {
 
   useEffect(() => {
     getProducts().then(setAllProducts).catch(console.error);
+    getCategories().then(setAllCategories).catch(console.error);
   }, []);
 
   const searchResults = useMemo(
-    () => matchProducts(allProducts, searchQuery, 5),
-    [allProducts, searchQuery]
+    () => matchProducts(allProducts, searchQuery, 5, allCategories),
+    [allProducts, searchQuery, allCategories]
   );
 
   useEffect(() => {
@@ -121,6 +125,9 @@ export default function Header() {
       }
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+        // Stable setter (from the notifications provider); resets the channel
+        // filter when the panel is dismissed by an outside click.
+        setActiveChannel(null);
       }
       if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
         setIsLangMenuOpen(false);
@@ -184,6 +191,26 @@ export default function Header() {
   const iconBtn =
     "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors";
 
+  // Closing the panel also clears the channel filter so the badge and the list
+  // always return to the "all notifications" view.
+  const closeNotifications = () => {
+    setIsNotificationsOpen(false);
+    if (activeChannel !== null) setActiveChannel(null);
+  };
+
+  // A notification tap must land on the surface that owns it, not just mark it
+  // read. Mirrors AccountMoreDrawer so both entry points behave identically.
+  const openNotification = (notification: Notification) => {
+    void markAsRead(notification.id);
+    const destination = notificationDestination(notification);
+    setIsNotificationsOpen(false);
+    if (destination === "/chat") {
+      toggleOverlay("chat");
+      return;
+    }
+    router.push(destination);
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border/40 glass pt-safe-area-inset-top">
@@ -194,15 +221,14 @@ export default function Header() {
             essentials only. */}
         <div className="@container/header mx-auto flex h-16 min-w-0 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* LOGO */}
-          <Link
+          <OverlayLink
             href="/"
-            onClick={() => closeOverlay()}
             className="flex min-h-11 shrink-0 items-center"
           >
             <span className="text-base font-bold tracking-widest text-foreground uppercase sm:text-xl lg:text-2xl">
               DLX<span className="text-primary font-light">STORE</span>
             </span>
-          </Link>
+          </OverlayLink>
 
           {/* Desktop navigation — journey-ordered, active states, mega-menu. */}
           <DesktopNav />
@@ -305,9 +331,8 @@ export default function Header() {
 
             {/* Cart — kept in the shopping context at every breakpoint, with the
                 same count driving the tab-bar badge on phones. */}
-            <Link
+            <OverlayLink
               href="/cart"
-              onClick={() => closeOverlay()}
               className={`relative ${iconBtn}`}
               aria-label={t.cart}
             >
@@ -317,7 +342,7 @@ export default function Header() {
                   {cartCount}
                 </span>
               )}
-            </Link>
+            </OverlayLink>
 
             {user && (
               <button
@@ -339,7 +364,10 @@ export default function Header() {
             {user && (
               <div ref={notificationsRef} className="relative hidden @min-[50rem]/header:block">
                 <button
-                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  onClick={() => {
+                    if (isNotificationsOpen) closeNotifications();
+                    else setIsNotificationsOpen(true);
+                  }}
                   className={`${iconBtn} relative`}
                   aria-label={t.notifications}
                   aria-expanded={isNotificationsOpen}
@@ -401,7 +429,7 @@ export default function Header() {
                         notifications.slice(0, 5).map((n) => (
                           <div
                             key={n.id}
-                            onClick={() => markAsRead(n.id)}
+                            onClick={() => openNotification(n)}
                             className={`cursor-pointer rounded-lg p-2 text-xs transition-colors ${
                               n.is_read
                                 ? "hover:bg-muted"
@@ -422,7 +450,7 @@ export default function Header() {
                     <div className="flex items-center justify-between border-t border-border/40 p-3">
                       <Link
                         href="/dashboard?tab=notifications"
-                        onClick={() => setIsNotificationsOpen(false)}
+                        onClick={() => closeNotifications()}
                         className="text-xs font-semibold text-primary hover:underline"
                       >
                         {t.viewAllNotifications}
@@ -552,11 +580,18 @@ export default function Header() {
                 sole route to a core screen. */}
             <button
               onClick={() => toggleOverlay("mobile-menu")}
-              className={iconBtn}
+              className={`${iconBtn} relative`}
               aria-label={t.accountAndMore}
               aria-expanded={isDrawerOpen}
             >
               {isDrawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {/* Mobile has no dedicated bell; surface unread notifications here
+                  so the control is discoverable at every width. */}
+              {user && unreadCount > 0 && !isDrawerOpen && (
+                <span className="absolute -right-0.5 -top-0.5 flex min-h-4.5 min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground @min-[50rem]/header:hidden">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
