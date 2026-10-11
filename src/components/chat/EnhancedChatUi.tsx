@@ -192,10 +192,12 @@ return (
           )}
         </div>
 
-        {/* Message actions */}
+        {/* Message actions. Anchored *inside* the bubble's top corner: the
+            thread is an overflow container, so an offset outside the bubble
+            would be clipped for the first/last visible messages. */}
         {showActions && (
           <div
-            className={`absolute flex gap-1 ${isMine ? "-left-2 top-0" : "-right-2 top-0"}`}
+            className={`absolute z-20 flex gap-1 ${isMine ? "right-1 top-1" : "left-1 top-1"}`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="bg-background border border-border rounded-lg shadow-lg p-1 flex gap-1">
@@ -242,9 +244,10 @@ return (
           </div>
         )}
 
-        {/* Reaction picker */}
+        {/* Reaction picker. Rendered *below* the bubble (rather than `-top-10`)
+            so it is never clipped by the top of the thread's scroll viewport. */}
         {showReactions && (
-          <div className="absolute -top-10 left-0 bg-background border border-border rounded-lg shadow-lg p-2 flex gap-1">
+          <div className={`absolute top-full z-30 mt-1 flex gap-1 rounded-lg border border-border bg-background p-2 shadow-lg ${isMine ? "right-0" : "left-0"}`}>
             {commonEmojis.map((emoji) => (
               <button
                 key={emoji}

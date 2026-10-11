@@ -322,7 +322,7 @@ export default function Header() {
 
             <button
               onClick={toggleTheme}
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground @min-[23rem]/header:flex"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground @min-[50rem]/header:flex"
               title={t.changeTheme}
               aria-label={t.changeTheme}
             >
@@ -362,7 +362,7 @@ export default function Header() {
             )}
 
             {user && (
-              <div ref={notificationsRef} className="relative hidden @min-[50rem]/header:block">
+              <div ref={notificationsRef} className="relative">
                 <button
                   onClick={() => {
                     if (isNotificationsOpen) closeNotifications();
@@ -381,7 +381,7 @@ export default function Header() {
                 </button>
 
                 {isNotificationsOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-border/80 bg-card p-2 shadow-xl animate-fade-in">
+                  <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border border-border/80 bg-card p-2 shadow-xl animate-fade-in @max-[50rem]/header:fixed @max-[50rem]/header:left-3 @max-[50rem]/header:right-3 @max-[50rem]/header:top-16 @max-[50rem]/header:mt-0 @max-[50rem]/header:w-auto">
                     <div className="flex items-center justify-between border-b border-border/40 p-3">
                       <span className="text-sm font-semibold text-foreground">{t.notifications}</span>
                       {unreadCount > 0 && (
@@ -580,18 +580,11 @@ export default function Header() {
                 sole route to a core screen. */}
             <button
               onClick={() => toggleOverlay("mobile-menu")}
-              className={`${iconBtn} relative`}
+              className={iconBtn}
               aria-label={t.accountAndMore}
               aria-expanded={isDrawerOpen}
             >
               {isDrawerOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              {/* Mobile has no dedicated bell; surface unread notifications here
-                  so the control is discoverable at every width. */}
-              {user && unreadCount > 0 && !isDrawerOpen && (
-                <span className="absolute -right-0.5 -top-0.5 flex min-h-4.5 min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground @min-[50rem]/header:hidden">
-                  {unreadCount}
-                </span>
-              )}
             </button>
           </div>
         </div>

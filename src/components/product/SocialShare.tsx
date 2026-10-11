@@ -26,6 +26,7 @@ import {
   SocialCommerceUnavailableError,
 } from "../../services/db/social-commerce";
 import type { Friend, Product, ProductSocialProof, ShareChannel } from "../../types";
+import { Modal } from "../shared/Modal";
 
 /**
  * Anonymous social proof strip for a product.
@@ -266,17 +267,7 @@ export function ProductShareSheet({
   }, [onClose, router, product.slug]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t.socialShareTitle}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md space-y-4 rounded-t-2xl border border-border bg-card p-5 shadow-2xl sm:rounded-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <Modal open onClose={onClose} size="md" ariaLabel={t.socialShareTitle} panelClassName="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="flex items-center gap-2 text-base font-bold text-foreground">
@@ -414,7 +405,6 @@ export function ProductShareSheet({
             {t.socialSignInToShare}
           </p>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

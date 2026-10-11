@@ -21,6 +21,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { useStories } from "../../hooks/useStories";
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { getProducts } from "../../services/db/products";
 import { getStoryMediaUrl, uploadStoryMedia } from "../../services/db/stories";
 import {
@@ -657,6 +658,10 @@ function StoryViewer({
   const [index, setIndex] = useState(0);
   const story = group.stories[Math.min(index, group.stories.length - 1)];
 
+  // Freeze the page behind the viewer while it is open (ref-counted so it
+  // composes with any drawer/dialog underneath).
+  useBodyScrollLock(Boolean(story));
+
   // Record the view once per story id shown, never on every render.
   const viewedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -681,12 +686,13 @@ function StoryViewer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85"
       role="dialog"
       aria-modal="true"
       aria-label={group.author.full_name}
       onClick={onClose}
     >
+      <div className="flex min-h-full items-center justify-center p-4">
       <div
         className="relative w-full max-w-sm space-y-3"
         onClick={(event) => event.stopPropagation()}
@@ -779,6 +785,7 @@ function StoryViewer({
             </button>
           </div>
         ) : null}
+      </div>
       </div>
     </div>
   );

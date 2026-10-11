@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { lockBodyScroll } from "../lib/body-scroll-lock";
 
 /**
  * Shared primary-overlay / navigation state.
@@ -152,19 +153,31 @@ export function OverlayProvider({ children }: { children: React.ReactNode }) {
   // the sheet cannot pan. The assistant is a small popover, not a full-screen
   // sheet, so it must NOT lock the page — locking it freezes the document the
   // popover floats above, which feels broken on desktop and mobile alike.
+  // The lock is ref-counted so it composes with modal dialogs opened inside it.
   useEffect(() => {
-    if (
-      typeof document === "undefined" ||
-      activeOverlay === null ||
-      activeOverlay === "assistant"
-    )
-      return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    if (activeOverlay === null || activeOverlay === "assistant") return;
+    return lockBodyScroll();
   }, [activeOverlay]);
+
+  // Track the on-screen keyboard (visual viewport) globally and publish its
+  // height as `--kb-offset`. Every `.overlay-backdrop` consumes it, so any
+  // bottom-anchored sheet (not just the support chat) keeps its actions above
+  // the keyboard instead of behind it.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      document.documentElement.style.setProperty("--kb-offset", `${Math.round(offset)}px`);
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // Escape closes the current primary overlay.
   useEffect(() => {

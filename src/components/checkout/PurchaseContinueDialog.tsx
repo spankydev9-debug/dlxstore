@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Order } from "../../types";
 import { useChat } from "../../context/ChatContext";
@@ -9,6 +9,7 @@ import { getStoreSettings } from "../../services/db/settings";
 import { recordOrderWhatsAppHandoff } from "../../services/db/orders";
 import { buildWhatsAppUrl, buildOrderOperationalMessage, getWhatsAppBuyNumber } from "../../lib/whatsapp";
 import { MessageSquare, CheckCircle2, Eye, Loader2 } from "lucide-react";
+import { Modal } from "../shared/Modal";
 
 export interface PurchaseContinueItem {
   product?: { name?: string };
@@ -30,13 +31,6 @@ export default function PurchaseContinueDialog({ order, items, onDismiss }: Purc
   const { t } = useLanguage();
   const [actionBusy, setActionBusy] = useState<"chat" | "whatsapp" | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
 
   const orderPayload = {
     id: order.id,
@@ -115,14 +109,14 @@ export default function PurchaseContinueDialog({ order, items, onDismiss }: Purc
   const body = t.purchaseContinueBody.replace("{ref}", order.id);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-      data-continue-dialog="true"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t.purchaseContinueTitle}
+    <Modal
+      open
+      onClose={onDismiss}
+      size="md"
+      ariaLabel={t.purchaseContinueTitle}
+      panelClassName="p-6"
     >
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl animate-fade-in">
+      <div data-continue-dialog="true">
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
           <h2 className="text-lg font-extrabold text-foreground">{t.purchaseContinueTitle}</h2>
@@ -182,6 +176,6 @@ export default function PurchaseContinueDialog({ order, items, onDismiss }: Purc
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

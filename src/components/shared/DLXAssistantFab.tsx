@@ -273,8 +273,10 @@ export function DLXAssistantFab() {
   const roomAbove = pos.y - 12;
   const roomBelow = viewport.h - (pos.y + FAB + 10) - safeBottom;
   const above = roomAbove >= 320 || roomAbove >= roomBelow;
+  // Never let the floor exceed the room actually available, otherwise a short
+  // landscape/split viewport shows a panel taller than its container.
   const maxHeight = Math.max(
-    200,
+    120,
     Math.min(viewport.h - 24, above ? roomAbove : roomBelow)
   );
   const panelStyle: React.CSSProperties = above

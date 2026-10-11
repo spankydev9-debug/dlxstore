@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { getMyAvatar } from "../../services/db/avatar";
 import { MannequinStudio } from "../../components/studio/MannequinStudio";
+import { MannequinComingSoon } from "../../components/studio/MannequinComingSoon";
 import type { CustomerAvatar } from "../../types";
 
 /**
@@ -16,8 +17,19 @@ import type { CustomerAvatar } from "../../types";
  * The mannequin workspace needs the caller's persisted Avatar, which is only
  * readable with the user's own session, so this is a client component rather
  * than a server-rendered page. It is marked no-index because it is personal.
+ *
+ * Customers currently see a polished "coming soon" preview; the working
+ * atelier stays reachable for internal use by setting
+ * `NEXT_PUBLIC_DLX_MANNEQUIN_STUDIO=full`.
  */
+const MANNEQUIN_STUDIO_INTERNAL =
+  process.env.NEXT_PUBLIC_DLX_MANNEQUIN_STUDIO === "full";
+
 export default function MannequinStudioPage() {
+  if (!MANNEQUIN_STUDIO_INTERNAL) {
+    return <MannequinComingSoon />;
+  }
+
   return (
     <Suspense
       fallback={

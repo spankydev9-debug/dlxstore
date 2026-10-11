@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, X } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import { createAbuseReport } from "../../services/db/safety";
 import type { ReportType } from "../../types";
+import { Modal } from "../shared/Modal";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -59,8 +60,7 @@ export function ReportModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-lg">
+    <Modal open={isOpen} onClose={onClose} size="md" ariaLabel="Report" panelClassName="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -141,7 +141,6 @@ export function ReportModal({
             </div>
           </form>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
