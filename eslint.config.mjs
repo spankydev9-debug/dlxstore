@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Supabase writes generated bundles (edge-runtime start scripts) here;
+    // they are outputs, not source, and must not gate the lint pass.
+    "supabase/.temp/**",
   ]),
   {
     // Flat config resolves a plugin rule only when the plugin is registered in

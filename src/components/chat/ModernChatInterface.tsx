@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  MessageSquare, Users, Search, 
+import {
+  MessageSquare, Users, Search,
   CheckCircle, AlertCircle, UserPlus, Settings,
-  ArrowLeft, Filter, Archive, Trash2, Clapperboard, Flame
+  ArrowLeft, Filter, Archive, Trash2
 } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useChat } from "../../context/ChatContext";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { useStreakContext } from "../../context/StreakContext";
 import {
   MessageBubble, 
   MessageComposer, 
@@ -20,12 +19,12 @@ import {
 } from "./EnhancedChatUi";
 import { ChatTimestamp } from "./chatTime";
 import { NewDirectConversationPanel } from "./NewDirectConversationPanel";
+import { ChatSocialRail } from "./ChatSocialRail";
 import { productSharePreview } from "../../lib/product-share";
 
 export function ModernChatInterface() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { streak } = useStreakContext();
   const {
     conversations,
     activeConversation,
@@ -348,35 +347,18 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
               </div>
             </div>
 
-            {/* Social rail: stories, friends and the live daily streak, so the
-                Messages home doubles as a social hub. All three link to the
-                real dashboard tabs — no feature is stubbed here. */}
-            <div className="flex items-center gap-1.5 border-b border-border px-3 py-2.5">
-              <Link
-                href="/dashboard?tab=stories"
-                className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Clapperboard className="h-3.5 w-3.5" />
-                {t.storiesTab}
-              </Link>
-              <Link
-                href="/dashboard?tab=friends"
-                className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <Users className="h-3.5 w-3.5" />
-                {t.friendsTab}
-              </Link>
-              {streak && streak.current_count > 0 && (
-                <Link
-                  href="/dashboard?tab=streak"
-                  title={t.streakTitle}
-                  className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-lg bg-orange-500/15 px-2.5 py-1.5 text-[11px] font-extrabold text-orange-600 dark:text-orange-400"
-                >
-                  <Flame className="h-3.5 w-3.5" />
-                  {streak.current_count}
-                </Link>
-              )}
-            </div>
+            {/* Social rail: stories and friends embedded inline (tap a story to
+                open the real viewer, tap a friend to open their conversation)
+                plus the live daily streak. */}
+            <ChatSocialRail
+              onStartConversation={async (profileId) => {
+                await startDirectConversation(profileId);
+                // Reveal the message pane behind the full-width phone drawer.
+                if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
+                  setIsSidebarOpen(false);
+                }
+              }}
+            />
             
             {/* New direct conversation */}
             <div className="border-b border-border p-3">

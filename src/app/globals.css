@@ -353,8 +353,18 @@ html {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* No `animation-fill-mode: forwards`. With `forwards` the final keyframe value
+   is retained indefinitely, leaving a permanent `transform: matrix(1,0,0,1,0,0)`
+   on the element (even when the `to` frame only specifies `opacity`). Any
+   retained transform — even an identity one — makes that element the containing
+   block for `position: fixed` descendants, so page shells using this class would
+   trap every fixed overlay they contain (dialogs, the story viewer) instead of
+   the viewport. Without `forwards`, the browser reverts to the base style after
+   the 0.5s animation, i.e. `transform: none`, while still playing the same
+   fade + slide from the first painted frame (there is no animation-delay, so
+   there is no flash of the un-animated state). */
 .animate-fade-in {
-  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Custom Scrollbars (Minimalist) */

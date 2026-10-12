@@ -54,7 +54,7 @@ const VISIBILITY_LABEL_KEYS = {
  * of the component; a signing failure resolves to null so the tile falls back to
  * its gradient rather than raising an error over the whole rail.
  */
-function useStoryMediaUrls(stories: (StoryItem | MyStoryItem)[]): Record<string, string | null> {
+export function useStoryMediaUrls(stories: (StoryItem | MyStoryItem)[]): Record<string, string | null> {
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   // Every path currently rendered, so the effect does not re-sign on each render.
   const paths = useMemo(
@@ -641,7 +641,7 @@ export function StoriesPanel() {
  * "everything this person posted today". The view is recorded when a story is
  * first shown and is idempotent server-side, so paging back and forth is safe.
  */
-function StoryViewer({
+export function StoryViewer({
   group,
   urls,
   onClose,

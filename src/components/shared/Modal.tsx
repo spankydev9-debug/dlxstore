@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 
 /**
@@ -18,6 +19,15 @@ import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
  *
  * It also owns an order-independent body scroll lock and Escape-to-close, so an
  * inner dialog can no longer leave the page frozen or unfreeze it prematurely.
+ *
+ * Portalled to `document.body`: `position: fixed` is resolved against the nearest
+ * ancestor that establishes a containing block (any `transform`, `filter`,
+ * `backdrop-filter`, `will-change` or `contain`). Page shells animate in with
+ * `animation-fill-mode: forwards` and `translateY`, which leaves a permanent
+ * `transform` on the page root — the fixed backdrop would then be positioned
+ * relative to that element (e.g. a dialog pinned to the bottom of the document
+ * instead of the viewport). Rendering through a portal escapes every such
+ * ancestor, so the dialog is always pinned to the visual viewport.
  */
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 
@@ -62,9 +72,12 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  return (
+  if (!open || !mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className="overlay-backdrop animate-fade-in"
       role="dialog"
@@ -81,6 +94,7 @@ export function Modal({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
