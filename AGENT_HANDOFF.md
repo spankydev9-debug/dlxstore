@@ -17,8 +17,9 @@ Last updated: 2026-10-09 (P5 campaigns, storefront banner, admin editor). Owner:
 > `conversations.dm_key`, `get_product_social_proof` (fixed shape) and
 > `get_conversation_with_realtime_data`/`get_my_custom_order_requests` are all present — so the
 > "4 pending" and "45/45, latest `20261017093000`" rows below are stale. Local `main` ==
-> `origin/main` == `c04ecac` (nothing unpushed). The `iad1` vs `cpt1` deploy-region ambiguity remains
-> unresolved.
+> `origin/main` == `c04ecac` (nothing unpushed). The `iad1` vs `cpt1` deploy-region ambiguity is
+> **resolved** (2026-10-12): `iad1` is the function/compute region; `cpt1`/`bom1` are `x-vercel-id`
+> edge PoPs — not conflicting deployments. See the *Deploy region* row below.
 >
 > | | |
 > |---|---|
@@ -26,9 +27,9 @@ Last updated: 2026-10-09 (P5 campaigns, storefront banner, admin editor). Owner:
 > | Newest work | P0 `18f250b` (chat media) · P1 `73e47bf` (purchase continuation) · P2 `98f3e68` (category rail) · P3 `46ccaa3` (product cards, Story sharing, custom orders) · P4 `c61132f` (availability + cart) · P4b `8a2fd56` (cart/checkout safety against the live catalogue) · **P5 `48085a5` (campaign data layer, storefront banner, admin campaign editor, coupon-honesty guard).** See `docs/CHECKPOINT-P5-CAMPAIGNS.md` |
 > | **Campaign data** | `campaigns` and `personalized_promotions` are **empty in production** — the P5 banner therefore renders nothing today. `coupons` has 3 rows and **none can redeem**: `DLX2001` (20%) expired 2026-08-30, `2073` (35%) expired 2026-08-29, and the only unexpired code is `active = false`. Because `campaigns.coupon_code` has an FK to `coupons(code)` and P5's guard refuses a campaign whose coupon cannot deliver, **the "We are now open" launch is two ordered production writes (BACKLOG DEP-3), not one** |
 > | P9–P16 status | complete and locally verified — see `docs/CHECKPOINT-P14-MARKETPLACE.md`, `-P15-MOBILE-PWA.md`, `-P16-PERFORMANCE.md` |
-> | **Production deploy state** | **Deployed, but behind local `main`.** Re-checked 2026-10-09: the production alias `https://dlxstore-flax.vercel.app` serves deployment `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, created 2026-10-08 22:39 CAT from **`main` @ `276e759`** (= `origin/main`). `/discover`, `/studio`, `/partner/dashboard` return **200** — the earlier "not deployed / 404" note is obsolete. Everything from `fa4d510` onward (P0–P5) is **not** on production. **Verify a deploy in a browser with the Service Worker caches cleared** — `/sw.js` (`dlxstore-shell-v4`, `dlxstore-static-v4`) re-registers on every load and was observed serving an outdated bundle, so an alias can look unchanged for reasons that have nothing to do with the deploy. Build functions report region `iad1` on this deployment, which conflicts with the `cpt1` cold-start measurement in `docs/CHECKPOINT-P16-PERFORMANCE.md` — re-measure before quoting either |
+> | **Production deploy state** | **Deployed, but behind local `main`.** Re-checked 2026-10-09: the production alias `https://dlxstore-flax.vercel.app` serves deployment `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, created 2026-10-08 22:39 CAT from **`main` @ `276e759`** (= `origin/main`). `/discover`, `/studio`, `/partner/dashboard` return **200** — the earlier "not deployed / 404" note is obsolete. Everything from `fa4d510` onward (P0–P5) is **not** on production. **Verify a deploy in a browser with the Service Worker caches cleared** — `/sw.js` (`dlxstore-shell-v4`, `dlxstore-static-v4`) re-registers on every load and was observed serving an outdated bundle, so an alias can look unchanged for reasons that have nothing to do with the deploy. Build functions report region `iad1` on this deployment; the `cpt1` cold-start measurement in `docs/CHECKPOINT-P16-PERFORMANCE.md` is the `x-vercel-id` edge PoP, not a conflicting function region |
 > | **Production DB state** | **45/45 migrations applied, latest `20261017093000`; 4 pending** (`20261018090000`, `20261019090000`, `20261020090000`, `20261021090000`). The "missing 37 of 40 RPCs" figure below is obsolete. Live defects re-probed 2026-10-09 **against the deployed bundle** — i.e. these are user-facing on production right now: `get_trending_products` → HTTP 400 `42P10 "ORDER BY position 9 is not in select list"` (silently kills the `/discover` trending shelf), `get_product_social_proof` → HTTP 400 `42804 "Returned type bigint … column 2"` (product social proof never renders), and `get_or_create_direct_conversation` **does not exist** in `pg_proc` (starting a DM throws "Unable to start the conversation."). The first two are repaired by `20261018090000`; applying it fixes live traffic without any deploy. `20261019090000` gates DMs. `20261020090000` / `20261021090000` belong to code that is not deployed yet, so they are not live defects |
-> | Deploy region | Unresolved: the current production build reports `iad1`, the P16 audit measured `cpt1` cold starts. Re-measure rather than trusting either |
+> | Deploy region | **Resolved 2026-10-12 — the two are not in conflict.** `iad1` is the Vercel **serverless function/compute region** (every function in the current production build reports `iad1`; the project has no region override). `cpt1` and `bom1` are **edge-network Points of Presence** read from the `x-vercel-id` response header — they vary by client and do **not** indicate the function region. The P16 "`cpt1`, not `iad1`" note compared an edge PoP to a compute region. No region configuration was changed |
 > | Latest audit | `docs/CHECKPOINT-PRODUCTION-READINESS.md` — go-live checklist, live browser defects, accepted risks |
 > | Latest work | `docs/CHECKPOINT-P5-CAMPAIGNS.md` — what P5 built, the production campaign/coupon facts, the 20 validator and coupon-guard cases, and exactly what stays unverified |
 >
@@ -51,7 +52,7 @@ a commerce + messaging + social + AI ecosystem. See `ROADMAP.md`.
 | Backend | Supabase (Postgres + Auth + Storage + Realtime) |
 | Deployment | Vercel, project `dlx2/dlxstore` |
 | Supabase project ref | `szhkesvvrgcxbxucodzz` (project name "spankydev9-debug's Project") |
-| Deploy region | `iad1` (US East) — audience is Goma, DRC. See `docs/PRODUCTION_STATE.md` |
+| Deploy region | `iad1` (US East) — serverless **function/compute** region. The edge PoP varies by client (`cpt1`, `bom1`, …) and is not the function region. Audience is Goma, DRC. See `docs/PRODUCTION_STATE.md` |
 
 ---
 
@@ -154,7 +155,7 @@ Agents may hand work to each other. A handoff must always carry the 8-point repo
 | RLS on public reads | Verified | categories 15, sessions 5, products 49 rows return 200 |
 | `/_next/image` optimizer | Verified | 200 `image/jpeg` for Supabase and Unsplash sources |
 | Service worker | Verified clean | `public/sw.js` never intercepts image requests; cache-first applies only to same-origin `/_next/static/**` |
-| Image optimizer | Verified, measured | `/_next/image` TTFB 111 ms vs 109 ms for a static file on the same origin; warm p50 **3.9 ms**, 107/107 images 200. Region is `cpt1` (Cape Town), not `iad1` |
+| Image optimizer | Verified, measured | `/_next/image` TTFB 111 ms vs 109 ms for a static file on the same origin; warm p50 **3.9 ms**, 107/107 images 200. The `cpt1` (Cape Town) value is the **edge PoP** from `x-vercel-id`, not the function region (`iad1`) |
 | P10 Safety & privacy | Complete | `docs/CHECKPOINT-P10-SAFETY-PRIVACY.md` |
 | P11 Growth & loyalty | Complete | `docs/CHECKPOINT-P11-GROWTH-LOYALTY.md` |
 | P12 Analytics / BI | Complete | `docs/CHECKPOINT-P12-ANALYTICS-BI.md` |
@@ -237,7 +238,8 @@ fragile and avoid depending on build-time inlining of it.
 4. **Backups untracked in Git.**
 5. **Migration drift unverifiable.** DB connection is IP-blocked, so applied-migration
    state is unknown.
-6. **Image cold-cache latency** 0.7–2.7 s/image from `iad1` for a Goma audience.
+6. **Image cold-cache latency** 0.7–2.7 s/image from the `iad1` function region for a Goma
+   audience (the edge PoP served the request, but image work ran in `iad1`).
    A performance issue, **not** a reliability bug.
 7. **Silent image fallback.** `resolveProductImageUrl` (`src/lib/product-image.ts:5`)
    substitutes `/globe.svg` for any disallowed URL, and admin category/vendor forms

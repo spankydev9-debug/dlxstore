@@ -6,8 +6,16 @@ All values verified read-only. No production change was made.
 > **Correction — 2026-10-09.** The §1 table below is superseded. Production has been redeployed
 > many times since 2026-09-09; the alias `https://dlxstore-flax.vercel.app` now serves
 > `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, built 2026-10-08 22:39 CAT from **`main` @ `276e759`**
-> (= `origin/main`), and its build functions still report `iad1`.
+> (= `origin/main`), and its build functions still report `iad1` (the serverless
+> **function/compute** region, not the `x-vercel-id` edge PoP).
 > Evidence, plus the live RPC defects this build exposes: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1.
+>
+> **Region resolved — 2026-10-12.** `iad1` = the Vercel **serverless function/compute region**
+> (every function in the current production build reports `iad1`; the project has no region
+> override). `cpt1` (Cape Town) and `bom1` (Mumbai) are **edge-network Points of Presence** read
+> from the `x-vercel-id` response header; they vary by client location and do **not** indicate the
+> function region. There was never a conflicting deployment — the earlier "`cpt1`, not `iad1`"
+> note compared an edge PoP to a compute region. No region configuration was changed.
 
 ---
 
@@ -23,7 +31,7 @@ All values verified read-only. No production change was made.
 | Created | 2026-09-09 02:08:05 +0200 (19 days before this document) |
 | Status | Ready |
 | Built from | **`mobile-ux-hardening`** @ `a9876be` |
-| Runtime region | `iad1` (US East) |
+| Runtime region | `iad1` (US East) — serverless **function/compute** region. Edge PoP varies by client (`cpt1`, `bom1`, …) |
 | Node version | 24.x |
 | Local link | **NOT linked** — `.vercel/project.json` is absent; only `.vercel/repo.json` exists |
 | Custom domain | None. `dlxstore.cd`, `dlxstore.com`, `dlxstore.app`, `dlxstore.co` all fail to resolve. |
