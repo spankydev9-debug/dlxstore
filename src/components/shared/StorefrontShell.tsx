@@ -13,19 +13,34 @@ import { LanguagePrompt } from "./LanguagePrompt";
 import { DLXAssistantFab } from "./DLXAssistantFab";
 import { CategoryRailWrapper } from "./CategoryRailWrapper";
 import { CampaignBanner } from "./CampaignBanner";
+import { usePathname } from "next/navigation";
+
+// App-first sections own their full viewport (messenger, account dashboard,
+// studio). The storefront's marketing chrome — campaign banner, category rail
+// and the shop footer — must not leak in, otherwise scrolling a conversation or
+// the dashboard walks the user into the shop footer. Header, tab bar and the
+// assistant FAB stay because they are the app's own navigation.
+const APP_SECTION_PREFIXES = ["/chat", "/dashboard", "/studio"];
+
+function isAppSection(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return APP_SECTION_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [loaded, setLoaded] = useState(false);
+  const pathname = usePathname();
   useEffect(() => { getStoreSettings().then(setSettings).catch(console.error).finally(() => setLoaded(true)); }, []);
   if (!isSupabaseConfigured && !isDemoMode) return <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 text-center"><p className="text-xs font-semibold tracking-[.2em] text-primary">DLXSTORE</p><h1 className="mt-4 text-3xl font-bold">Store configuration is required</h1><p className="mt-3 text-sm text-muted-foreground">The production data connection has not been configured yet. Please return once DLXSTORE is online.</p></main>;
   if (loaded && !isLaunchOpen(settings)) return <ComingSoon settings={settings} />;
+  const appSection = isAppSection(pathname);
   return (
     <>
       <LanguagePrompt />
       <Header />
-      <CampaignBanner />
-      <CategoryRailWrapper />
+      {!appSection && <CampaignBanner />}
+      {!appSection && <CategoryRailWrapper />}
       <main className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
@@ -33,9 +48,11 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
           clearance), so the last painted content (the footer) needs clearance
           or its links become untappable. Scoped to md:hidden so desktop shows
           no dead strip. */}
-      <div className="pb-[calc(4.375rem+var(--safe-bottom)+1rem)] md:pb-0">
-        <Footer />
-      </div>
+      {!appSection && (
+        <div className="pb-[calc(4.375rem+var(--safe-bottom)+1rem)] md:pb-0">
+          <Footer />
+        </div>
+      )}
       <MobileTabBar />
       <DLXAssistantFab />
     </>
