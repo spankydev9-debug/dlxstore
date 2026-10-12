@@ -14,6 +14,12 @@ const supabaseHost = getSupabaseHost();
 
 const nextConfig: NextConfig = {
   images: {
+    // Vercel's optimizer returns 402 (OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED)
+    // once the free-tier quota is exhausted, which broke product media. The
+    // custom loader serves origin URLs (Supabase public storage / Unsplash /
+    // local) so images no longer depend on that quota.
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
     remotePatterns: [
       {
         protocol: "https",
