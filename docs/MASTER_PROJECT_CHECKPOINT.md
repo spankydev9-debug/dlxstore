@@ -64,6 +64,23 @@
 >
 > Remaining mission sections (4/5/6 live e2e, deeper S8 embedding, S9 empty-state, S10 sweep) are tracked in-session.
 
+> ## ✅ §30 (2026-10-12) — VOICE NOTES SHIPPED + POST-VERIFICATION POLISH (`main` @ `c04ecac`)
+>
+> Covers the four commits after §29 (`c26ce9a`) and the post-verification polish applied on top of
+> `c04ecac` (§16 verification of the release passed; this is the cleanup that followed).
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `main` @ `c04ecac` (= `origin/main`); local `main` == `origin/main`, nothing unpushed |
+> | Commits since §29 | `b4cc431` (docs §29) · `b534042` (portal `Modal` + fade-in transform fix, Stories/Friends embedded in Messages, `supabase/temp` eslint-ignored) · `8beace1` (custom image loader bypassing the Vercel optimizer `402`) · `d661274` (app-first sections drop shop chrome) · **`c04ecac` in-app voice notes (record / upload / playback)** |
+> | Deployment | production alias `https://dlxstore-flax.vercel.app` serves `c04ecac` (voice-note code present in the deployed chunks; alias HTTP 200). Re-verify with Service Worker caches cleared |
+> | Static gates | `tsc --noEmit` 0 errors · `eslint .` 0 errors (pre-existing warnings) · `next build` success |
+> | Migrations | production ledger reported through `20261025090000`; repo holds 53 migration files. Independently re-verified **read-only** 2026-10-12 (production publishable key, PostgREST 443): `custom_order_requests`/`custom_order_quotes`, `conversations.dm_key`, `get_product_social_proof` (fixed shape), `get_conversation_with_realtime_data`, `get_my_custom_order_requests` all present ⇒ ≥ `20261021090000`. Function/policy-only `20261022090000`–`20261025090000` are not probe-able with a publishable key (see `docs/MIGRATION-CHECKPOINT.md`) |
+> | Voice notes | e2e verified locally (headless Chrome + synthetic `getUserMedia`): record → send → bubble → playback → persist, plus cancel and mic-denied paths. On real hardware / Safari **unverified** (synthetic stream only) |
+> | Post-verification polish | `ProductImage` fallback copy now distinguishes *missing* / *load-failed* / *invalid-src* with 3 new i18n keys × 6 locales (was one misleading string); notification panel closes on **Escape** and returns focus to the bell (`aria-haspopup` added); multi-image gallery fixture inserted, verified (5 thumbnails, selection swaps the main image, all three fallback states distinct) and **removed** |
+> | Known gaps | real voice/video **calls** (no provider/`calls` table — approval-gated); per-conversation streaks (local-only design — approval-gated); Try-On (no provider, see `AGENT_HANDOFF.md` §10); `iad1` vs `cpt1` deploy-region ambiguity unresolved |
+> | Recovery | unchanged — PITR disabled, zero managed backups on the free org → recovery risk remains |
+
 > ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
 >
 > **Current state: `main` @ `e760c09`.** The `mobile-ux-hardening` @ `fa7c30a` snapshot in the §25 header is stale.

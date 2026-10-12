@@ -9,6 +9,17 @@ Last updated: 2026-10-09 (P5 campaigns, storefront banner, admin editor). Owner:
 >
 > Read this first. The rest of this file predates 2026-09-30 and its branch figures are stale.
 >
+> **2026-10-12 re-check** (supersedes the *Production deploy state* / *Production DB state* rows
+> below). Production serves **`main` @ `c04ecac`** (in-app voice notes) — everything through the §29
+> polish is live, not just `276e759`. The production migration ledger is **reported through
+> `20261025090000`** and was independently re-verified read-only on 2026-10-12 (see
+> `docs/MIGRATION-CHECKPOINT.md`): `custom_order_requests`/`custom_order_quotes` tables,
+> `conversations.dm_key`, `get_product_social_proof` (fixed shape) and
+> `get_conversation_with_realtime_data`/`get_my_custom_order_requests` are all present — so the
+> "4 pending" and "45/45, latest `20261017093000`" rows below are stale. Local `main` ==
+> `origin/main` == `c04ecac` (nothing unpushed). The `iad1` vs `cpt1` deploy-region ambiguity remains
+> unresolved.
+>
 > | | |
 > |---|---|
 > | Branch / HEAD | `main` @ `a17b96b` (P5 code `48085a5`) — ahead of `origin/main` (`276e759`); nothing pushed, pushing needs owner approval. **Any fixed count in this file goes stale one commit later: run `git rev-list --count origin/main..HEAD` instead of trusting the number.** `scripts/` is untracked. The `e760c09` / `mobile-ux-hardening` / `bb81f9d` figures below are historical |

@@ -1,22 +1,35 @@
 # Production Migration Checkpoint
 
-> **2026-10-09 RE-CHECKED.** `supabase migration list --linked` again
-> reports **45/45 applied, latest `20261017093000`, gapless**, and the repo now holds 49 migrations.
-> **4 are local-only and pending:** `20261018090000_fix_social_rpc_return_types`,
-> `20261019090000_direct_chat`, `20261020090000_chat_media_and_commerce_fix`,
-> `20261021090000_custom_orders`. They must be applied in that chronological order and **require
-> explicit owner approval**; none has been dry-run anywhere, because there is no local Postgres and
-> Docker is unavailable.
+> **2026-10-12 RE-CHECKED (read-only) — the 2026-10-09 note below is obsolete.**
+> All four "pending" migrations (`20261018090000`, `20261019090000`, `20261020090000`,
+> `20261021090000`) were applied in the §27 release (ledger through `20261023090000`), and §28 applied
+> two more; the production ledger is now **reported through `20261025090000`**
+> (`docs/MASTER_PROJECT_CHECKPOINT.md` §27/§28). The repo holds **53** migration files.
 >
-> **The gap is not merely "dark once deployed" — part of it is breaking production today.**
-> Production is deployed at `main` @ `276e759`, which already ships the callers of the first two
-> migrations. Probed live on 2026-10-09: `get_trending_products` → `42P10`, `get_product_social_proof`
-> → `42804`, `get_or_create_direct_conversation` → absent from `pg_proc`. Applying `20261018090000`
-> and `20261019090000` therefore fixes three live customer-facing features **with no deploy**.
-> `20261020090000` and `20261021090000` gate code committed 2026-10-09 that is not deployed yet —
-> they must simply land before or with the next deploy, or chat media and custom orders go dark on
-> day one. Evidence: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1. Everything below is the 2026-10-04
-> snapshot.
+> Re-verified live 2026-10-12 from this machine, read-only, against `szhkesvvrgcxbxucodzz` using only
+> the production **publishable** key over PostgREST (443) — no secret key, no DB write, no migration:
+>
+> | Probe | Result | Implies applied |
+> |---|---|---|
+> | `custom_order_requests` + `custom_order_quotes` (expected columns) | 200 | ≥ `20261021090000` |
+> | `conversations.dm_key` (control column → 400 `42703`) | 200 | ≥ `20261019090000` |
+> | `get_product_social_proof` fixed row shape (was 400 `42804`) | 200 | `20261018090000` |
+> | `get_conversation_with_realtime_data` (anon → 401 `42501`) | present | `20261020090000` |
+> | `get_my_custom_order_requests` (anon → 400 "Authentication required") | present | `20261021090000` |
+> | `message_media.duration_seconds` | 200 | chat-media schema |
+>
+> **Not independently re-verifiable from a dev machine:** `20261022090000`, `20261023090000`,
+> `20261024090000`, `20261025090000` redefine only functions/policies, leaving no schema artifact to
+> probe; PostgREST never exposes `schema_migrations`; direct Postgres `:5432` egress is blocked; and
+> the OpenAPI root now rejects a publishable key (`401 "Secret API key required"`). Their applied state
+> is **asserted by the release records, not re-proven here.**
+>
+> *Historical (2026-10-09), retained:* at that time the repo held 49 migrations, prod was deployed at
+> `main` @ `276e759`, `supabase migration list --linked` reported 45/45 with the four above pending,
+> and the deployed callers made `get_trending_products` → `42P10`, `get_product_social_proof` →
+> `42804` and `get_or_create_direct_conversation` absent — the three live defects later fixed by
+> `20261018090000`/`20261019090000`. Evidence: `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1. Everything
+> below is the 2026-10-04 snapshot.
 
 **Project:** `szhkesvvrgcxbxucodzz`
 **Date:** 2026-10-04
