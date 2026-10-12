@@ -99,6 +99,7 @@ export default function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const notificationsButtonRef = useRef<HTMLButtonElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
   // Vertical space covered by the mobile virtual keyboard while Support is open.
@@ -136,6 +137,22 @@ export default function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Escape dismisses the notifications dropdown, matching the app's other
+  // dismissible surfaces (Modal, SocialShare, DesktopNav mega-menu), and returns
+  // focus to the bell so keyboard users are not dropped into the page.
+  useEffect(() => {
+    if (!isNotificationsOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsNotificationsOpen(false);
+        setActiveChannel(null);
+        notificationsButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isNotificationsOpen, setActiveChannel]);
 
   // Keep the Support composer above the virtual keyboard while chat is open.
   useEffect(() => {
@@ -364,12 +381,14 @@ export default function Header() {
             {user && (
               <div ref={notificationsRef} className="relative">
                 <button
+                  ref={notificationsButtonRef}
                   onClick={() => {
                     if (isNotificationsOpen) closeNotifications();
                     else setIsNotificationsOpen(true);
                   }}
                   className={`${iconBtn} relative`}
                   aria-label={t.notifications}
+                  aria-haspopup="true"
                   aria-expanded={isNotificationsOpen}
                 >
                   <Bell className="h-5 w-5" />

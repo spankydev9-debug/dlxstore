@@ -9,6 +9,7 @@ import {
   snapToAllowedImageWidth,
   validateProductImageUrl,
 } from "../../lib/product-image";
+import { useLanguage } from "../../context/LanguageContext";
 
 type ProductImageProps = {
   src?: string | null;
@@ -23,6 +24,7 @@ type ProductImageProps = {
 };
 
 export function ProductImage({ src, alt, fill, width, height, sizes, className, priority, style }: ProductImageProps) {
+  const { t } = useLanguage();
   const validation = validateProductImageUrl(src);
   const resolvedSrc = resolveProductImageUrl(src);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -31,6 +33,14 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
     ? "load_failed"
     : validation.isAllowed ? undefined : validation.reason;
   const isFallback = fallbackReason !== undefined;
+
+  // Distinguish "no image was provided" from a rejected URL and from a genuine
+  // load failure, so the placeholder neither misleads nor masks a real error.
+  const fallbackLabel = fallbackReason === "missing"
+    ? t.imageMissing
+    : fallbackReason === "load_failed"
+      ? t.imageUnavailable
+      : t.imageInvalid;
 
   // Next 16 answers 400 for any width outside deviceSizes+imageSizes, so an
   // arbitrary caller width has to be snapped before it reaches the optimizer.
@@ -57,9 +67,7 @@ export function ProductImage({ src, alt, fill, width, height, sizes, className, 
       >
         <div className="flex flex-col items-center gap-2 p-4 text-center">
           <AlertCircle className="h-8 w-8 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            {fallbackReason === "load_failed" ? "Image unavailable" : "Invalid image source"}
-          </span>
+          <span className="text-xs text-muted-foreground">{fallbackLabel}</span>
         </div>
         {/* Hidden Image for accessibility/SEO */}
         <Image 
