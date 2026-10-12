@@ -11,9 +11,11 @@ import { ConversationMessage, TypingIndicator, MessageReaction } from "../../typ
 import { useChat } from "../../context/ChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp, RelativeTimestamp, useHydrationSafeTime } from "./chatTime";
-import { ChatMediaService } from "../../services/media/chat-media";
+import { ChatMediaService, setMediaDurationHint } from "../../services/media/chat-media";
 import { ProductCardMessage } from "./ProductCardMessage";
 import { parseProductShareMessage } from "../../lib/product-share";
+import { VoiceNotePlayer } from "./VoiceNotePlayer";
+import { isVoiceRecordingSupported, useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 
 // Re-exported for backwards compatibility. Prefer <ChatTimestamp /> in JSX: calling
 // formatChatTime() directly during render reintroduces the hydration mismatch unless
@@ -54,6 +56,7 @@ export function MessageBubble({
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   const commonEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
@@ -79,6 +82,14 @@ export function MessageBubble({
     const myStatus = message.status.find(s => s.user_id === message.sender_id);
     return myStatus?.status || null;
   };
+
+  // A media-only send stores a neutral placeholder body ("📎" from the RPC, or
+  // the localized voice-note label) — never echo it as text under the player.
+  const trimmedBody = message.body?.trim() ?? "";
+  const hasMedia = !!message.media && message.media.length > 0;
+  const showBody =
+    trimmedBody.length > 0 &&
+    !(hasMedia && (trimmedBody === "📎" || trimmedBody === t.chatVoiceNote));
 
 return (
     <div
@@ -130,10 +141,10 @@ return (
                     />
                   )}
                   {media.media_type === "audio" && (
-                    <audio 
+                    <VoiceNotePlayer
                       src={media.file_url}
-                      controls
-                      className="w-full"
+                      durationSeconds={media.duration_seconds}
+                      isMine={isMine}
                     />
                   )}
                 </div>
@@ -145,9 +156,9 @@ return (
               navigable card rather than leaking its raw [[dlx-product:…]] token. */}
           {parseProductShareMessage(message.body) ? (
             <ProductCardMessage body={message.body} />
-          ) : (
+          ) : showBody ? (
             <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
-          )}
+          ) : null}
 
           {/* Message metadata */}
           <div className={`mt-1 flex items-center gap-2 text-[10px] ${
@@ -303,9 +314,58 @@ export function MessageComposer({
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showMediaPreview, setShowMediaPreview] = useState(false);
+  const [canRecord, setCanRecord] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { t } = useLanguage();
   const { error: sendError, clearError } = useChat();
+  const recorder = useVoiceRecorder();
+  const isRecordingActive =
+    recorder.status === "recording" ||
+    recorder.status === "requesting" ||
+    recorder.status === "stopping";
+
+  // Feature detection must run after mount: getUserMedia/MediaRecorder do not
+  // exist on the server, and gating the button on a render-time check would
+  // hydrate-mismatch.
+  useEffect(() => {
+    setCanRecord(isVoiceRecordingSupported());
+  }, []);
+
+  // Surface microphone failures inline (same banner used for file validation).
+  useEffect(() => {
+    if (recorder.status !== "error" || !recorder.errorCode) return;
+    const messages: Record<string, string> = {
+      denied: t.chatMicDenied,
+      unsupported: t.chatMicUnsupported,
+      "no-device": t.chatMicUnsupported,
+      failed: t.chatMicFailed,
+    };
+    setValidationError(messages[recorder.errorCode] ?? t.chatMicFailed);
+    recorder.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.status, recorder.errorCode]);
+
+  const handleStartRecording = async () => {
+    if (disabled || sending) return;
+    setValidationError(null);
+    await recorder.start();
+  };
+
+  const handleCancelRecording = () => {
+    recorder.cancel();
+  };
+
+  const handleSendVoice = async () => {
+    if (recorder.status !== "recording") return;
+    setValidationError(null);
+    const clip = await recorder.stop();
+    if (!clip) return;
+    setMediaDurationHint(clip.file, clip.durationMs / 1000);
+    // Reuse the exact same send path as attached files: the recorder produces a
+    // real File, so ChatContext uploads it to `chat-media` and the RPC writes
+    // message_media.duration_seconds like any other attachment.
+    await onSend(t.chatVoiceNote, [clip.file]);
+  };
 
   // Revoke local preview URLs whenever the attached set changes so we never
   // leak blob objects for the life of the session.
@@ -480,61 +540,138 @@ export function MessageComposer({
         </div>
       )}
 
-      {/* Composer form */}
+      {/* Composer form. While a voice note is being captured the row is swapped
+          for a dedicated recording bar so the waveform, timer and cancel/send
+          controls own the full width. */}
       <form onSubmit={submit} className="flex items-end gap-2 p-3">
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || sending}
-            data-chat-attach={mediaFiles.length > 0 ? "true" : "false"}
-            className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
-            title="Attach file"
-          >
-            <Image className="h-4.5 w-4.5" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg,audio/mpeg,audio/wav,audio/ogg,audio/webm,application/pdf,text/plain"
-            onChange={handleFileSelect}
-            className="hidden"
-            data-chat-file-input
-          />
-          
-          <button
-            type="button"
-            disabled={disabled || sending}
-            className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
-            title="Emoji"
-          >
-            <Smile className="h-4.5 w-4.5" />
-          </button>
-        </div>
-        
-        <textarea
-          value={draft}
-          onChange={(e) => handleInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={disabled}
-          placeholder={placeholder}
-          className="min-h-[42px] flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-foreground/70 disabled:opacity-60"
-        />
-        
-        <button
-          type="submit"
-          disabled={disabled || (!draft.trim() && mediaFiles.length === 0) || sending}
-          aria-label="Send"
-          data-chat-send
-          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
-        >
-          {sending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" /> : <Send className="h-4.5 w-4.5" />}
-        </button>
+        {isRecordingActive ? (
+          <>
+            <div
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/5 px-3 py-2.5"
+              data-chat-recording
+            >
+              <span className="h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-destructive" />
+              <span className="w-10 shrink-0 text-sm font-semibold tabular-nums">
+                {formatRecorderTime(recorder.elapsedMs)}
+              </span>
+              <div className="flex h-7 min-w-0 flex-1 items-center gap-[2px] overflow-hidden">
+                {recorder.status === "requesting" ? (
+                  <span className="text-xs text-muted-foreground">{t.chatRecording}</span>
+                ) : recorder.samples.length > 0 ? (
+                  recorder.samples.map((value, index) => (
+                    <span
+                      key={index}
+                      className="w-[3px] shrink-0 rounded-full bg-primary/60"
+                      style={{ height: `${Math.round(18 + value * 82)}%` }}
+                    />
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">{t.chatRecording}</span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelRecording}
+              aria-label={t.chatVoiceCancel}
+              data-chat-voice-cancel
+              className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-destructive transition-all hover:bg-muted/80"
+            >
+              <Trash2 className="h-4.5 w-4.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSendVoice}
+              disabled={recorder.status !== "recording"}
+              aria-label={t.chatVoiceSend}
+              data-chat-voice-send
+              className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+            >
+              {recorder.status === "stopping" ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
+              ) : (
+                <Send className="h-4.5 w-4.5" />
+              )}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || sending}
+                data-chat-attach={mediaFiles.length > 0 ? "true" : "false"}
+                className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
+                title="Attach file"
+              >
+                <Image className="h-4.5 w-4.5" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/ogg,audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4,application/pdf,text/plain"
+                onChange={handleFileSelect}
+                className="hidden"
+                data-chat-file-input
+              />
+
+              {canRecord && (
+                <button
+                  type="button"
+                  onClick={handleStartRecording}
+                  disabled={disabled || sending}
+                  aria-label={t.chatVoiceNote}
+                  data-chat-mic
+                  className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
+                  title={t.chatVoiceNote}
+                >
+                  <Mic className="h-4.5 w-4.5" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={disabled || sending}
+                className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-all hover:bg-muted/80 disabled:opacity-40"
+                title="Emoji"
+              >
+                <Smile className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <textarea
+              value={draft}
+              onChange={(e) => handleInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              disabled={disabled}
+              placeholder={placeholder}
+              className="min-h-[42px] flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-foreground/70 disabled:opacity-60"
+            />
+
+            <button
+              type="submit"
+              disabled={disabled || (!draft.trim() && mediaFiles.length === 0) || sending}
+              aria-label="Send"
+              data-chat-send
+              className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+            >
+              {sending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" /> : <Send className="h-4.5 w-4.5" />}
+            </button>
+          </>
+        )}
       </form>
     </div>
   );
+}
+
+function formatRecorderTime(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 // Helper component for file icon

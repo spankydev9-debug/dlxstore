@@ -7,7 +7,19 @@ import { MediaType } from "../../types";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/ogg"];
-const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm"];
+// `audio/mp4` (m4a) is what Safari's MediaRecorder emits for voice notes;
+// `audio/aac` appears on some Android recorders. Both must pass validation or
+// iOS-recorded voice notes would be rejected before upload.
+const ALLOWED_AUDIO_TYPES = [
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/webm",
+  "audio/mp4",
+  "audio/m4a",
+  "audio/x-m4a",
+  "audio/aac",
+];
 const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -17,6 +29,52 @@ export const IMAGE_TYPES_LABEL = "JPG, PNG, WEBP, GIF";
 // (product-images) is admin-write-only; a customer sending a photo must not be
 // routed into it. Created by 20261020090000... migration (awaiting approval).
 const CHAT_MEDIA_BUCKET = "chat-media";
+
+// MediaRecorder knows the exact clip length, while the browser cannot always
+// report `audio.duration` for webm/ogg (Chrome returns Infinity until the stream
+// is fully seeked). Producers register the measured length here so the row's
+// duration_seconds is exact without re-decoding.
+const DURATION_HINTS = new WeakMap<File, number>();
+
+export function setMediaDurationHint(file: File, seconds: number): void {
+  if (Number.isFinite(seconds) && seconds > 0) DURATION_HINTS.set(file, seconds);
+}
+
+function readMediaDuration(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.preload = "metadata";
+    let settled = false;
+    const done = (value?: number) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    audio.onloadedmetadata = () => {
+      const value = audio.duration;
+      if (Number.isFinite(value) && value > 0) {
+        done(value);
+        return;
+      }
+      // Chrome reports Infinity for streamed webm/ogg until it is forced to seek
+      // to the end; reading duration after that resolves the true value.
+      audio.ontimeupdate = () => {
+        audio.ontimeupdate = null;
+        const settledValue = audio.duration;
+        done(Number.isFinite(settledValue) && settledValue > 0 ? settledValue : undefined);
+      };
+      try {
+        audio.currentTime = 1e101;
+      } catch {
+        done(undefined);
+      }
+    };
+    audio.onerror = () => done(undefined);
+    audio.src = url;
+  });
+}
 
 export interface MediaFile {
   file: File;
@@ -50,8 +108,10 @@ export class ChatMediaService {
       return { valid: false, error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` };
     }
 
-    // Check file type
-    const fileType = file.type;
+    // Check file type. Browsers append parameters to blob mime types
+    // (e.g. `audio/webm;codecs=opus` from MediaRecorder), so compare the base
+    // type or a recorded voice note would be rejected as "not supported".
+    const fileType = (file.type || "").split(";")[0].trim().toLowerCase();
     const isImage = ALLOWED_IMAGE_TYPES.includes(fileType);
     const isVideo = ALLOWED_VIDEO_TYPES.includes(fileType);
     const isAudio = ALLOWED_AUDIO_TYPES.includes(fileType);
@@ -133,15 +193,14 @@ export class ChatMediaService {
         video.src = URL.createObjectURL(file);
       });
     } else if (file.type.startsWith("audio/")) {
-      return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.addEventListener("loadedmetadata", () => {
-          metadata.duration = audio.duration;
-          resolve(metadata);
-        });
-        audio.onerror = () => resolve(metadata);
-        audio.src = URL.createObjectURL(file);
-      });
+      const hint = DURATION_HINTS.get(file);
+      if (hint) {
+        metadata.duration = hint;
+        return metadata;
+      }
+      const duration = await readMediaDuration(file);
+      if (duration) metadata.duration = duration;
+      return metadata;
     }
 
     return metadata;

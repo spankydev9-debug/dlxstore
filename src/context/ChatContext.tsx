@@ -407,27 +407,62 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (!id || (!body.trim() && (!mediaFiles || mediaFiles.length === 0))) return null;
       setIsSending(true);
       try {
-        let message;
+        let message: ConversationMessage | null = null;
         // Media-only sends need a non-empty body until the migration relaxes
         // send_conversation_message_v2 — use a neutral fallback so the photo is
         // never dropped by the RPC's empty-body guard.
         const text = body.trim() || (mediaFiles && mediaFiles.length > 0 ? "📎" : "");
-        
+        let optimisticUrls: string[] = [];
+
         if (mediaFiles && mediaFiles.length > 0) {
           // Process and send media files
           const processedMedia = await ChatMediaService.processMultipleFiles(id, mediaFiles);
-          message = await sendMessageWithMedia(id, text, processedMedia);
+          const sent = (await sendMessageWithMedia(id, text, processedMedia)) as ConversationMessage | null;
+          // The RPC returns the bare message row (no media rows), so the sender
+          // would otherwise see nothing until the next reload. Attach the local
+          // blobs immediately and reconcile with signed URLs below.
+          if (sent) {
+            optimisticUrls = mediaFiles.map((file) => URL.createObjectURL(file));
+            message = {
+              ...sent,
+              media: processedMedia.map((media, index) => ({
+                id: `local-${index}`,
+                message_id: sent.id,
+                media_type: media.media_type,
+                file_url: optimisticUrls[index],
+                file_name: media.file_name,
+                file_size: media.file_size,
+                mime_type: media.mime_type,
+                thumbnail_url: media.media_type === "image" ? optimisticUrls[index] : undefined,
+                width: media.width,
+                height: media.height,
+                duration_seconds: media.duration_seconds,
+                created_at: new Date().toISOString(),
+              })),
+            };
+          }
         } else {
           // Send text-only message
           message = await dbSendMessage(id, text);
         }
-        
+
+        if (!message) return null;
+
         // Delivery status needs the realtime schema; never let it fail a successful send.
         if (await isRealtimeChatAvailable()) {
           await updateMessageStatus(message.id, "sent").catch(() => undefined);
         }
-        
+
         setMessages((current) => [...current, message]);
+
+        // Swap the local object URLs for authorized signed URLs, then release
+        // the blobs so a burst of voice notes cannot pin memory for the session.
+        if (optimisticUrls.length > 0) {
+          void refreshMessages(id).finally(() => {
+            optimisticUrls.forEach((url) => URL.revokeObjectURL(url));
+          });
+        }
+
         // Optimistically clear unread for this conversation.
         setConversations((current) =>
           current.map((c) =>
@@ -444,7 +479,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsSending(false);
       }
     },
-    []
+    [refreshMessages]
   );
 
   const markRead = useCallback(async (conversationId: string) => {
