@@ -116,8 +116,7 @@ export function AccountMoreDrawer() {
     void markAsRead(notification.id);
     const destination = notificationDestination(notification);
     if (destination === "/chat") {
-      // Opening a primary overlay replaces this drawer atomically.
-      toggleOverlay("chat");
+      navigateFromOverlay("/chat");
       return;
     }
     navigateFromOverlay(destination);
@@ -364,16 +363,9 @@ export function AccountMoreDrawer() {
             {t.assistantTitle}
           </Row>
           {user ? (
-            <Row
-              onClick={() =>
-                // Opening a primary overlay replaces this drawer atomically: no
-                // history push/pop churn, because openOverlay only pushes a
-                // history entry when no primary overlay is already open.
-                toggleOverlay("chat")
-              }
-            >
+            <Row href="/chat">
               <MessageSquare className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-              {t.supportTitle}
+              {t.messages}
               {chatUnreadCount > 0 ? (
                 <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
                   {chatUnreadCount}

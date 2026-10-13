@@ -18,6 +18,7 @@ import { CustomOrdersConsole } from "../../../components/admin/CustomOrdersConso
 import { FoodVendorControls } from "../../../components/admin/FoodVendorControls";
 import { CouponControls } from "../../../components/admin/CouponControls";
 import { CampaignControls } from "../../../components/admin/CampaignControls";
+import FeedbackAdmin from "../../../components/admin/FeedbackAdmin";
 import { NotificationBroadcast } from "../../../components/admin/NotificationBroadcast";
 import { SupportInbox } from "../../../components/admin/SupportInbox";
 import { InternalChat } from "../../../components/admin/InternalChat";
@@ -71,7 +72,7 @@ function AdminDashboardContent() {
   // tab instead of trusting an arbitrary query string.
   const VALID_TABS = new Set([
     "analytics", "orders", "products", "deliveries", "inventory", "sessions",
-    "partners", "marketplace", "custom-orders", "food", "coupons", "campaigns", "notifications", "reports",
+    "partners", "marketplace", "custom-orders", "food", "coupons", "campaigns", "feedback", "notifications", "reports",
     "support", "internal", "visuals", "catalog-ai", "business",
   ]);
   const [activeTab, setActiveTab] = useState(
@@ -932,6 +933,8 @@ function AdminDashboardContent() {
               {activeTab === "coupons" && <CouponControls />}
 
               {activeTab === "campaigns" && <CampaignControls />}
+
+              {activeTab === "feedback" && <FeedbackAdmin />}
 
               {activeTab === "notifications" && (
                 <div className="space-y-6">

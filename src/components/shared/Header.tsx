@@ -222,7 +222,7 @@ export default function Header() {
     const destination = notificationDestination(notification);
     setIsNotificationsOpen(false);
     if (destination === "/chat") {
-      toggleOverlay("chat");
+      router.push("/chat");
       return;
     }
     router.push(destination);
@@ -362,12 +362,11 @@ export default function Header() {
             </OverlayLink>
 
             {user && (
-              <button
-                onClick={() => toggleOverlay("chat")}
+              <OverlayLink
+                href="/chat"
                 className={`${iconBtn} relative hidden @min-[50rem]/header:flex`}
-                title={t.supportTitle}
-                aria-label={t.supportTitle}
-                aria-expanded={isChatOpen}
+                title={t.messages}
+                aria-label={t.messages}
               >
                 <MessageSquare className="h-5 w-5" />
                 {chatUnreadCount > 0 && (
@@ -375,7 +374,7 @@ export default function Header() {
                     {chatUnreadCount}
                   </span>
                 )}
-              </button>
+              </OverlayLink>
             )}
 
             {user && (

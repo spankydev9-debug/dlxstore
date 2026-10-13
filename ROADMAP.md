@@ -529,9 +529,12 @@ editor, coupon-honesty guard), while Phase 1 QA items remain open. The next appr
 **P6 — advertising beyond the banner (launch modal), then the feedback page and honest external
 sharing** (step 13 → 14). As of 2026-10-12 the P6 launch **modal** is built locally
 (`src/components/shared/LaunchModal.tsx` — one-time per visitor, per-slug dismissal, campaign-only
-content) and **honest external sharing** is done (the product share sheet offers the Web Share API
-channel, recorded only when the OS sheet resolves and hidden when unsupported); the feedback page
-(needs a persistence decision — approval-gated) remains.
+content), **honest external sharing** is done (the product share sheet offers the Web Share API
+channel, recorded only when the OS sheet resolves and hidden when unsupported), and the **feedback
+system** is implemented locally (mobile-first feedback page, Supabase-backed schema and admin
+management; migration `20261028090000_feedback_system.sql` exists but has NOT been applied to
+production — requires explicit approval). The feedback page persistence awaits production migration
+approval.
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migrations
 (DEP-1a is the urgent pair — its absence breaks features already live), push and deploy local `main`

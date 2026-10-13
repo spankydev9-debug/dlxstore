@@ -185,11 +185,11 @@ export function DesktopNav() {
       </OverlayLink>
 
       <OverlayLink
-        href="/food"
-        aria-current={current("/food")}
-        className={`${linkClass("/food")} @max-[58.75rem]/header:hidden`}
+        href="/chat"
+        aria-current={current("/chat")}
+        className={`${linkClass("/chat")} @max-[58.75rem]/header:hidden`}
       >
-        {t.food}
+        {t.messages}
       </OverlayLink>
     </nav>
   );
