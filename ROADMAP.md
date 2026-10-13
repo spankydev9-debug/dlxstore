@@ -527,7 +527,9 @@ product → another customer discovers it → cycle repeats.
 through P1–P4b and **P5 is delivered as code** (`48085a5` — campaign layer, storefront banner, admin
 editor, coupon-honesty guard), while Phase 1 QA items remain open. The next approved increment is
 **P6 — advertising beyond the banner (launch modal), then the feedback page and honest external
-sharing** (step 13 → 14).
+sharing** (step 13 → 14). As of 2026-10-12 the P6 launch **modal** is built locally
+(`src/components/shared/LaunchModal.tsx` — one-time per visitor, per-slug dismissal, campaign-only
+content); the feedback page (needs a persistence decision) and honest external sharing remain.
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migrations
 (DEP-1a is the urgent pair — its absence breaks features already live), push and deploy local `main`

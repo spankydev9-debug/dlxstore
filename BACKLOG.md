@@ -134,8 +134,8 @@ Built 2026-10-09. See `docs/CHECKPOINT-P3-SOCIAL-COMMERCE-CONTINUATION.md`. tsc/
 
 **Next known follow-ups (not complete):**
 - P4 — Inventory & cart — **DONE (local)** 2026-10-09. See below.
-- P5 — In-app advertising, campaigns & rewards — **DONE (code) `48085a5`** 2026-10-09; banner + admin controls + coupon-honesty guard. **Open:** the "We are now open" launch itself (DEP-3, two ordered production writes) and a launch modal. Never fabricate savings.
-- P6 — In-app advertising surfaces beyond the banner (modal), then the feedback page + external marketing/sharing (honest about permissions; do not pretend a post published).
+- P5 — In-app advertising, campaigns & rewards — **DONE (code) `48085a5`** 2026-10-09; banner + admin controls + coupon-honesty guard. **Open:** the "We are now open" launch itself (DEP-3, two ordered production writes). The launch **modal** is now built locally (P6 slice 1 — `src/components/shared/LaunchModal.tsx`). Never fabricate savings.
+- P6 — In-app advertising surfaces beyond the banner — **modal DONE (local)** `src/components/shared/LaunchModal.tsx`: one-time-per-visitor, per-slug dismissal (`dlxstore:seen-launch-modals`), campaign-only content (no invented saving), built on the shared `Modal` primitive and the same `getLiveInAppCampaigns()` read as the banner. **Open:** the feedback page (needs a persistence decision — no route or table exists) and external marketing/sharing (honest about permissions; do not pretend a post published).
 
 ---
 

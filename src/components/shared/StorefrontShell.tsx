@@ -13,6 +13,7 @@ import { LanguagePrompt } from "./LanguagePrompt";
 import { DLXAssistantFab } from "./DLXAssistantFab";
 import { CategoryRailWrapper } from "./CategoryRailWrapper";
 import { CampaignBanner } from "./CampaignBanner";
+import { LaunchModal } from "./LaunchModal";
 import { usePathname } from "next/navigation";
 
 // App-first sections own their full viewport (messenger, account dashboard,
@@ -38,6 +39,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LanguagePrompt />
+      {!appSection && <LaunchModal />}
       <Header />
       {!appSection && <CampaignBanner />}
       {!appSection && <CategoryRailWrapper />}
