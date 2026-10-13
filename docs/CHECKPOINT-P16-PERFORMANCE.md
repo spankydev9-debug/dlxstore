@@ -73,11 +73,17 @@ touch 3 (warm)  449 ms   TTFB 133 ms
 ≈500 ms of the first request is cold start. Width makes no difference to it, and
 neither does format negotiation.
 
-### Correction: the region is not `iad1`
+### Correction: `cpt1` is the edge PoP, not the function region
 
 The roadmap attributed the latency to the `iad1` Vercel region. Every response from
-both deployments reports `x-vercel-id: cpt1::` — **Cape Town**, which is far closer to
-Goma than Virginia. That attribution is stale and should not be carried forward.
+both deployments reports `x-vercel-id: cpt1::` — **Cape Town**. But `x-vercel-id` reports
+the **edge-network Point of Presence** that served the request (selected per client — this
+probe saw `cpt1`; a Mumbai client sees `bom1`), **not** the serverless **function/compute
+region**. The functions run in `iad1` (every function in the production build reports
+`iad1`; the project has no region override). Edge PoP and function region are different
+layers, not conflicting deployments: the ~500 ms first-touch cost is a *function* cold
+start in `iad1`, unaffected by which edge PoP terminated the connection. Do not read `cpt1`
+from `x-vercel-id` as the compute region.
 
 ---
 
