@@ -224,6 +224,35 @@ export function ProductShareSheet({
     void run("copy", "copy_link");
   }, [product.slug, run, t.socialCopyFailed]);
 
+  // Native share (Web Share API). Offered only when the browser actually has it,
+  // so the sheet never shows a control it cannot honour. The share is recorded
+  // only once the OS sheet resolves: a dismissed sheet is a choice, not a share,
+  // and must not be counted, nor reported as a failure.
+  const shareNative = useCallback(async () => {
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") return;
+    const url = `${window.location.origin}/product/${product.slug}`;
+    setBusy("native");
+    setError(null);
+    try {
+      await navigator.share({ title: product.name, text: product.name, url });
+    } catch (cause) {
+      setBusy(null);
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      // The platform refused for another reason; copy the link instead so the
+      // action still helps, without pretending a share happened.
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setError(t.socialCopyFailed);
+      }
+      return;
+    }
+    setBusy(null);
+    void run("native", "native_share");
+  }, [product.name, product.slug, run, t.socialCopyFailed]);
+
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
     `${product.name} — ${typeof window !== "undefined" ? window.location.origin : ""}/product/${product.slug}`
   )}`;
@@ -306,6 +335,22 @@ export function ProductShareSheet({
 
         {/* Open channels. These work signed out. */}
         <div className="space-y-2">
+          {typeof navigator !== "undefined" && typeof navigator.share === "function" ? (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void shareNative()}
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-border px-4 text-left text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {busy === "native" ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <Share2 className="h-4 w-4 text-primary" />
+              )}
+              {t.socialShareTitle}
+            </button>
+          ) : null}
+
           <button
             type="button"
             onClick={() => void copyLink()}
