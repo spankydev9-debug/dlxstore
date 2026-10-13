@@ -471,8 +471,9 @@ reliability success, not a rebuild target.
 optimizer's server time is indistinguishable from a static file on the same origin
 (TTFB 111 ms vs 109 ms), and warm requests are **3.9–4.2 ms p50** across all 107
 catalog images. The cost is network RTT plus a ~500 ms Vercel cold start on first touch.
-The `iad1` attribution was wrong: both deployments report `x-vercel-id: cpt1` (Cape
-Town). 107/107 images still return 200.
+The "region" confusion is resolved (2026-10-12): `x-vercel-id` reports the client-dependent
+**edge PoP** (`cpt1` Cape Town, `bom1` Mumbai) — the functions themselves run in `iad1`,
+so the cold start is a function cold start in `iad1`. 107/107 images still return 200.
 
 What was fixed instead: `ProductImage` defaulted to `width={400}`, which is not on
 Next 16's allowlist and returned **HTTP 400** on 5 call sites. Widths are now snapped

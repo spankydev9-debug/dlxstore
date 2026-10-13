@@ -78,7 +78,7 @@
 > | Migrations | production ledger reported through `20261025090000`; repo holds 53 migration files. Independently re-verified **read-only** 2026-10-12 (production publishable key, PostgREST 443): `custom_order_requests`/`custom_order_quotes`, `conversations.dm_key`, `get_product_social_proof` (fixed shape), `get_conversation_with_realtime_data`, `get_my_custom_order_requests` all present ⇒ ≥ `20261021090000`. Function/policy-only `20261022090000`–`20261025090000` are not probe-able with a publishable key (see `docs/MIGRATION-CHECKPOINT.md`) |
 > | Voice notes | e2e verified locally (headless Chrome + synthetic `getUserMedia`): record → send → bubble → playback → persist, plus cancel and mic-denied paths. On real hardware / Safari **unverified** (synthetic stream only) |
 > | Post-verification polish | `ProductImage` fallback copy now distinguishes *missing* / *load-failed* / *invalid-src* with 3 new i18n keys × 6 locales (was one misleading string); notification panel closes on **Escape** and returns focus to the bell (`aria-haspopup` added); multi-image gallery fixture inserted, verified (5 thumbnails, selection swaps the main image, all three fallback states distinct) and **removed** |
-> | Known gaps | real voice/video **calls** (no provider/`calls` table — approval-gated); per-conversation streaks (local-only design — approval-gated); Try-On (no provider, see `AGENT_HANDOFF.md` §10); `iad1` vs `cpt1` deploy-region ambiguity unresolved |
+> | Known gaps | real voice/video **calls** (no provider/`calls` table — approval-gated); per-conversation streaks (local-only design — approval-gated); Try-On (no provider, see `AGENT_HANDOFF.md` §10); the `iad1` vs `cpt1` deploy-region question is **resolved** (2026-10-12): `iad1` = serverless function/compute region, `cpt1`/`bom1` = client-dependent `x-vercel-id` edge PoPs — different layers, not conflicting deployments |
 > | Recovery | unchanged — PITR disabled, zero managed backups on the free org → recovery risk remains |
 
 > ## ⚠️ §26 (2026-10-04) — production-readiness audit supersedes §25 and everything below
@@ -95,7 +95,11 @@
 > | **Production** | **old build + old database.** 37 read-only RPCs missing; service worker still caches private routes; notification icons 404; not installable |
 > | Full audit | **`docs/CHECKPOINT-PRODUCTION-READINESS.md`** |
 >
-> Two corrections to earlier sections: measured deploy region is **`cpt1`** (Cape Town), not `iad1`; and the image pipeline was **measured, not rebuilt** — the reported slow image loads were network RTT and cold start, not optimizer cost.
+> Region clarification (2026-10-12): `iad1` is the serverless **function/compute** region;
+> `cpt1` (Cape Town) and `bom1` (Mumbai) are client-dependent **`x-vercel-id` edge PoPs**, not the
+> compute region — different layers, not conflicting deployments. Separately, the image pipeline
+> was **measured, not rebuilt** — the reported slow image loads were network RTT and cold start,
+> not optimizer cost.
 >
 > Nothing was deployed and no production migration was applied. Both are production writes requiring explicit approval.
 
@@ -272,7 +276,8 @@ P16 measured the image pipeline instead of rebuilding it, and the premise did no
 The reported 0.7–2.7 s/image is network RTT plus a ~500 ms Vercel cold start, not
 transform cost: the optimizer's TTFB (111 ms) is indistinguishable from a static file on
 the same origin (109 ms), and warm requests run at 3.9 ms p50 with 107/107 images still
-200. The `iad1` attribution was wrong — both deployments report `cpt1` (Cape Town).
+200. The `x-vercel-id: cpt1` (Cape Town) is the client-dependent **edge PoP**, not the compute
+region — the functions run in `iad1`.
 
 What it did find was a reliability bug: `ProductImage` defaulted to `width={400}`, which
 is off Next 16's allowlist and returned HTTP 400 on 5 call sites. Widths are now snapped

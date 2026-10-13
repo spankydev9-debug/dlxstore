@@ -183,8 +183,9 @@ Target: `https://dlxstore-hgxh2wdyu-dlx2.vercel.app` (identical build to
 - **Raw SSR HTML contains zero images.** Expected: `HomePage` is a client component that
   fetches after hydration. Not a failure.
 - **`/food` renders 0 images.** No public `food_vendors` data. A data gap, not an image bug.
-- **Cold-cache optimizer latency 0.7–2.7 s/image** from `iad1` (US) for a Goma audience;
-  `/shop` requests 49 images. **Performance opportunity, not a reliability bug.**
+- **Cold-cache optimizer latency 0.7–2.7 s/image** from the `iad1` function/compute region
+  for a Goma audience (`x-vercel-id` reports the client-dependent edge PoP, e.g. `cpt1` — not
+  the compute region); `/shop` requests 49 images. **Performance opportunity, not a reliability bug.**
   Candidate remedy: the `supabaseLoader` pattern in
   `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/images.md:224`,
   which delegates resizing to Supabase Storage image transformations.

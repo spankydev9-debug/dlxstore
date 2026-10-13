@@ -105,8 +105,8 @@ worker registers and activates, `/shop` is served from cache with the network di
 
 ## 4. Outstanding work
 
-- Mobile performance is mostly **P16**, not P15: the `iad1` cold-cache image latency
-  (0.7–2.7 s/image) is still open.
+- Mobile performance is mostly **P16**, not P15: the `iad1` function/compute-region
+  cold-cache image latency (0.7–2.7 s/image) is still open (`x-vercel-id` reports the edge PoP).
 - `DownloadApp.tsx` already handles `beforeinstallprompt`, iOS detection, the standalone
   check and `appinstalled`. It was correct and was left alone.
 - No install prompt is shown at a high-traffic moment (first visit). Chrome's
