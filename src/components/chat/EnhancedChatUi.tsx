@@ -55,6 +55,11 @@ export function MessageBubble({
   const isStaff = message.sender_role === "admin" || message.sender_role === "staff";
   const [showActions, setShowActions] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  // The picker is absolutely positioned inside the thread's scroll container,
+  // so opening it downward for the newest message (the common case) renders it
+  // below the visible area where it cannot be reached. Flip it above whenever
+  // the space below the bubble inside the thread is too small.
+  const [reactionPlacement, setReactionPlacement] = useState<"above" | "below">("below");
   const bubbleRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
 
@@ -75,6 +80,29 @@ export function MessageBubble({
   const handleReaction = (emoji: string) => {
     onReaction?.(emoji);
     setShowReactions(false);
+  };
+
+  const toggleReactions = () => {
+    if (!showReactions && bubbleRef.current) {
+      // Measure against the nearest scrollable ancestor (the message thread),
+      // not the window: the thread ends above the composer, so a window-based
+      // measurement would wrongly think there is room below the last message.
+      let scroller: HTMLElement | null = bubbleRef.current.parentElement;
+      while (scroller && scroller !== document.body) {
+        const { overflowY } = window.getComputedStyle(scroller);
+        if (overflowY === "auto" || overflowY === "scroll") break;
+        scroller = scroller.parentElement;
+      }
+      const bounds = (scroller ?? document.documentElement).getBoundingClientRect();
+      const rect = bubbleRef.current.getBoundingClientRect();
+      const spaceBelow = bounds.bottom - rect.bottom;
+      const spaceAbove = rect.top - bounds.top;
+      const pickerHeight = 56;
+      setReactionPlacement(
+        spaceBelow < pickerHeight && spaceAbove > spaceBelow ? "above" : "below"
+      );
+    }
+    setShowReactions((current) => !current);
   };
 
   const getMessageStatus = () => {
@@ -213,7 +241,7 @@ return (
           >
             <div className="bg-background border border-border rounded-lg shadow-lg p-1 flex gap-1">
               <button
-                onClick={() => setShowReactions(!showReactions)}
+                onClick={toggleReactions}
                 className="p-1 hover:bg-muted rounded"
                 title="React"
               >
@@ -258,7 +286,7 @@ return (
         {/* Reaction picker. Rendered *below* the bubble (rather than `-top-10`)
             so it is never clipped by the top of the thread's scroll viewport. */}
         {showReactions && (
-          <div className={`absolute top-full z-30 mt-1 flex gap-1 rounded-lg border border-border bg-background p-2 shadow-lg ${isMine ? "right-0" : "left-0"}`}>
+          <div className={`absolute z-30 flex gap-1 rounded-lg border border-border bg-background p-2 shadow-lg ${reactionPlacement === "above" ? "bottom-full mb-1" : "top-full mt-1"} ${isMine ? "right-0" : "left-0"}`}>
             {commonEmojis.map((emoji) => (
               <button
                 key={emoji}

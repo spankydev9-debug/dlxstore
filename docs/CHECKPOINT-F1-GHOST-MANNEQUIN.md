@@ -182,3 +182,42 @@ The architecture is complete; these are the only things preventing a real result
 `src/services/visual-studio/provider.ts` for the provider abstraction and the
 approval pattern in `src/components/admin/VisualStudioReview.tsx` for the
 review-before-publish gate.
+
+---
+
+## Addendum — 2026-10-20: reference-image inspection attempt + isolation brief
+
+**Status: visual design STILL UNRESOLVED. No agent launched. No workspace created.**
+
+### Reference images (read-only inspection result)
+
+| File | Size (bytes) | Dimensions | Format | SHA-256 | Modified |
+|---|---|---|---|---|---|
+| `/Users/dollface/Downloads/IMG_4747.JPG` | 466503 | 1242 × 2208 | JPEG (RGB, EXIF + GPS) | `dd7f427b8b151dc4157e41857d2577c533857322652880588f86342bdc9ea8c3` | 2026-10-19 14:17 |
+| `/Users/dollface/Downloads/IMG_4748.JPG` | 451798 | 1242 × 2208 | JPEG (RGB, EXIF + GPS) | `e2e8f754533e57b9e027c4c6dc1c989a43764b875cb92aa731e4d1aad3006d21` | 2026-10-19 14:20 |
+
+- Inspected **non-destructively** with `file`, `sips`, and `mdls` (read-only). No copies were
+  written to `/tmp` or `Downloads`; SHA-256 re-checked after inspection — both files byte-identical.
+- **No local visual-inspection tool is available**: `exiftool`, ImageMagick (`identify`), and
+  `tesseract` are not installed, and the current model **cannot accept image input** (the Read tool
+  returns "this model does not support image input").
+- Consequence: the **intended ghost-mannequin look (pose, background, framing, garment treatment)
+  cannot be derived** from these files in this session. Do not guess the visual design.
+
+### What an isolated workstream needs (not started)
+
+1. **A readable form of intent** — a text description, annotated alt text, or a lossless
+   transcription supplied by the owner. Metadata alone (size/EXIF) is insufficient.
+2. **Isolation**: a dedicated branch off `f7aaf9d` in a **separate worktree or clone**, e.g.
+   `git worktree add ../dlx-ghost-mannequin -b feat/ghost-mannequin f7aaf9d` (do **not** run this
+   without authorization). The `main` working tree must stay untouched — it currently carries
+   uncommitted PERF-4/a11y/SEO edits plus 4 stashes.
+3. **No shared mutable workspace**: the agent must not edit files under
+   `/Users/dollface/Desktop/dlxstore` while `main` holds uncommitted work.
+4. **Provider boundary**: reuse `src/services/visual-studio/provider.ts`; no paid service may be
+   wired without owner approval and credentials.
+5. **Migration boundary**: any `try_on_jobs` / wardrobe schema change is approval-gated and must be
+   reviewed before application.
+
+**Do not launch another agent, create the worktree, merge, or integrate Ghost Mannequin work
+without explicit authorization.**

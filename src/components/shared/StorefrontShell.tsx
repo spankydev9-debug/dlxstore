@@ -28,6 +28,16 @@ function isAppSection(pathname: string | null): boolean {
   return APP_SECTION_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+// Routes that render the category rail. Kept here so the rail's reserved-height
+// skeleton is only streamed on pages that actually show a rail — everywhere else
+// (cart, checkout, deals) it would reserve 55px of empty space.
+const RAIL_ROUTES = ["/shop", "/product", "/discover"];
+
+function isRailRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return RAIL_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [loaded, setLoaded] = useState(false);
@@ -42,7 +52,7 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
       {!appSection && <LaunchModal />}
       <Header />
       {!appSection && <CampaignBanner />}
-      {!appSection && <CategoryRailWrapper />}
+      {!appSection && isRailRoute(pathname) && <CategoryRailWrapper />}
       <main className="mx-auto w-full max-w-7xl flex-1 overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>

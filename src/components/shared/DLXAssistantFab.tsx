@@ -311,7 +311,7 @@ export function DLXAssistantFab() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="overflow-y-auto p-3" style={{ maxHeight: maxHeight - 54 }}>
+            <div className="overflow-y-auto overscroll-contain p-3" style={{ maxHeight: maxHeight - 54 }}>
               <ShoppingAssistantPanel />
             </div>
           </div>

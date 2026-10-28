@@ -1,8 +1,13 @@
 import { StoreSettings } from "../../types";
 import { supabase, isSupabaseConfigured, initMockDb } from "./index";
 import { defaultStoreSettings, normalizeStoreSettings } from "../../lib/store-config";
+import { shareInFlight } from "../../lib/inflight";
 
 export async function getStoreSettings(): Promise<StoreSettings> {
+  return shareInFlight("settings:store_info", fetchStoreSettings);
+}
+
+async function fetchStoreSettings(): Promise<StoreSettings> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("settings")

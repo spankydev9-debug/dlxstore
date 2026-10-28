@@ -2,6 +2,7 @@ import { Category, InventoryHistoryEntry, Product, ProductMediaAsset } from "../
 import { createNotification } from "./notifications";
 import { getStorageObjectPathFromUrl, removeProductImage } from "./storage";
 import { initMockDb, isDemoMode, isSupabaseConfigured, supabase } from "./index";
+import { shareInFlight } from "../../lib/inflight";
 
 type ProductImageRow = { image_url: string; is_primary: boolean; display_order: number };
 type ProductWithImageRows = Omit<Product, "images"> & { product_images?: ProductImageRow[] | null };
@@ -24,6 +25,10 @@ function normalizeImageUrls(images: string[]) {
 }
 
 export async function getCategories(options: { includeInactive?: boolean } = {}): Promise<Category[]> {
+  return shareInFlight(`categories:${options.includeInactive === true}`, () => fetchCategories(options));
+}
+
+async function fetchCategories(options: { includeInactive?: boolean } = {}): Promise<Category[]> {
   if (isSupabaseConfigured && supabase) {
     let query = supabase.from("categories").select("*").order("display_order", { ascending: true }).order("name", { ascending: true });
     if (!options.includeInactive) query = query.eq("is_active", true);
@@ -110,6 +115,10 @@ export async function reorderCategories(categoryIds: string[]): Promise<void> {
 }
 
 export async function getProducts(options: { includeInactive?: boolean } = {}): Promise<Product[]> {
+  return shareInFlight(`products:${options.includeInactive === true}`, () => fetchProducts(options));
+}
+
+async function fetchProducts(options: { includeInactive?: boolean } = {}): Promise<Product[]> {
   if (isSupabaseConfigured && supabase) {
     let query = supabase.from("products").select(`
       *,

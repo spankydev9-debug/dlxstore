@@ -9,7 +9,6 @@ import { getPartnerShopBySlug, getShopProducts } from "../../../services/db/part
 import { getProducts } from "../../../services/db/products";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { useLanguage } from "../../../context/LanguageContext";
-import { absoluteUrl } from "../../../lib/site";
 
 export default function PartnerShopPage() {
   const params = useParams();
@@ -67,19 +66,11 @@ export default function PartnerShopPage() {
   const displayName = shop.shop_name?.trim() || shop.business_name;
   const displayDescription = shop.shop_description?.trim() || shop.description;
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: t.home, item: absoluteUrl("/") },
-      { "@type": "ListItem", position: 2, name: t.shop, item: absoluteUrl("/partners") },
-      { "@type": "ListItem", position: 3, name: displayName, item: absoluteUrl(`/partners/${shop.slug}`) },
-    ],
-  };
+  // Breadcrumb JSON-LD is emitted by the server route (`./page.tsx`) so it is
+  // present before hydration; rendering it here too would duplicate it.
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 py-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white shadow-lg">
         {shop.banner_image_url && (
           <ProductImage

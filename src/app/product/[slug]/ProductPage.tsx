@@ -18,7 +18,7 @@ import { ProductShareSheet, SocialProofStrip } from "../../../components/product
 import { recordProductView } from "../../../services/db/discover";
 import { ProductImage } from "../../../components/shared/ProductImage";
 import { useLanguage } from "../../../context/LanguageContext";
-import { absoluteUrl } from "../../../lib/site";
+import { fill } from "../../../lib/i18n";
 
 export default function ProductDetailPage({
   initialSize,
@@ -200,40 +200,15 @@ export default function ProductDetailPage({
   const finalPrice = product.discount_price ?? product.price;
   const hasDiscount = !!product.discount_price;
 
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.description,
-    image: product.images?.filter(Boolean) ?? [],
-    brand: { "@type": "Brand", name: product.brand },
-    offers: {
-      "@type": "Offer",
-      url: absoluteUrl(`/product/${product.slug}`),
-      priceCurrency: "USD",
-      price: String(finalPrice),
-      availability: product.stock_quantity > 0
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-    },
-  };
-
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: t.home, item: absoluteUrl("/") },
-      { "@type": "ListItem", position: 2, name: t.shop, item: absoluteUrl("/shop") },
-      { "@type": "ListItem", position: 3, name: product.name, item: absoluteUrl(`/product/${product.slug}`) },
-    ],
-  };
+  // Product + Breadcrumb JSON-LD live in the server route (`./page.tsx`) so they
+  // are present in the pre-hydration HTML. Rendering them here as well would
+  // emit duplicates once the client mounts.
   const whatsappNumber = getWhatsAppBuyNumber(storeSettings);
   const whatsappUrl = whatsappNumber ? buildWhatsAppUrl(whatsappNumber, buildProductWhatsAppMessage(product.name, { size: selectedSize, color: selectedColor, quantity, price: finalPrice })) : null;
 
   return (
     <div className="space-y-16 pb-16 animate-fade-in">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      {/* Product + Breadcrumb JSON-LD are emitted by the server route. */}
 
       {/* Product Details Section */}
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
@@ -262,6 +237,8 @@ export default function ProductDetailPage({
                 <button
                   key={i}
                   onClick={() => setActiveImage(img)}
+                  aria-label={fill(t.productImageView, { index: i + 1 })}
+                  aria-current={activeImage === img}
                   className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border transition-all ${activeImage === img ? 'border-primary ring-2 ring-ring' : 'border-border hover:border-muted-foreground'}`}
                 >
                   <ProductImage src={img} alt="" fill sizes="80px" className="object-cover" />
@@ -399,6 +376,8 @@ export default function ProductDetailPage({
                   {/* Save to Wishlist */}
                   <button
                     onClick={handleWishlistToggle}
+                    aria-label={isSaved ? t.wishlistSaved : t.wishlistSave}
+                    aria-pressed={isSaved}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-all ${isSaved ? 'border-red-200 bg-red-50 text-red-500' : 'border-border hover:bg-muted text-muted-foreground'}`}
                   >
                     <Heart className={`h-5 w-5 ${isSaved ? 'fill-red-500' : ''}`} />

@@ -7,6 +7,21 @@ import { getCategories } from "../../services/db/products";
 import type { Category } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 
+export function CategoryRailSkeleton() {
+  return (
+    <div
+      className="mt-2 min-h-[55px] w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      aria-hidden
+    >
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 pt-2 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <span key={index} className="h-9 w-24 shrink-0 rounded-full bg-muted animate-pulse" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function CategoryRail() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -38,12 +53,17 @@ export function CategoryRail() {
   const isProductPage = pathname.startsWith("/product/");
   const shouldShow = isShopPage || isProductPage || pathname === "/discover";
 
-  if (!shouldShow || isLoading || categories.length === 0) {
-    return null;
-  }
+  if (!shouldShow) return null;
+  // The rail's categories arrive after mount. Returning `null` until then left
+  // `<main>` above where the rail lands, so the whole shop dropped ~55px when
+  // the fetch resolved. The skeleton reserves the rail's exact height, and the
+  // real rail carries the same `min-h-[55px]`, so neither the load nor the swap
+  // moves the page.
+  if (isLoading) return <CategoryRailSkeleton />;
+  if (categories.length === 0) return null;
 
   return (
-    <div className="mt-2 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="mt-2 min-h-[55px] w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-2 pt-2 md:mx-0 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Link
           href="/shop"

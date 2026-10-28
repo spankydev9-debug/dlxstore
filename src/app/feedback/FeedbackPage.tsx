@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { createFeedback, type FeedbackCategory } from "../../services/db/feedback";
+import { createFeedback, FeedbackUnavailableError, type FeedbackCategory } from "../../services/db/feedback";
 
 const CATEGORIES: Array<{ value: FeedbackCategory; label: string }> = [
   { value: "bug", label: "Bug Report" },
@@ -33,16 +33,26 @@ export default function FeedbackPage() {
       await createFeedback({
         category,
         message: message.trim(),
+        // Link the row to the signed-in member (RLS "own feedback" matches on
+        // this). Guests send `null` and stay anonymous — no email or phone is
+        // collected to fill the column.
+        profile_id: user?.id ?? null,
         device_info: typeof navigator !== "undefined" ? navigator.userAgent : null,
         metadata: {
-          user_email: user?.email ?? null,
           path: typeof window !== "undefined" ? window.location.pathname : null,
         },
       });
       setSuccess(true);
       setMessage("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit feedback");
+      // A missing table is an expected, non-scary state on an installation that
+      // has not applied the feedback migration — say so plainly instead of
+      // printing the PostgREST error to the customer.
+      if (err instanceof FeedbackUnavailableError) {
+        setError("Feedback is not available yet. Please try again later.");
+      } else {
+        setError("We could not submit your feedback right now. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

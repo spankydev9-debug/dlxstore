@@ -40,10 +40,35 @@ function readDismissed(): string[] {
   }
 }
 
+/**
+ * The banner loads its campaign after mount, so before the fetch resolves there
+ * is nothing above `<main>` and the storefront sits 43px higher. When the row
+ * arrives it pushes every painted pixel down — the largest layout shift on the
+ * shop. Reserving the exact row height with this skeleton keeps `<main>` in place
+ * through the whole load; the real row carries the same `min-h-[43px]` so the
+ * swap cannot move anything either.
+ */
+function CampaignBannerSkeleton() {
+  return (
+    <div className="min-h-[43px] w-full border-b border-primary/30 bg-primary/5" aria-hidden>
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
+        <span className="h-4 w-4 shrink-0 rounded bg-primary/20" />
+        <span className="min-w-0 flex-1">
+          <span className="block h-4 w-2/3 rounded bg-muted animate-pulse" />
+        </span>
+        <span className="hidden h-[26px] w-16 shrink-0 rounded-md border border-border bg-muted/60 sm:block" />
+        <span className="h-6 w-16 shrink-0 rounded-full bg-primary/20" />
+        <span className="h-4 w-4 shrink-0" />
+      </div>
+    </div>
+  );
+}
+
 export function CampaignBanner() {
   const pathname = usePathname();
   const { t, language } = useLanguage();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   // Read after mount rather than during render: the campaign and the dismissal
@@ -62,13 +87,18 @@ export function CampaignBanner() {
       // A campaign is decoration, never a reason to break the page it advertises.
       .catch(() => {
         if (!cancelled) setCampaign(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [pathname]);
 
-  if (!campaign || !isStorefrontRoute(pathname)) return null;
+  if (!isStorefrontRoute(pathname)) return null;
+  if (loading) return <CampaignBannerSkeleton />;
+  if (!campaign) return null;
 
   const hide = () => {
     const next = [...new Set([...readDismissed(), campaign.slug])];
@@ -107,7 +137,7 @@ export function CampaignBanner() {
   }
 
   return (
-    <div className="w-full border-b border-primary/30 bg-primary/5">
+    <div className="min-h-[43px] w-full border-b border-primary/30 bg-primary/5">
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <Megaphone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
         <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground sm:text-sm">

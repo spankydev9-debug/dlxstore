@@ -12,6 +12,58 @@ import { ProductImage } from "../../components/shared/ProductImage";
 import { SocialRecommendationsRail } from "../../components/product/SocialRecommendationsRail";
 import { matchesProductQuery } from "../../lib/product-search";
 
+/**
+ * Loading placeholder that reproduces the real /shop layout: title, filter
+ * sidebar and a grid of card placeholders. Every dimension comes from the same
+ * classes the catalog uses (`aspect-square` media, `p-4` body, the same grid
+ * tracks), so replacing it with the real grid cannot shift the page.
+ */
+function ShopSkeleton({ title, intro, filtersLabel }: { title: string; intro: string; filtersLabel: string }) {
+  const placeholderLight = "rounded bg-muted";
+  return (
+    <div className="space-y-8" aria-busy="true" aria-live="polite">
+      <div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground/60">{title}</h1>
+        <p className="text-sm text-muted-foreground">{intro}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+        <aside className="space-y-6 rounded-2xl border border-border/50 bg-card p-5 shadow-sm h-fit">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <h3 className="flex items-center gap-2 text-base font-bold text-foreground/60">
+              <SlidersHorizontal className="h-4.5 w-4.5" aria-hidden />
+              {filtersLabel}
+            </h3>
+            <span className="h-3 w-12 animate-pulse rounded bg-muted" />
+          </div>
+          {Array.from({ length: 4 }).map((_, group) => (
+            <div key={group} className="space-y-3">
+              <span className={`block h-3 w-20 animate-pulse ${placeholderLight}`} />
+              <span className="block h-9 w-full animate-pulse rounded-lg bg-muted" />
+            </div>
+          ))}
+        </aside>
+
+        <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, index) => (
+              <div key={index} className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card">
+                <div className="aspect-square w-full animate-pulse bg-muted" />
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <span className={`h-3 w-16 animate-pulse ${placeholderLight}`} />
+                  <span className={`h-4 w-3/4 animate-pulse ${placeholderLight}`} />
+                  <span className={`h-3.5 w-12 animate-pulse ${placeholderLight}`} />
+                  <span className={`mt-auto h-5 w-24 animate-pulse ${placeholderLight}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ShopContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -165,12 +217,14 @@ function ShopContent() {
     });
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="text-sm text-muted-foreground">{t.loadingCatalog}</p>
-      </div>
-    );
+    // The catalog streams in after the products fetch resolves. A centered
+    // `min-h-[60vh]` spinner holds none of the real page's height, so when the
+    // grid swapped in it pushed the footer (and every painted pixel below the
+    // header) down ~670px — the last measurable layout shift on /shop. The
+    // skeleton mirrors the real page chrome and reserves the same grid rows of
+    // aspect-square cards, so the swap cannot move anything. It never reserves
+    // more than the catalog itself would occupy.
+    return <ShopSkeleton title={t.shopTitle} intro={t.shopIntro} filtersLabel={t.filters} />;
   }
 
   return (
@@ -372,12 +426,7 @@ function ShopContent() {
 
 export default function ShopPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <p className="text-sm text-muted-foreground">Chargement du catalogue...</p>
-      </div>
-    }>
+    <Suspense fallback={<ShopSkeleton title="" intro="" filtersLabel="" />}>
       <ShopContent />
     </Suspense>
   );

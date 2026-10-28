@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listFeedbacks, updateFeedbackStatus, type Feedback, type FeedbackStatus, type FeedbackCategory } from "../../services/db/feedback";
+import { listFeedbacks, updateFeedbackStatus, FeedbackUnavailableError, type Feedback, type FeedbackStatus, type FeedbackCategory } from "../../services/db/feedback";
 import { useLanguage } from "../../context/LanguageContext";
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
@@ -24,6 +24,7 @@ const CATEGORY_FILTERS: Array<{ value: string; label: string }> = [
 export default function FeedbackAdmin() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unavailable, setUnavailable] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
 
@@ -35,8 +36,16 @@ export default function FeedbackAdmin() {
       if (categoryFilter) filters.category = categoryFilter as FeedbackCategory;
       const data = await listFeedbacks(filters);
       setFeedbacks(data);
+      setUnavailable(false);
     } catch (err) {
-      console.error(err);
+      if (err instanceof FeedbackUnavailableError) {
+        // The table is not created yet on this installation. Show that truth
+        // rather than an empty list an admin might read as "no feedback".
+        setFeedbacks([]);
+        setUnavailable(true);
+      } else {
+        console.error(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -107,6 +116,12 @@ export default function FeedbackAdmin() {
                 <tr>
                   <td colSpan={5} className="px-6 py-4 text-sm text-muted-foreground text-center">
                     Loading...
+                  </td>
+                </tr>
+              ) : unavailable ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-sm text-muted-foreground text-center">
+                    Feedback is not available yet. The feedback system migration has not been applied on this installation.
                   </td>
                 </tr>
               ) : feedbacks.length === 0 ? (

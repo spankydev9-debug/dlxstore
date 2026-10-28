@@ -100,6 +100,9 @@ function DashboardContent() {
   // Sync Tab
   useEffect(() => {
     setActiveTab(VALID_TABS.has(tabParam) ? tabParam : "orders");
+    // Tab changes swap the panel in place, so reset the scroll position the
+    // same way for every breakpoint.
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [tabParam]);
 
   // Auth Guard

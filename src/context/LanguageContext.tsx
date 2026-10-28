@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { Language, languages, translate } from "../lib/i18n";
+import { LOCALE_COOKIE } from "../lib/locale";
 import { setMyMessageLocale } from "../services/db/messaging";
 
 const LANGUAGE_STORAGE_KEY = "dlxstore_language";
@@ -46,6 +47,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = language;
+    // Mirror the choice into a cookie so server components (structured data,
+    // breadcrumb labels) can render in the active locale without moving that
+    // markup back into client-only components. `localStorage` stays the UI
+    // source of truth; the cookie is a one-year, Lax, path-wide best-effort copy.
+    document.cookie = `${LOCALE_COOKIE}=${language}; path=/; max-age=31536000; samesite=lax`;
   }, [language]);
 
   const setLanguage = useCallback((next: Language) => {

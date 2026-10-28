@@ -1,5 +1,53 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §32 (2026-10-21) — FEEDBACK SAFETY FIX (uncommitted working tree)
+>
+> Local-only, uncommitted. No commits, pushes, deploys, migrations, or production/RLS changes.
+> `HEAD` still `f7aaf9d`; migration `20261028090000_feedback_system.sql` **untouched and unapplied**.
+>
+> **Intent (verified):** feedback accepts **guests and members**. The migration's
+> `feedback_insert_guest_or_user` policy is `FOR INSERT TO anon, authenticated WITH CHECK (true)`, and the
+> `/feedback` page is not auth-gated — so guest submission is intended and preserved.
+>
+> | Issue | Fix |
+> |---|---|
+> | `createFeedback` never wrote `profile_id`, so `feedback_select_own_if_authenticated` (`profile_id = auth.uid()`) could never match | `createFeedback` now sends `profile_id = user.id` when signed in, `NULL` for guests. The "own feedback" policy is now meaningful without forcing login and without collecting extra PII |
+> | `metadata.user_email` stored the member's email for no read path | removed; `metadata` now only carries `path`. Guests stay anonymous |
+> | `getMyFeedbacks` — zero callers, no "my feedback" UI | **deleted** as dead code |
+> | Raw PostgREST error (`PGRST205 "Could not find the table 'public.feedback'…"`) shown to the customer and swallowed silently by admin | new `isTableMissing` (same helper as `sessions.ts`/`food.ts`) + typed `FeedbackUnavailableError`. Customer sees "Feedback is not available yet. Please try again later."; admin table shows "…migration has not been applied on this installation." instead of an empty list |
+> | Diagnostics | `reportUnavailable` logs the real cause once via `console.warn` (PostgREST text only — **never** the submitted message). Server log contains no feedback error and no submitted content |
+>
+> **Verified (production build `3200`, local Supabase):** table genuinely absent (`to_regclass('public.feedback') = NULL`; `0` ledger rows matching `20261028%`). Guest submit → friendly message rendered, **no raw-error leak** (`RAW_ERROR_LEAKED=false`, `CONSOLE_ERRORS []`). Both read paths return `PGRST205` and map to the typed error. Authenticated suite `/tmp/audit-suite.mjs` **14/14 PASS, EXIT 0, CONSOLE_ERRORS []**.
+>
+> | | |
+> |---|---|
+> | Static gates | `npx tsc --noEmit` **EXIT 0** · `npm run lint` **EXIT 0** (0 errors / 147 pre-existing warnings) · `npx next build --webpack` **EXIT 0** (29 static pages) |
+> | Not changed | 4 stashes intact · untracked `Kakesa_*` CV files untouched (`8a2a19e1…`/`4733cbb5…`) · image allowlist untouched · migration hash `0341b5e0…` unchanged · no RLS weakened |
+> | Deferred to admin UI test | admin "unavailable" branch verified by service path + type check only (no local admin profile; creating one would touch data) |
+>
+> Note: the admin component still carries two **pre-existing** lint warnings (`useLanguage` imported unused; `useEffect` load pattern) — neither introduced here.
+
+> ## ✅ §31 (2026-10-20) — LOCAL PERF-4 / A11Y / SEO PASS (uncommitted working tree)
+>
+> Local-only, uncommitted verification pass on top of `HEAD f7aaf9d`. No commits, pushes, deploys,
+> migrations, or production data/security changes. Tested against a local Supabase stack
+> (`http://127.0.0.1:54321`) for both `next dev` (3100) and a production `next start` build (3200).
+>
+> | | |
+> |---|---|
+> | Branch / HEAD | `f7aaf9d` + uncommitted edits (see `git status`) |
+> | Static gates | `tsc --noEmit` **0 errors** · `eslint .` **0 errors / 147 pre-existing warnings** · `next build --webpack` success (29 static pages) |
+> | `/shop` CLS | **0.1526 → 0.0013** desktop (1440×900) · **0.0015** mobile (390×844), production build — via `ShopSkeleton` grid completion plus campaign-banner (`min-h-[43px]`) and category-rail (`min-h-[55px]`) skeletons |
+> | DB fetch dedupe | new `src/lib/inflight.ts` `shareInFlight` wraps `getCategories`/`getProducts`, `getCampaigns`/`getLiveInAppCampaigns`, `getStoreSettings`; duplicate fetches fell from ×4/×8 to ×2 (the second call is a settle-then-recur pattern; acceptable) |
+> | Accessibility | product page wishlist button now has `aria-label` + `aria-pressed`; gallery thumbnail buttons now have `aria-label` (`productImageView`) + `aria-current` — 3 new i18n keys × 6 locales (`wishlistSave`, `wishlistSaved`, `productImageView`). Wishlist label verified live in the DOM; thumbnail label verified in the compiled client chunk (no local product has >1 image to exercise it live) |
+> | SEO | new metadata-only layouts give `noindex, nofollow` to `/cart`, `/checkout`, `/auth`, `/dashboard`, `/order-tracking`, `/admin/dashboard` (defense-in-depth on top of existing `robots.txt` disallow); public routes (`/`, `/shop`, `/about`, `/contact`) remain `index, follow`. Verified on the production build |
+> | Structured data | **Product + Breadcrumb JSON-LD moved from the `"use client"` pages to the server routes** (`product/[slug]/page.tsx`, `partners/[slug]/page.tsx`), so `Product`/`BreadcrumbList` now appear in the pre-hydration HTML (previously only `Organization`/`WebSite` were SSR'd). `sku` added to the product offer. Verified: 1 `Product` + 1 `BreadcrumbList` in the server HTML and after hydration (no duplicate); `sku: SKU-IPH15PM`, `price: 1399` present |
+> | Bundle | 5 direct deps only; no unused heavy library leaks. The largest chunks are app i18n dictionaries + Next internals + react-dom; the `moment` grep hits are the French string `pour le moment` |
+> | Authenticated suite | `/tmp/audit-suite.mjs` (14 checks) → **14/14 PASS, EXIT 0, CONSOLE_ERRORS []** against production build 3200 with a fresh local account |
+> | ROADMAP / BACKLOG | reconciled — PERF-1..3 DONE; PERF-4 marked PARTIAL with the above evidence |
+> | Not changed | 4 stashes intact · untracked `Kakesa_*` CV files untouched · image allowlist untouched · all 6 dictionaries updated in place · no migration applied (`20261028090000_feedback_system.sql` still unapplied) |
+> | Still open (approval-gated / external) | feedback migration apply, DEP-1a/1b, DEP-2 push/deploy, DEP-3 seeding, production RLS remediation; Try-On (no provider); Ghost Mannequin (needs isolated worktree/branch + readable reference images) |
+
 > ## ✅ §27 (2026-10-10) — RECONCILED RELEASE SHIPPED (`main` @ `aa5ad33`)
 >
 > First release to combine the marketplace fixes (P0–P5) **and** the second agent's seller-AI work, with

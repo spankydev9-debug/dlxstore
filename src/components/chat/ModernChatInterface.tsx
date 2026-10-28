@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   MessageSquare, Users, Search,
   CheckCircle, AlertCircle, UserPlus, Settings,
-  ArrowLeft, Filter, Archive, Trash2
+  ArrowLeft, Filter, Archive, Trash2, Loader2, Plus
 } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useChat } from "../../context/ChatContext";
@@ -47,6 +47,7 @@ export function ModernChatInterface() {
     unpinMessage,
     refreshActiveConversationData,
     startDirectConversation,
+    openSupportConversation,
     searchPeople,
     counterpartOf,
   } = useChat();
@@ -55,11 +56,21 @@ export function ModernChatInterface() {
   const [filter, setFilter] = useState<"all" | "unread" | "direct" | "support" | "internal">("all");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showNewChat, setShowNewChat] = useState(false);
+  const [isStartingSupport, setIsStartingSupport] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   // Whether the user is reading the latest messages. New messages only jump the
   // list when they are already near the bottom, so history stays readable.
   const nearBottomRef = useRef(true);
+
+  const handleStartSupportConversation = async () => {
+    setIsStartingSupport(true);
+    try {
+      await openSupportConversation();
+    } finally {
+      setIsStartingSupport(false);
+    }
+  };
 
   const handleContainerScroll = () => {
     const el = messagesContainerRef.current;
@@ -330,16 +341,16 @@ export function ModernChatInterface() {
               </div>
               
               {/* Filters */}
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {(["all", "unread", "direct", "support", "internal"] as const).map((filterType) => (
                   <button
                     key={filterType}
                     onClick={() => setFilter(filterType)}
-className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize sm:px-3 ${
-                        filter === filterType
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
-                      }`}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium capitalize ${
+                      filter === filterType
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/50 hover:bg-muted"
+                    }`}
                   >
                     {filterType}
                   </button>
@@ -385,20 +396,37 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
               )}
             </div>
 
-            {/* Conversation list */}
-            <div className="flex-1 overflow-y-auto p-2">
+            {/* Conversations */}
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <h3 className="text-sm font-semibold">Conversations</h3>
+              <span className="text-xs text-muted-foreground">{filteredConversations.length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
               {isLoading ? (
                 <div className="flex h-full items-center justify-center">
                    <div className="text-sm text-muted-foreground">{t.chatLoadingConversations}</div>
                 </div>
               ) : filteredConversations.length === 0 ? (
-                <div className="flex h-full items-center justify-center p-4">
-                  <div className="text-center">
-                    <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                <div className="flex h-full flex-col items-center justify-center gap-4 p-4 text-center">
+                  <div>
+                    <MessageSquare className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
-                       {searchQuery ? t.chatNoConversationsFound : t.chatNoConversations}
+                      {searchQuery ? t.chatNoConversationsFound : t.chatNoConversations}
                     </p>
+                    {!searchQuery && filter === "all" ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{t.chatContactSupportBody}</p>
+                    ) : null}
                   </div>
+                  {!searchQuery && filter === "all" ? (
+                    <button
+                      onClick={handleStartSupportConversation}
+                      disabled={isStartingSupport}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {isStartingSupport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      {t.chatStartConversation}
+                    </button>
+                  ) : null}
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -481,7 +509,7 @@ className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-xs font-medium capitalize s
             <div 
               ref={messagesContainerRef}
               onScroll={handleContainerScroll}
-              className="flex-1 overflow-y-auto p-4 space-y-4"
+              className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
             >
               {messages.length === 0 ? (
                 <div className="flex h-full items-center justify-center">

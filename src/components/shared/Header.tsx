@@ -314,7 +314,7 @@ export default function Header() {
               </button>
 
               {isLangMenuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-border/80 bg-card p-1.5 shadow-xl animate-fade-in">
+                <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-border/80 bg-card p-1.5 shadow-xl animate-fade-in @max-[60rem]/header:fixed @max-[60rem]/header:left-3 @max-[60rem]/header:right-3 @max-[60rem]/header:top-16 @max-[60rem]/header:mt-0 @max-[60rem]/header:w-auto">
                   {languages.map((item) => {
                     const active = item.code === language;
                     return (
@@ -438,7 +438,7 @@ export default function Header() {
                       </div>
                     </div>
 
-                    <div className="max-h-60 space-y-2 overflow-y-auto p-3">
+                    <div className="max-h-60 space-y-2 overflow-y-auto overscroll-contain p-3">
                       {notifications.length === 0 ? (
                         <p className="py-4 text-center text-xs text-muted-foreground">
                           {t.noNotifications}

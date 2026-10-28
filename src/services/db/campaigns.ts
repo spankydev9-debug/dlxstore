@@ -1,6 +1,7 @@
 import type { Campaign, Coupon } from "../../types";
 import { getCoupons } from "./coupons";
 import { isDemoMode, isSupabaseConfigured, supabase } from "./index";
+import { shareInFlight } from "../../lib/inflight";
 
 // ---------------------------------------------------------------------------
 // Campaigns — one data layer for the `campaigns` table
@@ -64,6 +65,10 @@ function mapCampaign(row: Record<string, unknown>): Campaign {
 // ---------------------------------------------------------------------------
 
 export async function getCampaigns(): Promise<Campaign[]> {
+  return shareInFlight("campaigns:all", fetchCampaigns);
+}
+
+async function fetchCampaigns(): Promise<Campaign[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("campaigns")
@@ -256,6 +261,10 @@ export function isCampaignLive(campaign: Campaign, now = Date.now()): boolean {
  * itself is still recomputed by `apply_coupon_on_order` at checkout.
  */
 export async function getLiveInAppCampaigns(): Promise<Campaign[]> {
+  return shareInFlight("campaigns:live_in_app", fetchLiveInAppCampaigns);
+}
+
+async function fetchLiveInAppCampaigns(): Promise<Campaign[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from("campaigns")
