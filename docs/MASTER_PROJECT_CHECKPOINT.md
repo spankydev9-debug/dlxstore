@@ -1,11 +1,14 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
-> ## ✅ §33 (2026-10-30) — P0 HARDENED, FEEDBACK VALIDATED, GATES GREEN (uncommitted working tree)
+> ## ✅ §33 (2026-10-30) — P0 HARDENED, FEEDBACK VALIDATED, GATES GREEN, RELEASED
 >
-> Local-only. **No push, no deploy, no production migration, no production data change.** `HEAD` is
-> still `1ee4606`, `main` is 2 commits ahead of `origin/main`, 4 stashes untouched. This section
-> supersedes the "Next action required" paragraph at the very bottom of this file (option (b) was
-> implemented) and the stale DEP-1a/DEP-1b entries in `BACKLOG.md`.
+> Released 2026-10-30 as commit `23d6794` on `main` (plus this documentation-only follow-up):
+> production migration `20261028090000` applied, `main` pushed so the Vercel Git integration
+> deploys, 4 stashes untouched. The commit contains only the reviewed staged set — the
+> `@google/model-viewer` dependency, `package-lock.json` and `public/models/` belong to another
+> agent and stayed out. This section supersedes the "Next action required" paragraph at the very
+> bottom of this file (option (b) was implemented) and the stale DEP-1a/DEP-1b entries in
+> `BACKLOG.md`.
 >
 > ### P0 signup/auth freeze — hardened, still **not reproduced**
 > The 11-scenario matrix at the bottom of this file held; no scenario reproduced the freeze, so it is
@@ -44,18 +47,21 @@
 > migration before its first application, so no IP address can be stored at all).
 > In the real browser: member submit → success + row with `profile_id` = customer id; guest submit →
 > success + row with `profile_id NULL`; admin console listed both, changed a status to `in_review`, and
-> the DB reflects it with `updated_at > created_at`, 0 console errors. Production still lacks
-> `20261028090000` — the page honestly reports "not available yet" there.
+> the DB reflects it with `updated_at > created_at`, 0 console errors. Production now has
+> `20261028090000` (54 local / 54 applied / 0 pending); post-push probes show `anon`
+> `GET /rest/v1/feedback` → 401 `42501` (table live, INSERT-only grant by design) and
+> `select=ip_address` → 400 `42703` (the column never existed).
 >
 > ### Ops / SEO / verification facts refreshed read-only
-> * `supabase migration list --project-ref szhkesvvrgcxbxucodzz`: **54 local, 53 applied, only
->   `20261028090000` pending** → DEP-1a/DEP-1b were applied by later deploys; those backlog entries were stale.
+> * `supabase migration list --project-ref szhkesvvrgcxbxucodzz` before the push: **54 local, 53
+>   applied, only `20261028090000` pending** → DEP-1a/DEP-1b were applied by later deploys; those
+>   backlog entries were stale. After `supabase db push`: **54 / 54 / 0 pending**.
 > * Fresh read-only snapshot `dlxstore_backup_20261029.json` (85 KB, 20 tables, 65 products, per-table
 >   HTTP status, reload-verified; gitignored).
 > * `robots.ts` disallowed `/admin/`-style prefixes that never matched real routes → now
 >   `/admin`, `/dashboard`, `/auth`, `/checkout`, `/cart`, `/order-tracking` (verified in the built
->   server; reaches customers with DEP-2). `/feedback` added to the sitemap; production `/sitemap.xml`
->   re-verified at 72 URLs on the real domain.
+>   server; shipped with this release). `/feedback` added to the sitemap; production `/sitemap.xml`
+>   re-verified at 72 URLs on the real domain before the release.
 > * Local admin console verified end to end with a local admin account (role `admin`): login →
 >   `/admin/dashboard`, `Avis clients` tab lists guest + member rows, status change persists.
 >   An apparent "Invalid login credentials" during the run was **my test harness filling the wrong

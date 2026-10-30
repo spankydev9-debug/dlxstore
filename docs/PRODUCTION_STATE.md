@@ -8,7 +8,9 @@ All values verified read-only. No production change was made.
 > `BACKLOG.md` ("Feedback system") and `docs/MASTER_PROJECT_CHECKPOINT.md` §33.
 > * Migration `20261028090000_feedback_system.sql` applied with `supabase db push`
 >   (`--dry-run` first: exactly one migration). `supabase migration list` then reports
->   **54 local / 54 applied / 0 pending**; the `ip_address` column was removed from the
+>   **54 local / 54 applied / 0 pending**. Post-push probes: `anon` `GET /rest/v1/feedback`
+>   → 401 `42501` (table live; `anon` holds INSERT only by design) and `select=ip_address`
+>   → 400 `42703` (column never existed). The `ip_address` column was removed from the
 >   migration before its first application.
 > * Pre-release snapshot: `dlxstore_backup_20261030.json` (85,669 B, 20 tables, 105 rows, all
 >   HTTP 200). `dlxstore_backup_20261029.json` and the Storage backup remain valid copies of
