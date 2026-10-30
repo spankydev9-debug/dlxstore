@@ -31,7 +31,7 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | **P14** | **20 Scale the business** (marketplace) | complete, local verified; no live seller or payout yet; `tl`/`kg`/`ln` strings need native-speaker review |
 | **P15** | **21 Mobile / PWA** | complete, browser-verified in a real browser (Chrome, mobile + desktop, offline); see `docs/CHECKPOINT-P15-MOBILE-PWA.md` and `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P16** | **22 Performance, SEO & infrastructure** | image pipeline measured, **not** rebuilt; one reliability defect fixed; **PERF-4 largely resolved 2026-10-20** — `/shop` CLS 0.1526 → 0.0013 desktop / 0.0015 mobile (production build, grid skeleton), dedupe brought catalogue fetches to ×2, private routes `noindex`, product a11y names added. See `docs/CHECKPOINT-P16-PERFORMANCE.md` |
-| **Audit** | **Production readiness (P9–P16)** | local code production-ready. Re-checked 2026-10-09: **production IS deployed** (`dlxstore-flax.vercel.app` ← `main` @ `276e759`, the `git-main` alias) and the old "37 RPCs missing" figure is obsolete — the ledger is **45/45 at `20261017093000` with 4 pending**. See `docs/CHECKPOINT-PRODUCTION-READINESS.md`, corrected in `docs/CHECKPOINT-P4B-CART-SAFETY.md` §1 |
+| **Audit** | **Production readiness (P9–P16)** | local code production-ready. Corrected 2026-10-30: production is deployed (`dlxstore-flax.vercel.app` ← `origin/main`) and the ledger is **53 applied / 54 local**, the only pending migration being `20261028090000` (feedback). Older "37 RPCs missing" / "45/45 with 4 pending" figures are obsolete. See `docs/CHECKPOINT-PRODUCTION-READINESS.md` |
 | **P0–P5** | **2026-10-09 working series** (commits `18f250b`→`48085a5`, all local) | See the section below; each advances an existing roadmap phase rather than opening a new one |
 
 ### 2026-10-09 working series — where each increment landed
@@ -45,6 +45,24 @@ Mapping for the completed and remaining work, **agreed 2026-10-03**:
 | P4 | Availability classifier + purchasable/unavailable split (`c61132f`) | 3 Commerce · 6 Inventory | No — undeployed |
 | P4b | Cart revalidation against the live catalogue, checkout prefill, coupon drift, false-alert and dead-code fixes (`8a2fd56`) | 3 Commerce · 6 Inventory | **Committed locally; browser-verified; not pushed, not deployed.** See `docs/CHECKPOINT-P4B-CART-SAFETY.md` |
 | P5 | Campaign data layer, storefront banner, admin campaign editor, coupon-honesty guard (`48085a5`) | 17 Growth & loyalty · 19 Communication | **Partially delivered — code only.** Banner, editor, `campaigns.ts` and the anti-fabrication guard are built, type-safe, lint-clean, built and browser-verified. **Not pushed, not deployed, nothing seeded.** Still open in this phase: the "We are now open" launch (DEP-3 — a redeemable coupon must exist before a campaign may advertise it) and a launch modal. See `docs/CHECKPOINT-P5-CAMPAIGNS.md` |
+
+### 2026-10-29/30 stabilization series — where each item landed
+
+Work done on top of `main` (2 local commits ahead of `origin/main`), all verified against a
+production build served locally with the local Supabase stack. Nothing pushed, deployed,
+migrated on production, or seeded.
+
+| Area | Result | Evidence |
+|---|---|---|
+| **P0 auth/signup freeze** | **HARDENED — not reproduced.** 11 scenarios (auth-lock contention, service worker, email-confirmation round-trip, build drift) behaved correctly, so no false "fixed" claim is made. The *mechanism* that could produce an endless spinner was removed: a 30 s transport deadline on every Supabase fetch, cached-profile first paint, explicit failure classification, and `isLoading = false` on every path. The client-side profile INSERT (which could never succeed) is gone. | `npm test` 15/15; browser: signup → dashboard 757 ms, reload 3 ms, Kong-down → `session-unverified` panel with no redirect and the session intact, retry recovers in 430 ms; missing profile → `profile-unavailable` panel, retry recovers in 336 ms |
+| **Profile recovery / RLS mismatch** | **FIXED.** `profiles` grants SELECT+UPDATE only; the old "create the missing profile from the browser" fallback always failed and its swallowed error turned a data problem into a silent sign-out. A missing row is now `ProfileUnavailableError` + retry. | `src/services/auth.ts`, `src/lib/auth-errors.ts`, `tests/auth-errors.test.ts` |
+| **Feedback system** | **VALIDATED, still approval-gated.** Migration hardened before first application (grants, INSERT `WITH CHECK`, no DELETE), `createFeedback` no longer asks for `RETURNING` (which made successful guest submissions look like failures), footer link + admin sidebar entry added. Production is still missing `20261028090000`. | 32-assertion RLS harness (0 failures); browser: member submit, guest submit, admin list + status change all persisted correctly |
+| **SEO** | **One real defect fixed.** `robots.ts` disallowed `/admin/`, `/dashboard/`, … which never matched the actual routes; now prefix-based. `/feedback` added to the sitemap. | Built server `/robots.txt`; production `/sitemap.xml` re-verified at 72 URLs on the real domain |
+| **Ops** | **Refreshed read-only facts.** Remote ledger: 54 local migrations, **53 applied, only the feedback migration pending** — so DEP-1a/DEP-1b were applied by later deploys and those backlog entries were stale. New read-only production snapshot `dlxstore_backup_20261029.json` (20 tables, per-table status, reload-verified). Local staging now runs 15/15 regression tests with no new dependency. | `supabase migration list`; backup JSON; `npm test` |
+| **Gates** | `npx tsc --noEmit` **0**; `npx eslint .` **0 errors / 146 warnings**; `npx next build --webpack` **exit 0, 29 pages**; `npm test` **15/15**. | final run after all edits |
+
+Still open by design: the Admin Control Center (not started — stabilization came first), Try-On
+(no AI provider exists), and Ghost Mannequin / AI product imagery (separate owner).
 
 Roadmap Phase 12 (DLX Profiles) has no separate P-series entry; the profile, privacy and
 identity surfaces it describes were delivered inside P6 and P10.
@@ -536,9 +554,11 @@ management; migration `20261028090000_feedback_system.sql` exists but has NOT be
 production — requires explicit approval). The feedback page persistence awaits production migration
 approval.
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
-Nothing below reaches a customer without three owner decisions: apply the pending migrations
-(DEP-1a is the urgent pair — its absence breaks features already live), push and deploy local `main`
-(production is still at `276e759`), and seed a redeemable coupon plus the launch campaign (DEP-3). See `BACKLOG.md` DEP-1a/DEP-1b/DEP-2/DEP-3.
+Nothing below reaches a customer without three owner decisions: apply the pending migration
+(only `20261028090000` — feedback — is still unapplied; the 2026-10-09 "urgent pair" DEP-1a/1b
+were applied by later deploys), push and deploy local `main` (DEP-2), and seed a redeemable
+coupon plus the launch campaign (DEP-3). See `BACKLOG.md` DEP-2/DEP-3 and the 2026-10-29/30
+stabilization section above.
 
 ---
 

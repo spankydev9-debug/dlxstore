@@ -59,13 +59,14 @@ import {
   Wand2,
   Sparkles,
   Bell,
-  PackageSearch
+  PackageSearch,
+  Inbox
 } from "lucide-react";
 
 function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, authError, retryAuth } = useAuth();
 
   const tabParam = searchParams.get("tab") || "analytics";
   // Unknown ?tab= values must not render a blank card — fall back to the default
@@ -123,13 +124,15 @@ function AdminDashboardContent() {
   // Auth Guard: Only Admin allowed
   useEffect(() => {
     if (!isAuthLoading) {
-      if (!user) {
+      // Do not redirect while the session is merely unverified: a failed
+      // verification must offer a retry, not a sign-out loop.
+      if (!user && !authError) {
         router.push("/auth?mode=login");
-      } else if (user.role !== "admin") {
+      } else if (user && user.role !== "admin") {
         router.push("/dashboard");
       }
     }
-  }, [user, isAuthLoading, router]);
+  }, [user, isAuthLoading, authError, router]);
 
   // Sync Tab
   useEffect(() => {
@@ -432,6 +435,33 @@ function AdminDashboardContent() {
 
   const maxSales = Math.max(...salesTrendData, 100);
 
+  if (authError && !user) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 px-6 text-center">
+        <p className="max-w-md text-sm text-muted-foreground" role="alert">
+          {authError.kind === "session-unverified"
+            ? "Impossible de vérifier votre session : la connexion n'a pas répondu. Réessayez."
+            : "Votre compte est connecté, mais le profil administrateur n'a pas pu être chargé. Réessayez."}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => { void retryAuth(); }}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            Réessayer
+          </button>
+          <Link
+            href="/auth?mode=login"
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            Se connecter
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (isAuthLoading || !user || user.role !== "admin") {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4">
@@ -457,6 +487,7 @@ function AdminDashboardContent() {
     { key: "campaigns", label: "Campagnes", icon: Megaphone },
     { key: "notifications", label: "Notifications", icon: Bell },
     { key: "reports", label: "Abuse Reports", icon: AlertTriangle },
+    { key: "feedback", label: "Avis clients", icon: Inbox },
     { key: "support", label: "Support Client", icon: MessageSquare },
     { key: "internal", label: "Chat Interne", icon: Users },
     { key: "visuals", label: "Visuels IA", icon: Wand2 },

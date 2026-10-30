@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createDeadlineFetch, resolveRequestTimeoutMs } from "../../lib/request-deadline";
 import {
   mockCategories,
   mockProducts,
@@ -24,8 +25,25 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseClientKey);
 /** Demo data is opt-in and must never silently appear in a production storefront. */
 export const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO_MODE === "true";
 
+/**
+ * Every Supabase request gets a hard deadline.
+ *
+ * The mechanism lives in `src/lib/request-deadline.ts` so it can be unit-tested
+ * without a Supabase client. Override the 30 s default with
+ * NEXT_PUBLIC_SUPABASE_REQUEST_TIMEOUT_MS when an installation genuinely needs
+ * longer (large product-image uploads on a slow uplink).
+ */
+export const supabaseRequestTimeoutMs = resolveRequestTimeoutMs(
+  process.env.NEXT_PUBLIC_SUPABASE_REQUEST_TIMEOUT_MS
+);
+
+/** `fetch` with an abort deadline, preserving any caller-supplied signal. */
+export const fetchWithDeadline: typeof fetch = createDeadlineFetch(supabaseRequestTimeoutMs);
+
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseClientKey!)
+  ? createClient(supabaseUrl!, supabaseClientKey!, {
+      global: { fetch: fetchWithDeadline },
+    })
   : null;
 
 // Helper to initialize local storage data if empty

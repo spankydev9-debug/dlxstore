@@ -1,5 +1,86 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §33 (2026-10-30) — P0 HARDENED, FEEDBACK VALIDATED, GATES GREEN (uncommitted working tree)
+>
+> Local-only. **No push, no deploy, no production migration, no production data change.** `HEAD` is
+> still `1ee4606`, `main` is 2 commits ahead of `origin/main`, 4 stashes untouched. This section
+> supersedes the "Next action required" paragraph at the very bottom of this file (option (b) was
+> implemented) and the stale DEP-1a/DEP-1b entries in `BACKLOG.md`.
+>
+> ### P0 signup/auth freeze — hardened, still **not reproduced**
+> The 11-scenario matrix at the bottom of this file held; no scenario reproduced the freeze, so it is
+> reported as *not reproduced*, not *fixed*. The mechanism that could produce it was removed instead:
+>
+> | Change | File |
+> |---|---|
+> | 30 s transport deadline on **every** Supabase request (real abort, honours caller signals, 1 s floor, `NEXT_PUBLIC_SUPABASE_REQUEST_TIMEOUT_MS` override) | `src/lib/request-deadline.ts`, wired in `src/services/db/index.ts` via `createClient({ global: { fetch } })` |
+> | Authenticated shell paints from the last known profile (`dlxstore_profile_cache`) while the authoritative read is in flight | `src/context/AuthContext.tsx`, `src/services/auth.ts` |
+> | Failures classified as `session-unverified` / `profile-unavailable` / signed-out; `isLoading` is cleared on **every** path; `retryAuth()` re-runs the read | `src/lib/auth-errors.ts`, `AuthContext`, retry panels in `/dashboard`, `/admin/dashboard`, `/partner/dashboard` |
+> | Client-side profile INSERT removed — `profiles` grants only SELECT+UPDATE to `authenticated`, so it could never succeed and its swallowed error became a silent sign-out | `src/services/auth.ts` |
+>
+> **Browser evidence (production build, local stack):** signup → `/dashboard` in **757 ms** and the
+> cache is written; reload renders in **3 ms** with no "Authentification en cours"; guest `/dashboard`
+> → `/auth?mode=login`; **Kong stopped** + cache cleared → `session-unverified` retry panel in **1.4 s**,
+> URL stays `/dashboard`, session token intact, retry after restart recovers in **430 ms**;
+> **profile row deleted** → `profile-unavailable` retry panel with the session intact, retry after
+> restore recovers in **336 ms**; sign-out clears both the cache and the auth token. 0 console errors.
+> A real dead-socket stall was also observed (post-restart keep-alive sockets): the request was cut at
+> the 30 s deadline and the page settled on a retry panel instead of spinning.
+>
+> ### Feedback system — validated end to end, still approval-gated
+> Migration hardened **before** its first application (it has never been applied anywhere): explicit
+> `public.` qualification, explicit grants (INSERT → `anon`+`authenticated`; SELECT/UPDATE →
+> `authenticated`; **no DELETE**), INSERT `WITH CHECK (status='new' AND resolved_at IS NULL AND
+> (profile_id IS NULL OR profile_id = auth.uid()))`, `profile_id` index. `createFeedback` no longer asks
+> for `RETURNING` (`anon` holds no SELECT, so a successful guest write looked like a failure and
+> invited duplicate resubmits). Reachability defects fixed: `/feedback` had **no link anywhere** (footer
+> link added, 6 locales) and the admin `feedback` tab had **no sidebar entry** (`Avis clients` added).
+>
+> **Verified:** 32-assertion local RLS/grants harness → **32 pass / 0 fail** (guest insert 201; spoofed
+> `profile_id`, forged `status`, forged `resolved_at` all denied; guest SELECT/UPDATE/DELETE denied;
+> member insert self 201 / anonymous 201 / another profile 403; read isolation own 1 / other 0 / admin
+> all; member PATCH writes nothing; admin PATCH applies status and bumps `updated_at`, and can
+> resolve; the table has **no `ip_address` column** — the unused column was dropped from the
+> migration before its first application, so no IP address can be stored at all).
+> In the real browser: member submit → success + row with `profile_id` = customer id; guest submit →
+> success + row with `profile_id NULL`; admin console listed both, changed a status to `in_review`, and
+> the DB reflects it with `updated_at > created_at`, 0 console errors. Production still lacks
+> `20261028090000` — the page honestly reports "not available yet" there.
+>
+> ### Ops / SEO / verification facts refreshed read-only
+> * `supabase migration list --project-ref szhkesvvrgcxbxucodzz`: **54 local, 53 applied, only
+>   `20261028090000` pending** → DEP-1a/DEP-1b were applied by later deploys; those backlog entries were stale.
+> * Fresh read-only snapshot `dlxstore_backup_20261029.json` (85 KB, 20 tables, 65 products, per-table
+>   HTTP status, reload-verified; gitignored).
+> * `robots.ts` disallowed `/admin/`-style prefixes that never matched real routes → now
+>   `/admin`, `/dashboard`, `/auth`, `/checkout`, `/cart`, `/order-tracking` (verified in the built
+>   server; reaches customers with DEP-2). `/feedback` added to the sitemap; production `/sitemap.xml`
+>   re-verified at 72 URLs on the real domain.
+> * Local admin console verified end to end with a local admin account (role `admin`): login →
+>   `/admin/dashboard`, `Avis clients` tab lists guest + member rows, status change persists.
+>   An apparent "Invalid login credentials" during the run was **my test harness filling the wrong
+>   input** (a header search box) — the token endpoint returned 200 for the same credentials; no
+>   product defect. The form itself submits correctly when filled by type.
+>
+> ### Gates (final run, after every edit)
+> `npx tsc --noEmit` **0** · `npx eslint .` **0 errors / 146 warnings** (all pre-existing) ·
+> `npx next build --webpack` **exit 0, 29 pages** · `npm test` **15/15** (Node's runner: auth-error
+> classification, in-flight dedupe, and a real hung socket killed at 1026 ms).
+>
+> ### Not done, on purpose
+> Admin Control Center (never started — stabilization first), Try-On (no AI provider; see
+> `AGENT_HANDOFF.md` §10), Ghost Mannequin / AI product imagery (separate owner), and anything that
+> needs approval: setting `is_active=false` on the expired `we-are-now-open` campaign and
+> re-seeding a launch campaign (DEP-3). Push + deploy (DEP-2) and the production feedback
+> migration were **approved and executed on 2026-10-30** (see the release block at the top of
+> `PRODUCTION_STATE.md`).
+>
+> ### Residual defect recorded, not patched
+> I18N-1 (`BACKLOG.md`): the `/feedback` page and parts of the admin console ignore the selected
+> language (English page copy on a French-default storefront). Left open deliberately — the fix is
+> 12 strings × 6 locales plus 6 category labels, and inventing Lingála/Tshiluba/Kikongo copy without
+> a reviewer would ship guessed translations. No data impact: rows store the stable category value.
+
 > ## ✅ §32 (2026-10-21) — FEEDBACK SAFETY FIX (uncommitted working tree)
 >
 > Local-only, uncommitted. No commits, pushes, deploys, migrations, or production/RLS changes.
@@ -1607,3 +1688,76 @@ operator choosing/providing an authorized storage destination, so that part of O
 
 
 
+
+## P0 signup-freeze investigation — 2026-10-29
+
+**Status: NOT REPRODUCED. No fix claimed. The reported freeze could not be reproduced in any
+locally reproducible scenario, so the code must not be described as fixed.**
+
+### Environment
+Local Supabase stack (mailer_autoconfirm=true, disable_signup=false, email provider on) against a
+production build (`npx next build --webpack`, exit 0, 29 pages) served by `next start -p 3200`,
+driven over CDP in two Chrome profiles (warm, and a virgin profile with empty storage).
+Discarded local test accounts only; no production account, no production write.
+
+### Scenario matrix (all pass, 1–2 s to a usable page, no spinner, no console errors)
+| Scenario | Result |
+|---|---|
+| Fresh signup (4 fields) → redirect | `/dashboard` rendered, session stored |
+| Virgin-profile first run: language modal → register | `/dashboard`, 0 spinners |
+| Hard refresh while signed in (×3) | `/dashboard` restored each time |
+| Sign out | back to `/auth?mode=login`, token cleared |
+| Sign in again | dashboard query set fires, page usable |
+| Kill tab / reopen `/dashboard` (installed-app shape) | still signed in, rendered |
+| Mobile 390×844 + touch + `display-mode: standalone` | usable |
+| Mobile fresh signup | `/dashboard` |
+| Auth lock (`lock:sb-127-auth-token`) held by a second tab | dashboard still renders |
+| Steady state after signup, 20 s | 10 requests (5 s polling), **0** long tasks |
+
+### Hypotheses tested and refuted (with evidence)
+1. **Profile-creation failure after signup** — refuted: `on_auth_user_created` →
+   `handle_new_user()` (SECURITY DEFINER) creates the row before the API returns; every signup
+   produced a `profiles` row (REST 200).
+2. **Auth-lock re-entrancy deadlock** — not triggered by this code: `onAuthStateChange`'s callback
+   is synchronous and returns immediately, so the lock is released before the queued `getUser()`.
+   Verified by holding the lock externally; the page still rendered.
+3. **Stale service-worker document cache** — refuted: no *shipped* `sw.js` ever stored documents.
+   v1–v3 only served a cached copy on network failure (nothing was ever put), v4 explicitly bypasses
+   `/dashboard`, `/auth`, `/checkout`, `/api`, etc. The v4 comment claiming otherwise is inaccurate.
+4. **Post-auth refetch storm / main-thread block** — refuted: 0 long tasks in 20 s.
+5. **Email confirmation disabled flow** — not applicable: production `/auth/v1/settings` reports
+   `mailer_autoconfirm: true`, identical to local.
+6. **Deployed build differs in the auth path** — refuted: `git diff c04ecac..HEAD` touches only
+   `dashboard/layout.tsx` and `dashboard/page.tsx` (noindex). Auth code is byte-identical.
+
+### Only mechanism that can still produce the symptom
+`AuthContext.isLoading` starts `true` and is cleared only in `refreshUser()`'s `finally`. If
+`supabase.auth.getUser()` never settles, `/dashboard`'s `isAuthLoading || !user` branch spins forever.
+There is no request timeout and no degraded render path when a valid local session already exists.
+A hung production request (edge stall, paused/cold project, captive-portal network) reproduces the
+reported signature exactly and cannot be reproduced from a healthy local stack.
+
+### Production facts verified read-only this session
+- `GET /rest/v1/profiles` → 200; `GET /rest/v1/feedback` → **404 PGRST205** (table absent).
+- `GET /rest/v1/...` control probe confirms the API/key path works, so the 404 is a real schema gap.
+- `https://dlxstore-flax.vercel.app`: `/`, `/shop`, `/auth`, `/discover`, `/studio`,
+  `/partner/dashboard` → 200; **`/feedback` → 404** (the feedback feature is not deployed at all).
+- P6–P16 routes are live, so the Oct 4 readiness note "production runs an old build" is stale as a
+  blanket statement; production simply predates `f7aaf9d` (feedback) and `1ee4606`.
+
+### Feedback graceful degradation — verified locally
+With the table absent (production-identical state) `POST /feedback` returns 404 and the UI shows
+"Feedback is not available yet. Please try again later." with no raw PostgREST text, no crash, and
+the submit button re-enabled.
+
+### Next action required
+Either (a) supply the failing environment (device, OS, browser/PWA, whether the tab or only the UI
+was frozen, console/network capture, and whether the account row existed afterwards), or (b) approve
+the resilience change: render the authenticated shell from the persisted session and reconcile the
+profile in the background, so an unsettled `getUser()` can never gate `/dashboard` forever.
+
+> **Update 2026-10-30 — option (b) is implemented.** See §33 at the top of this file: deadline,
+> cached first paint, failure classification and retry panels are in place and regression-tested, so
+> the symptom is bounded even though it was never reproduced. Option (a) is still welcome: if a real
+> customer ever reports it again, the environment details would let us confirm the root cause instead
+> of only bounding it.

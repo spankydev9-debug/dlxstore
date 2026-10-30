@@ -11,7 +11,6 @@ export interface Feedback {
   status: FeedbackStatus;
   device_info: string | null;
   screenshot_url: string | null;
-  ip_address: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -89,10 +88,19 @@ function requireClient() {
   return supabase;
 }
 
-export async function createFeedback(input: CreateFeedbackInput): Promise<Feedback> {
+/**
+ * Submit feedback.
+ *
+ * Resolves to `void` on purpose: `anon` holds INSERT but no SELECT privilege on
+ * `feedback`, so `INSERT ... RETURNING` (what `insert().select()` asks PostgREST
+ * for) would be filtered down to zero rows and report a failure for a row that
+ * was in fact written — the customer would see an error, try again, and file the
+ * report twice. The insert therefore uses `return=minimal`.
+ */
+export async function createFeedback(input: CreateFeedbackInput): Promise<void> {
   const client = requireClient();
 
-  const { data, error } = await client
+  const { error } = await client
     .from("feedback")
     .insert({
       profile_id: input.profile_id ?? null,
@@ -101,9 +109,7 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
       device_info: input.device_info ?? null,
       screenshot_url: input.screenshot_url ?? null,
       metadata: input.metadata ?? {},
-    })
-    .select()
-    .single();
+    });
 
   if (error) {
     if (isTableMissing(error)) {
@@ -112,7 +118,6 @@ export async function createFeedback(input: CreateFeedbackInput): Promise<Feedba
     }
     throw error;
   }
-  return data as Feedback;
 }
 
 export async function listFeedbacks(filters?: {

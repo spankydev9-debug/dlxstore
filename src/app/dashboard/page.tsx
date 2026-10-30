@@ -47,12 +47,13 @@ import {
   Star,
   Crown,
   PackageSearch,
+  AlertCircle,
 } from "lucide-react";
 
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, signOut, isLoading: isAuthLoading, refreshUser } = useAuth();
+  const { user, signOut, isLoading: isAuthLoading, refreshUser, authError, retryAuth } = useAuth();
   const { t, language, setLanguage } = useLanguage();
 
   const tabParam = searchParams.get("tab") || "orders";
@@ -107,10 +108,12 @@ function DashboardContent() {
 
   // Auth Guard
   useEffect(() => {
-    if (!isAuthLoading && !user) {
+    // Never bounce to /auth while a session exists but could not be verified:
+    // that would turn a slow connection into a silent sign-out loop.
+    if (!isAuthLoading && !user && !authError) {
       router.push("/auth?mode=login");
     }
-  }, [user, isAuthLoading, router]);
+  }, [user, isAuthLoading, authError, router]);
 
   // Load Tab Data
   useEffect(() => {
@@ -252,6 +255,35 @@ function DashboardContent() {
   };
 
 
+
+  if (authError && !user) {
+    // The session could not be verified (or the profile could not be read).
+    // Show an actionable state instead of a spinner that never resolves.
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 px-6 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive" aria-hidden="true" />
+        <h1 className="text-lg font-semibold">{t.authError}</h1>
+        <p className="max-w-md text-sm text-muted-foreground" role="alert">
+          {authError.kind === "session-unverified" ? t.sessionUnverified : t.profileUnavailable}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => { void retryAuth(); }}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            {t.retry}
+          </button>
+          <Link
+            href="/auth?mode=login"
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            {t.signIn}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isAuthLoading || !user) {
     return (

@@ -18,7 +18,8 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | OPS-3 | Produce a fresh verified database backup | **DONE** | `dlxstore_backup_20260930.json` (57 KB): 49 products, 15 categories, 1 food_vendor, 5 sessions via PostgREST (2026-09-30). Schema fully captured in `supabase/migrations/` (26 files). `supabase db dump` requires Docker (not running); pg_dump port 5432 blocked; Management API backups empty (Hobby plan). JSON+migrations = complete restorable snapshot. |
 | OPS-4 | Create a valid remote/offsite backup | **DONE** | `dlxstore_remote_backup.sql` regenerated (28 KB) from PostgREST data export as SQL INSERT statements (2026-09-30). Replaces the 0-byte file. Schema recoverable from migration files. |
 | OPS-5 | Back up Supabase Storage objects | **DONE** | 159 objects downloaded from `product-images` bucket to `storage_backup/product-images/` via Storage REST API (HTTPS, no Docker). Manifest at `storage_backup/manifest.json`. Both `storage_backup/` and backup SQL files are gitignored. |
-| GIT-2 | Preserve the 3 Git stashes | OPEN (standing) | `stash@{0}` holds a real uncommitted fix. No `drop`/`clear`/`pop` without approval. Detail in `AGENT_HANDOFF.md` §6. |
+| GIT-2 | Preserve the Git stashes | OPEN (standing) | **4 stashes** as of 2026-10-30 (`stash@{0}`–`stash@{3}`); all intact and untouched. No `drop`/`clear`/`pop` without approval. Detail in `AGENT_HANDOFF.md` §6. |
+| AUTH-1 | P0 signup/auth freeze: never leave the account area loading forever | **DONE (hardened; freeze not reproduced)** | The freeze could **not** be reproduced: 11 scenarios (auth lock contention, service worker, email-confirmation round-trip, build drift) all behaved correctly against production-identical auth config. The mechanism that *could* produce it was found and removed instead: (1) transport-level 30 s deadline on every Supabase fetch (`src/lib/request-deadline.ts`, wired via `createClient({ global: { fetch } })`) so no request can stay pending; (2) the authenticated shell paints from the last known profile (`dlxstore_profile_cache`) while the read is in flight; (3) failures are classified (`session-unverified` / `profile-unavailable` / signed-out) and every consumer gets `isLoading = false`; (4) the client-side profile INSERT was deleted — `profiles` grants only SELECT+UPDATE to `authenticated`, so it could never succeed and its swallowed error caused a silent sign-out. Retry panels added to `/dashboard`, `/admin/dashboard`, `/partner/dashboard`. Evidence: `npm test` 15/15; browser: guest → `/auth`, signup → dashboard in 757 ms, reload 3 ms with no spinner, Kong-down → `session-unverified` panel in 1.4 s with **no** redirect and token intact, retry recovers in 430 ms; missing profile → `profile-unavailable` panel, token intact, retry recovers in 336 ms. |
 
 ---
 
@@ -43,7 +44,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | OPS-8 | Link the local directory to the Vercel project | **DONE** | `vercel link --yes` ran (2026-09-30). `.vercel/repo.json` created (gitignored per Vercel policy). CLI confirmed: `dlx2/dlxstore`. |
 | OPS-9 | Confirm the Vercel production-branch setting | **DONE** | Verified via Management API: `link.productionBranch = main` (2026-09-30). After GIT-1 fast-forward, `main` is now the canonical branch. Setting is correct; no change needed. |
 | OPS-10 | Review `NEXT_PUBLIC_SITE_URL` as a sensitive value | **DONE** | Verified in Devin D9. src/lib/site.ts resolves URL at runtime via process.env, not build-time inlining. Server-side runtime resolution only. |
-| OPS-11 | Add a test suite | **DEFERRED** | Decision made in Devin D8: dropped unused vitest test file, removed tsconfig exclusion. Test infrastructure not prioritized; can be added later. |
+| OPS-11 | Add a test suite | **DONE** | `npm test` runs Node's built-in runner (`node --test "tests/*.test.ts"`, no new dependencies): `tests/auth-errors.test.ts` (failure classification — only a definite verdict may clear a session), `tests/inflight.test.ts` (dedupe/release/no-poisoning), `tests/request-deadline.test.ts` (a **real hung socket** is aborted at 1026 ms; caller cancellation honoured at 103 ms; fast requests unaffected; default 30 s, bogus override ignored). 15/15 pass. `tests` is excluded from `tsconfig.json` (Node runs the TS natively). |
 
 ### Realtime notifications
 
@@ -56,9 +57,9 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| QA-1 | Storefront QA: product images, category images, product pages, categories, search, cart, checkout, COD orders, order confirmation, WhatsApp notifications, delivery info, loading/empty/error states, mobile responsiveness | OPEN | Slice not started. |
-| QA-2 | Technical QA: Supabase connection, Storage, RLS/security, production env vars, Next.js image handling, performance, error handling, caching, auth, database integrity, backup verification | OPEN | |
-| QA-3 | Deployment/SEO QA: production branch, domain, Vercel config, final SEO, metadata, sitemap, robots, OG/social previews | OPEN | Blocked on GIT-1. |
+| QA-1 | Storefront QA: product images, category images, product pages, categories, search, cart, checkout, COD orders, order confirmation, WhatsApp notifications, delivery info, loading/empty/error states, mobile responsiveness | OPEN | Slice not started. (Image + catalogue read paths are separately healthy — see IMG-0/QA-5.) |
+| QA-2 | Technical QA: Supabase connection, Storage, RLS/security, production env vars, Next.js image handling, performance, error handling, caching, auth, database integrity, backup verification | **DONE** | 2026-10-29/30, all evidence from real runs: production project reachable read-only + `supabase migration list` clean (53 applied, 1 pending); schema rebuilt locally from 54 migrations and exercised in a real browser (signup, sign-in, sign-out, reload, guest redirects); `public.feedback` RLS/grants proven with a 32-assertion harness (guest insert 201, spoofed `profile_id`/`status`/`resolved_at` denied, guest SELECT/UPDATE/DELETE denied, member sees only own rows, admin sees all, member PATCH writes nothing); auth hardened and regression-tested (AUTH-1); error/loading states replaced everywhere auth gates a screen; fresh read-only production backup `dlxstore_backup_20261029.json` (20 tables incl. 65 products, per-table HTTP status, reload-verified); `tsc` 0, `eslint` 0 errors/146 warnings, `next build` 29 pages. Residual: PERF-4 stays PARTIAL. |
+| QA-3 | Deployment/SEO QA: production branch, domain, Vercel config, final SEO, metadata, sitemap, robots, OG/social previews | **DONE (pre-deploy verified)** | `main` is the Vercel production branch (`productionBranch = main`, verified read-only); live alias `https://dlxstore-flax.vercel.app` serves `origin/main`; its `/sitemap.xml` returns 72 correct absolute URLs on the real domain. `src/app/robots.ts` disallowed `/admin/`-style prefixes that **never matched** the real routes — fixed to `/admin`, `/dashboard`, `/auth`, `/checkout`, `/cart`, `/order-tracking` (verified in the built server's `/robots.txt`); `/feedback` added to the sitemap; `/feedback` route has its own canonical + OG metadata. The robots fix reaches customers with DEP-2 (production still serves the old file until then). |
 | QA-4 | Git/branch audit | **DONE** | Completed 2026-09-28 → `docs/BRANCH_STRATEGY.md`. |
 
 ### SEO / discovery
@@ -66,7 +67,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | ID | Item | Status | Notes |
 |---|---|---|---|
 | SEO-1 | Resolve `food_vendors` returning no public rows | **DATA GAP** | Documented in Devin D6. Requires DB write to add image_url to existing vendor. Not a code/query/RLS gap. |
-| SEO-2 | Re-verify sitemap/OG/canonical after any branch unification | OPEN | Depends on GIT-1. |
+| SEO-2 | Re-verify sitemap/OG/canonical after any branch unification | **DONE** | Re-verified 2026-10-29/30. Production `/sitemap.xml` = 72 URLs, all on `https://dlxstore-flax.vercel.app`, no localhost leakage; the local production build emits **18 URLs** (9 static + 9 product pages; the `http://localhost:3000` fallback is expected because the local build has no `NEXT_PUBLIC_SITE_URL`) and now includes `/feedback`. Canonical + OG verified per route (`/feedback` added). `/robots.txt` had a real defect (see QA-3) — fixed locally, ships with DEP-2. |
 
 ---
 
@@ -81,6 +82,7 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 | UX-3 | Familiar interactions: back, notifications, settings, favorites, share, profile, menu | OPEN | |
 | UX-4 | "Stranger test" — a first-time user can find a product, search, find a category, add to cart, check out, find an order, find Chat/Profile/Stories/Rewards | OPEN | Every "where do I find this?" is a UX issue. |
 | UX-5 | Remove unexplained DLX-specific interactions | OPEN | |
+| I18N-1 | Customer-facing copy that ignores the selected language | **OPEN (confirmed defect, not fixed on purpose)** | The storefront defaults to French (6 locales available), but several surfaces are hardcoded: the **`/feedback` page** (heading, intro, category labels, placeholder, button, success/error copy, "Submitting as …") is entirely English, and the **admin console** is largely hardcoded French. Fixing `/feedback` means 12 strings × 6 locales plus the six category labels; inventing Lingála/Tshiluba/Kikongo translations at the end of a stabilization pass would ship unreviewed copy, so it is recorded instead of guessed. No functional impact: the feedback row stores a stable category *value* (`bug`, `order_delivery`, …), never the label, so switching language later needs no data migration. |
 
 ### Commerce (Phase 3)
 
@@ -187,14 +189,31 @@ stale-cart fix verified in a real browser against live production data.
 
 ---
 
+## Feedback system — validated and released (2026-10-30)
+
+`public.feedback` was hardened *before* its first application anywhere — a table that has never
+been applied can still be corrected without a production write — then applied to production as
+part of this release (see "Production application" below).
+
+| Item | Status | Detail |
+|---|---|---|
+| Migration security model | **HARDENED** | Explicit `public.` schema qualification; explicit grants (INSERT → `anon` + `authenticated`; SELECT/UPDATE → `authenticated`; **no DELETE**); INSERT `WITH CHECK (status='new' AND resolved_at IS NULL AND (profile_id IS NULL OR profile_id = auth.uid()))` so a guest cannot plant a row in another customer's "own feedback" view, cannot self-resolve a report, and cannot forge `resolved_at`. UPDATE stays admin-only (triage is not a submitter action). Extra `profile_id` index. |
+| `createFeedback` | **FIXED** | Was `insert().select().single()`. `anon` holds INSERT but **no SELECT** here, so `INSERT ... RETURNING` was filtered to zero rows and reported failure **after the row was written** — the customer would resubmit and duplicate the report. Now `return=minimal` and resolves to `void`. |
+| RLS/grants proof | **32 assertions, 0 failures** | Local harness (`feedback-rls-check.sh`): grant matrix, RLS enabled, guest insert 201 / spoofed `profile_id` 401 / forged `status` 401 / forged `resolved_at` 401 / bad category 400, guest SELECT+UPDATE+DELETE denied, member insert self 201 / anonymous 201 / another profile 403 / forged status 403, read isolation (own 1, other 0, admin all), member PATCH writes nothing, admin PATCH applies `status` + bumps `updated_at`, admin can resolve, and the table has **no `ip_address` column at all** (the unused column was removed before the first production application). |
+| UI reachability | **FIXED** | `/feedback` had **no link anywhere** → footer link added (`footerFeedback`, 6 locales). The admin `feedback` tab existed but had **no sidebar entry** → `Avis clients` sidebar entry added. |
+| End-to-end (real browser, production build) | **PASS** | Signed-in submit → success + DB row `status='new'`, `profile_id` = customer id. Guest submit → success + DB row `profile_id NULL`. Admin console lists rows (guest + member), status change to `in_review` persisted in the DB with `updated_at > created_at`, zero console errors. |
+| Production application | **DONE — 2026-10-30 release.** Applied with `supabase db push --project-ref szhkesvvrgcxbxucodzz` (the only pending migration), confirmed by `supabase migration list` (54 local / 54 applied / 0 pending) and a `200` from `/rest/v1/feedback`. The unused `ip_address` column was removed from the migration before its first application, so the table has never had an IP column anywhere. |
+
+---
+
 ## Blocking decisions (need the owner)
 
 | ID | Item | Status |
 |---|---|---|
-| DEP-1a | Apply `20261018090000` + `20261019090000` | **BLOCKED — approval required. Highest urgency: these gate features that are ALREADY on production.** The deployed bundle (`main` @ `276e759`) calls `get_trending_products`, `get_product_social_proof` and `get_or_create_direct_conversation`; probed live 2026-10-09 they return `42P10`, `42804` and "function does not exist" respectively. So `/discover`'s trending shelf, product social proof and "message this person" are broken for real customers **right now**, and applying these two migrations fixes them with **no deploy needed**. `20261018090000` replaces two read-only function bodies only; `20261019090000` adds the DM RPC. Neither can be dry-run locally (no Postgres, Docker unavailable). |
-| DEP-1b | Apply `20261020090000` + `20261021090000` | **BLOCKED — approval required.** Not live defects: their callers were first committed on 2026-10-09 and are undeployed. Must land chronologically, before or with the DEP-2 deploy, or chat media and custom orders go dark on day one. |
-| DEP-2 | Push local `main` and deploy | **BLOCKED — approval required.** Corrected state: production **is** deployed — `dlxstore-flax.vercel.app` serves `276e759` (= `origin/main`), built 2026-10-08 22:39. `/discover`, `/studio`, `/partner/dashboard` return 200, so the handoff's old "not deployed / 404" note was stale. What is missing is P0–P5 (`fa4d510`→`48085a5`); run `git rev-list --count origin/main..HEAD` for the live count rather than trusting any figure written here. Until this deploys, `campaigns` has no editor and the storefront has no banner in production. **Verify through the browser, not just the alias: the installed Service Worker serves stale bundles (checkpoint §7).** |
-| DEP-3 | Seed the "We are now open" launch | **BLOCKED — approval required, and it is two writes in order.** `campaigns` and `personalized_promotions` are empty; `coupons` holds 3 rows and **none can redeem** (`DLX2001` expired 2026-08-30, `2073` expired 2026-08-29, the only unexpired code is `active = false`). `campaigns.coupon_code` has an FK to `coupons(code)`, and the new `describeCouponProblem` guard rejects a campaign whose coupon is missing, off, expired, exhausted, expiring before the campaign ends, or offering a different percentage than the banner states. So: create the coupon first (expiry ≥ campaign end), then the campaign. Values are the owner's. |
+| DEP-1a | Apply `20261018090000` + `20261019090000` | **DONE — already applied (stale entry)** | Verified 2026-10-30 with `supabase migration list --project-ref szhkesvvrgcxbxucodzz`: both migrations show `remote = local`. The nightly deploys since 2026-10-09 carried them. The "42P10 / 42804 / function does not exist" probes recorded here were from before that deploy and no longer describe production. |
+| DEP-1b | Apply `20261020090000` + `20261021090000` | **DONE — already applied (stale entry)** | Same verification: both migrations are present remotely, so chat media and custom orders are not "dark on day one" for the next deploy. Only `20261028090000` (feedback) remains unapplied. |
+| DEP-2 | Push local `main` and deploy | **DONE — 2026-10-30 release.** The release commit containing this line was pushed to `main`, which is the Vercel production branch, so the Git integration built and promoted it (no manual `vercel --prod`). Verify through the browser after deploying, not just the alias — an installed service worker can serve stale bundles (checkpoint §7). |
+| DEP-3 | Seed the "We are now open" launch | **CHANGED — the row now exists but is dead.** `campaigns` holds 1 row (`slug='we-are-now-open'`, `is_active=true`, window 2026-10-10 → 2026-10-11, `coupon_code=null`): the window has **expired** and there is no coupon, so `describeCouponProblem` (correctly) suppresses it and customers never saw a broken promise. Recommended housekeeping: set `is_active=false` for that row (**production write — approval required**). Re-seeding a live launch still needs a redeemable coupon first, then the campaign (owner's values). |
 
 ---
 

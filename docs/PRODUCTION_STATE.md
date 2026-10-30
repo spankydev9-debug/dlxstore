@@ -3,6 +3,37 @@
 Production environment, deployment, and backup reference. Generated 2026-09-28.
 All values verified read-only. No production change was made.
 
+> **Release — 2026-10-30 (approved).** This release applies one migration, pushes `main` and
+> deploys the stabilized build. Facts recorded here were verified at each step; details in
+> `BACKLOG.md` ("Feedback system") and `docs/MASTER_PROJECT_CHECKPOINT.md` §33.
+> * Migration `20261028090000_feedback_system.sql` applied with `supabase db push`
+>   (`--dry-run` first: exactly one migration). `supabase migration list` then reports
+>   **54 local / 54 applied / 0 pending**; the `ip_address` column was removed from the
+>   migration before its first application.
+> * Pre-release snapshot: `dlxstore_backup_20261030.json` (85,669 B, 20 tables, 105 rows, all
+>   HTTP 200). `dlxstore_backup_20261029.json` and the Storage backup remain valid copies of
+>   the pre-release state.
+> * Production deployment before this release: `dlxstore-arsvptz8m-dlx2.vercel.app`
+>   (2026-10-13, `origin/main` `df4cb87`) — the rollback target.
+
+> **Update — 2026-10-30 (read-only re-check).** The project is deployed from `main`
+> (`productionBranch = main`); this document's §1 "built from `mobile-ux-hardening`" line is
+> historical. Live facts re-verified today without writing anything:
+> * `supabase migration list --project-ref szhkesvvrgcxbxucodzz` → **54 local, 53 applied**, the
+>   only pending migration is `20261028090000_feedback_system.sql`. The Oct-09 "DEP-1a urgent pair"
+>   is applied, so the notes describing missing RPCs are obsolete.
+> * `https://dlxstore-flax.vercel.app/sitemap.xml` → 72 URLs, all absolute on the real domain.
+> * `https://dlxstore-flax.vercel.app/robots.txt` still serves the **old** file whose
+>   `/admin/`, `/dashboard/`, … entries never matched the actual routes; the corrected
+>   prefix-based file is built locally and ships with the next deploy (DEP-2).
+> * `campaigns` holds **1** row (`slug='we-are-now-open'`, `is_active=true`, window
+>   2026-10-10 → 2026-10-11, `coupon_code=null`) — expired and unredeemable; the storefront guard
+>   correctly suppresses it. Recommended housekeeping (needs approval): set `is_active=false`.
+> * Public row counts: `products` 65 · `categories` 15 · `sessions` 5 · `delivery_zones` 5 ·
+>   `loyalty_tiers` 4 · `food_vendors` 1 · `coupons` 0 · `partner_applications` 0.
+> * New read-only data snapshot: `dlxstore_backup_20261029.json` (85 KB, 20 tables, per-table HTTP
+>   status; gitignored). It replaces `dlxstore_backup_20260930.json` (49 products) as the newest copy.
+>
 > **Correction — 2026-10-09.** The §1 table below is superseded. Production has been redeployed
 > many times since 2026-09-09; the alias `https://dlxstore-flax.vercel.app` now serves
 > `dpl_H4941MTDJrpFVGQy861mpXRrhwHa`, built 2026-10-08 22:39 CAT from **`main` @ `276e759`**

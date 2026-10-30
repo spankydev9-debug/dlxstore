@@ -87,6 +87,7 @@ export default function Footer() {
             <li><Link href="/shop" className="hover:text-foreground transition-colors">{t.footerAllProducts}</Link></li>
             <li><Link href="/about" className="hover:text-foreground transition-colors">{t.footerAboutUs}</Link></li>
             <li><Link href="/contact" className="hover:text-foreground transition-colors">{t.footerContactUs}</Link></li>
+            <li><Link href="/feedback" className="hover:text-foreground transition-colors">{t.footerFeedback}</Link></li>
             <li><Link href={user ? "/dashboard" : "/auth?mode=login"} className="hover:text-foreground transition-colors">{user ? t.footerMyAccount : t.signIn}</Link></li>
           </ul>
         </div>

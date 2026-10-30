@@ -6,7 +6,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin/", "/dashboard/", "/auth/", "/checkout/", "/cart/", "/order-tracking/"],
+      // Prefixes, not directories: `Disallow: /checkout/` never matched the real
+      // route `/checkout`, so every private page below was still crawlable.
+      disallow: ["/admin", "/dashboard", "/auth", "/checkout", "/cart", "/order-tracking"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
