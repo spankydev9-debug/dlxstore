@@ -1,5 +1,87 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §34 (2026-10-31) — ECOSYSTEM EVOLUTION STARTED: P1 CHAT RELIABILITY SHIPPED (LOCAL, UNMERGED)
+>
+> Starting point was verified, not assumed: `main` @ `94c606b`, in sync with `origin/main` (0 ahead /
+> 0 behind), 4 stashes intact, and the only uncommitted files are the other agent's
+> `@google/model-viewer` + `public/models/**` work (untouched). Production is
+> `dlxstore-dz72supvb-dlx2.vercel.app` behind `https://dlxstore-flax.vercel.app`; `/`, `/shop`, `/food`,
+> `/chat`, `/discover`, `/studio`, `/feedback`, `/admin/dashboard` all returned **200**.
+> Migration ledger: 54 applied / 0 pending (re-checked in this run's P0 pass).
+>
+> ### P0 inventory — what is actually complete (do not rebuild)
+>
+> | Area | State | Evidence |
+> |---|---|---|
+> | Auth, session recovery, signup | COMPLETE | §33; 30 s deadline + fail classification live |
+> | Checkout (COD), free Goma delivery, WhatsApp handoff | COMPLETE | untouched this package |
+> | Product images, SEO/metadata, categories, feedback, partner foundations, PWA shell | COMPLETE | routes 200; §33 release |
+> | Chat foundations (tables, RLS, RPCs, private bucket, realtime tables) | COMPLETE | 7 migrations; RPCs confirmed **live in production** below |
+> | Chat editor/delete/pagination/pins/presence/notification wiring | **BROKEN → fixed in P1.1** | see below |
+> | Departments (Food / Energy as first-class experiences) | NOT STARTED | no department concept anywhere; `/food` is a one-vendor shell; Home & Energy CTA `/shop?category=maison-energie` is a dead slug (the 2 solar products have `category_id = NULL`) |
+> | Admin Control Center (page editor, department management, granular roles) | PARTIAL | one 1325-line `/admin/dashboard` with 20 tabs, client-side `role === "admin"` gate, no content editor |
+> | Developer Mode | NOT STARTED | no feature flags, no diagnostics surface |
+> | DLX Social | PARTIAL | data layer + dashboard UI only; no public profile/feed |
+> | Notifications (push) | PARTIAL | `PushNotificationService` posts to `/api/push-subscriptions`, which does not exist |
+> | Loyalty / analytics | PARTIAL | admin RPCs + snapshot tables exist, zero callers |
+> | DLX Studio / Ghost Mannequin | BLOCKED — other agent owns it | `@google/model-viewer` work left untouched |
+>
+> ### P1.1 — chat reliability (code only, no migration needed)
+>
+> **Already complete, left alone:** the whole chat schema (conversations/messages/participants,
+> `message_media`, reactions, status, pins, forwards), `send_conversation_message(_v2)`,
+> `mark_conversation_read`, support/direct/internal conversation creation, media signing, and the
+> routed `ModernChatInterface`. No third implementation was added.
+>
+> **What was genuinely broken (code-verified), and what changed:**
+>
+> | # | Defect | Fix | Files |
+> |---|---|---|---|
+> | 1 | Edit/delete wrote directly to `public.messages`, which has **no UPDATE grant/policy** for `authenticated` — RLS dropped the write silently (0 rows, no error), so the UI showed an edit that never persisted | Both actions now call the existing `SECURITY DEFINER` RPCs (`edit_conversation_message`, `delete_conversation_message`) and **surface** failures; `window.prompt`/`confirm` replaced by inline edit box and inline delete confirmation (usable on mobile) | `services/db/chat.ts`, `context/ChatContext.tsx`, `components/chat/ModernChatInterface.tsx` |
+> | 2 | `getMessages` selected the **entire history** on every load, every realtime insert and every 8 s poll | Keyset pagination: newest 40, `before` cursor, `hasMore`; "Load older messages" button with scroll-position restore | `lib/chat-pagination.ts` (new), `services/db/chat.ts`, `context/ChatContext.tsx`, `ModernChatInterface.tsx` |
+> | 3 | A refresh replaced thread state wholesale, so a realtime insert truncated history the reader had scrolled back to | `mergeNewestPage()` keeps older pages, replaces only the page range, drops other-conversation rows; late results for a switched thread are discarded | `lib/chat-pagination.ts`, `context/ChatContext.tsx` |
+> | 4 | 2 queries **per message** (plus one profile query per reaction) on every load/insert/poll | Batched `getReactionsForMessages` / `getStatusesForMessages` → 2 queries per page | `services/db/chat-realtime.ts`, `context/ChatContext.tsx` |
+> | 5 | Legacy composer cleared the draft **before** knowing whether the send persisted | Draft and an explicit "not sent — text kept" message survive failure; all three consumers updated to return the real result | `components/chat/ChatUi.tsx`, `CustomerSupportChat.tsx`, `admin/SupportInbox.tsx`, `admin/InternalChat.tsx` |
+> | 6 | `getPinnedMessages` was imported but never called — pins existed only in the database | Pins load with the thread and refresh on pin/unpin; shows author + note | `context/ChatContext.tsx`, `ModernChatInterface.tsx` |
+> | 7 | Presence badge claimed "Offline" when no presence row existed at all | Unknown presence renders nothing; "online/away/last seen" only with real heartbeat data | `components/chat/EnhancedChatUi.tsx` |
+> | 8 | `sw.js` posted `MARK_CONVERSATION_READ` on "mark as read" — nothing listened, so the action did nothing | Page listens and marks read (data layer directly, so no TDZ on the context callback) | `context/ChatContext.tsx` |
+> | 9 | Chat notifications read the conversation title from a **frozen empty closure**, and fired even while the app was visible (duplicating the DB trigger) | Title from a ref; local notification only while the document is hidden | `context/ChatContext.tsx` |
+> | 10 | Edit/soft-delete by the other participant never reached the open thread (only `INSERT` was subscribed) | `messages` `UPDATE` events patch the message in place | `context/ChatContext.tsx` |
+> | 11 | Delivery receipts fired one RPC per visible bubble on every messages change, including your own | Only received messages, once per id | `ModernChatInterface.tsx` |
+>
+> ### Verification (this package)
+> - `npx tsc --noEmit` → **0 errors**.
+> - `npx eslint .` → **0 errors**, 144 warnings (all pre-existing categories; no new error-level finding).
+> - `npm test` → **22/22 pass**, including **7 new pagination regression tests** (`tests/chat-pagination.test.ts`):
+>   history survives a refresh, overlapping pages do not duplicate, other-conversation rows never leak,
+>   empty page clears, prepend is idempotent, cursor boundary, page-size clamping.
+> - `npx next build --webpack` → **PASS**.
+> - Local production server (`next start`, production Supabase read-only): `/`, `/shop`, `/food`, `/chat`,
+>   `/discover`, `/feedback`, `/admin/dashboard` → **200**; `/chat` rendered logged-out with **0 console errors**.
+> - **Production probe (read-only, no mutation):** `POST /rest/v1/rpc/edit_conversation_message` and
+>   `…/delete_conversation_message` as `anon` both return `400 P0001 "Authentication required"` — proof the
+>   RPCs the fix now depends on exist **in production** and are not anon-executable (a missing function
+>   would have returned `404 PGRST202`).
+>
+> ### Database changes prepared (NOT applied anywhere — approval required)
+> `supabase/migrations/20261031090000_chat_reliability_fixes.sql`, additive, rollback documented in the file:
+> 1. `forwarded_messages` **INSERT** policy — the table only had SELECT, so recording a forward's origin was
+>    refused by RLS while the forwarded text still arrived (the silent half-failure).
+> 2. `chat-media` MIME allowlist — adds `audio/mp4`, `audio/m4a`, `audio/x-m4a`, `audio/aac`, which the client
+>    and Safari/Android recorders accept; Storage was rejecting those voice notes.
+>
+> ### Blockers
+> - **Local Docker/Supabase stack is dead** (daemon unresponsive, `127.0.0.1:54321` → `000`, `docker ps` hangs
+>   after a quit/reopen cycle). Blocks: RLS harness run, migration dry-run/apply, and the real two-account
+>   browser journey (send → receive → edit → delete → forward → pin → paginate → reconnect).
+> - Production migration apply, commit, push, deploy: **not done, awaiting explicit approval.**
+> - Customer↔partner conversations need a new `conversations.type` value (additive migration) — deferred.
+>
+> ### Next package
+> P1.2 verification (apply the migration locally + 2-user journey) the moment the stack returns, then **P2 —
+> department architecture** (first-class `departments` + placement relationships, real DLX Food and DLX
+> Energy experiences, fix the dead Home & Energy CTA).
+
 > ## ✅ §33 (2026-10-30) — P0 HARDENED, FEEDBACK VALIDATED, GATES GREEN, RELEASED
 >
 > Released 2026-10-30 as commit `23d6794` on `main` (plus this documentation-only follow-up):

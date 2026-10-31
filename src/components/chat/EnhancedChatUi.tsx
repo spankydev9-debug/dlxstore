@@ -732,32 +732,25 @@ export function OnlineStatusBadge({
   lastSeen?: string;
 }) {
   const { t } = useLanguage();
-  const [status, setStatus] = useState<"online" | "away" | "offline">("offline");
-  
-  // In a real app, you would subscribe to presence updates
+  // Presence is derived from the last heartbeat we are allowed to read. The old
+  // implementation rendered "Offline" when no presence row existed at all, which
+  // is a claim the data does not support — it renders nothing instead.
+  const [now, setNow] = useState(() => Date.now());
+
   useEffect(() => {
-    // Mock presence check
-    const checkPresence = () => {
-      if (lastSeen) {
-        const lastSeenDate = new Date(lastSeen);
-        const minutesAgo = (Date.now() - lastSeenDate.getTime()) / 60000;
-        if (minutesAgo < 2) {
-          setStatus("online");
-        } else if (minutesAgo < 10) {
-          setStatus("away");
-        } else {
-          setStatus("offline");
-        }
-      }
-    };
-    
-    checkPresence();
-    const interval = setInterval(checkPresence, 30000);
+    if (!lastSeen) return;
+    const interval = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(interval);
   }, [lastSeen]);
-  
+
   // Time labels are wall-clock dependent, so they must be hydration-safe.
   const { formatRelative } = useHydrationSafeTime();
+
+  if (!lastSeen) return null;
+
+  const minutesAgo = (now - new Date(lastSeen).getTime()) / 60000;
+  const status: "online" | "away" | "offline" =
+    minutesAgo < 2 ? "online" : minutesAgo < 10 ? "away" : "offline";
 
   const statusConfig = {
     online: {

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import {
   MessageSquare, Users, Search,
   CheckCircle, AlertCircle, UserPlus, Settings,
-  ArrowLeft, Filter, Archive, Trash2, Loader2, Plus
+  ArrowLeft, Filter, Archive, Trash2, Loader2, Plus, Pin, ChevronUp,
 } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useChat } from "../../context/ChatContext";
@@ -36,8 +36,12 @@ export function ModernChatInterface() {
     clearError,
     realtimeStatus,
     unreadCount,
+    hasMoreMessages,
+    isLoadingOlderMessages,
+    pinnedMessages,
     setActiveConversationId,
     sendMessage,
+    loadOlderMessages,
     markDelivered,
     setTypingStatus,
     addReaction,
@@ -62,6 +66,16 @@ export function ModernChatInterface() {
   // Whether the user is reading the latest messages. New messages only jump the
   // list when they are already near the bottom, so history stays readable.
   const nearBottomRef = useRef(true);
+  // Inline message editing/deleting: window.prompt/confirm are unusable on
+  // mobile and block the whole page.
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Restores scroll position after older history is prepended.
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+  const deliveredRef = useRef<Set<string>>(new Set());
 
   const handleStartSupportConversation = async () => {
     setIsStartingSupport(true);
@@ -78,6 +92,22 @@ export function ModernChatInterface() {
     nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   };
 
+  // Prepending a page of history shifts everything down. Without this the reader
+  // is thrown to an arbitrary position mid-conversation.
+  useLayoutEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el || pendingScrollRestoreRef.current === null) return;
+    const delta = el.scrollHeight - pendingScrollRestoreRef.current;
+    pendingScrollRestoreRef.current = null;
+    el.scrollTop += delta;
+  }, [messages]);
+
+  const handleLoadOlder = useCallback(async () => {
+    const el = messagesContainerRef.current;
+    pendingScrollRestoreRef.current = el ? el.scrollHeight : null;
+    await loadOlderMessages();
+  }, [loadOlderMessages]);
+
   // Auto-scroll to bottom when new messages arrive — but only when the reader is
   // already at (or near) the latest message, so scrolling through history is never
   // yanked back down.
@@ -87,17 +117,19 @@ export function ModernChatInterface() {
     }
   }, [messages]);
 
-  // Mark messages as delivered when they become visible
+  // Mark received messages as delivered when they become visible. Only messages
+  // received from someone else, and only once per id — the observer used to fire
+  // one RPC per visible bubble on every messages change.
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const messageId = entry.target.getAttribute("data-message-id");
-            if (messageId) {
-              markDelivered(messageId).catch(console.error);
-            }
-          }
+          if (!entry.isIntersecting) return;
+          if (entry.target.getAttribute("data-mine") === "true") return;
+          const messageId = entry.target.getAttribute("data-message-id");
+          if (!messageId || deliveredRef.current.has(messageId)) return;
+          deliveredRef.current.add(messageId);
+          markDelivered(messageId).catch(console.error);
         });
       },
       { threshold: 0.5 }
@@ -156,24 +188,47 @@ export function ModernChatInterface() {
     }
   }, [addReaction]);
 
-  const handleEditMessage = useCallback(async (messageId: string) => {
-    const newBody = prompt("Edit your message:");
-    if (newBody && newBody.trim()) {
-      try {
-        await editMessage(messageId, newBody.trim());
-      } catch (err) {
-        console.error("Error editing message:", err);
-      }
-    }
-  }, [editMessage]);
+  const handleEditMessage = useCallback((message: ConversationMessage) => {
+    if (message.deleted_at) return;
+    setEditingMessageId(message.id);
+    setEditDraft(message.body ?? "");
+  }, []);
 
-  const handleDeleteMessage = useCallback(async (messageId: string) => {
-    if (confirm("Are you sure you want to delete this message?")) {
-      try {
-        await deleteMessage(messageId);
-      } catch (err) {
-        console.error("Error deleting message:", err);
-      }
+  const cancelEdit = useCallback(() => {
+    setEditingMessageId(null);
+    setEditDraft("");
+  }, []);
+
+  const submitEdit = useCallback(async (messageId: string) => {
+    const body = editDraft.trim();
+    if (!body) return;
+    setIsSavingEdit(true);
+    try {
+      await editMessage(messageId, body);
+      setEditingMessageId(null);
+      setEditDraft("");
+    } catch (err) {
+      // The context surfaces the reason (RLS/RPC/network) in its error banner;
+      // keep the editor open so the text is not lost.
+      console.error("Error editing message:", err);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [editDraft, editMessage]);
+
+  const handleDeleteMessage = useCallback((messageId: string) => {
+    setPendingDeleteId(messageId);
+  }, []);
+
+  const confirmDelete = useCallback(async (messageId: string) => {
+    setIsDeleting(true);
+    try {
+      await deleteMessage(messageId);
+      setPendingDeleteId(null);
+    } catch (err) {
+      console.error("Error deleting message:", err);
+    } finally {
+      setIsDeleting(false);
     }
   }, [deleteMessage]);
 
@@ -511,6 +566,44 @@ export function ModernChatInterface() {
               onScroll={handleContainerScroll}
               className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
             >
+              {/* Pinned messages are staff-authored context (delivery terms, order
+                  details). They were fetched nowhere before, so pins existed only
+                  in the database. */}
+              {pinnedMessages.length > 0 && (
+                <div className="rounded-xl border border-border bg-muted/40 p-3">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                    <Pin className="h-3.5 w-3.5" />
+                    Pinned ({pinnedMessages.length})
+                  </div>
+                  <ul className="space-y-1.5">
+                    {pinnedMessages.map((pin) => (
+                      <li key={pin.message_id} className="text-xs">
+                        <span className="font-medium">{pin.pinned_by_name ?? "DLX"}</span>
+                        {pin.note ? <span className="text-muted-foreground"> — {pin.note}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {hasMoreMessages && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleLoadOlder}
+                    disabled={isLoadingOlderMessages}
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  >
+                    {isLoadingOlderMessages ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    )}
+                    {isLoadingOlderMessages ? "Loading older messages…" : "Load older messages"}
+                  </button>
+                </div>
+              )}
+
               {messages.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="text-center text-muted-foreground">
@@ -521,18 +614,78 @@ export function ModernChatInterface() {
                 </div>
               ) : (
                 messages.map((message) => (
-                  <div key={message.id} data-message-id={message.id}>
-                    <MessageBubble
-                      message={message}
-                      /* Ownership is decided by sender_id, not sender_role: role is
-                         "customer" for every member of a 1-to-1 chat, so comparing
-                         the role right-aligned the other person's messages too. */
-                      isMine={message.sender_id === user?.id}
-                      onReaction={(emoji) => handleReaction(message.id, emoji)}
-                      onEdit={() => handleEditMessage(message.id)}
-                      onDelete={() => handleDeleteMessage(message.id)}
-                      onPin={() => message.is_pinned ? handleUnpinMessage(message.id) : handlePinMessage(message.id)}
-                    />
+                  <div
+                    key={message.id}
+                    data-message-id={message.id}
+                    data-mine={message.sender_id === user?.id ? "true" : "false"}
+                  >
+                    {editingMessageId === message.id ? (
+                      <div className="rounded-xl border border-border bg-card p-3">
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Edit message
+                        </label>
+                        <textarea
+                          value={editDraft}
+                          onChange={(event) => setEditDraft(event.target.value)}
+                          rows={3}
+                          maxLength={4000}
+                          className="w-full resize-none rounded-lg border border-border bg-background p-2 text-sm outline-none focus:border-foreground/70"
+                          autoFocus
+                        />
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void submitEdit(message.id)}
+                            disabled={isSavingEdit || !editDraft.trim()}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                          >
+                            {isSavingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <MessageBubble
+                        message={message}
+                        /* Ownership is decided by sender_id, not sender_role: role is
+                           "customer" for every member of a 1-to-1 chat, so comparing
+                           the role right-aligned the other person's messages too. */
+                        isMine={message.sender_id === user?.id}
+                        onReaction={(emoji) => handleReaction(message.id, emoji)}
+                        onEdit={() => handleEditMessage(message)}
+                        onDelete={() => handleDeleteMessage(message.id)}
+                        onPin={() => message.is_pinned ? handleUnpinMessage(message.id) : handlePinMessage(message.id)}
+                      />
+                    )}
+
+                    {pendingDeleteId === message.id && (
+                      <div className="mt-1 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+                        <span className="mr-auto text-destructive">Delete this message?</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteId(null)}
+                          className="rounded-full px-3 py-1 font-medium text-muted-foreground hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void confirmDelete(message.id)}
+                          disabled={isDeleting}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-destructive px-3 py-1 font-semibold text-white disabled:opacity-50"
+                        >
+                          {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}

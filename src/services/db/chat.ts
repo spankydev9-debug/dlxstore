@@ -1,4 +1,10 @@
 import { Conversation, ConversationMessage } from "../../types";
+import {
+  MESSAGE_PAGE_SIZE,
+  normalizePageSize,
+  mergeNewestPage,
+  prependOlderPage,
+} from "../../lib/chat-pagination";
 import { isDemoMode, isSupabaseConfigured, supabase } from "./index";
 
 // ---------------------------------------------------------------------------
@@ -152,59 +158,176 @@ export async function addConversationParticipant(
   if (!isDemoMode) throw new Error(mockError());
 }
 
-export async function getMessages(
-  conversationId: string
+/** Messages fetched per page. The thread loads the newest page first. */
+export { MESSAGE_PAGE_SIZE } from "../../lib/chat-pagination";
+
+export interface MessageCursor {
+  createdAt: string;
+  id: string;
+}
+
+export interface MessagePage {
+  /** Oldest-first, so the caller can append straight into the thread. */
+  messages: ConversationMessage[];
+  /** True when older messages exist before the first returned message. */
+  hasMore: boolean;
+}
+
+/**
+ * Attach `message_media` rows so attachments actually render.
+ *
+ * `message_media` lives in its own table (the v2 send path writes there); without
+ * this every media block in every bubble is dead and sent photos never appear.
+ * Private objects are converted to caller-authorized signed URLs.
+ */
+async function attachMessageMedia(
+  messages: ConversationMessage[]
 ): Promise<ConversationMessage[]> {
+  if (!supabase || messages.length === 0) return messages;
+
+  const { data: mediaRows, error: mediaError } = await supabase
+    .from("message_media")
+    .select("*")
+    .in(
+      "message_id",
+      messages.map((m) => m.id)
+    );
+
+  if (mediaError) {
+    console.warn("Unable to load message attachments:", mediaError.message);
+    return messages;
+  }
+  if (!mediaRows || mediaRows.length === 0) return messages;
+
+  const byMessage = new Map<string, ConversationMessage["media"]>();
+  for (const row of mediaRows) {
+    const stored = (row as unknown) as NonNullable<ConversationMessage["media"]>[number];
+    const fileUrl = await resolveChatMediaPath(stored.file_url);
+    if (!fileUrl) continue;
+    const thumbnailUrl = await resolveChatMediaPath(stored.thumbnail_url);
+    const media = { ...stored, file_url: fileUrl, thumbnail_url: thumbnailUrl };
+    const list = byMessage.get(media.message_id) ?? [];
+    list.push(media);
+    byMessage.set(media.message_id, list);
+  }
+
+  return messages.map((m) => ({ ...m, media: byMessage.get(m.id) }));
+}
+
+/**
+ * Load one page of messages, newest page first.
+ *
+ * The thread used to select the entire history on every render and on every
+ * realtime insert; a long conversation therefore re-downloaded (and re-signed
+ * every attachment in) its whole history. Pages are bounded here and older
+ * history is fetched explicitly with the `before` cursor.
+ */
+export async function getMessages(
+  conversationId: string,
+  options?: { limit?: number; before?: MessageCursor }
+): Promise<MessagePage> {
+  const limit = normalizePageSize(options?.limit);
+
   if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("messages")
       .select("*")
       .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit + 1);
 
+    // Keyset pagination: strictly older than the oldest loaded message.
+    if (options?.before) {
+      query = query.lt("created_at", options.before.createdAt);
+    }
+
+    const { data, error } = await query;
     if (error) throw new Error(error.message || "Unable to load messages.");
-    const messages = (data ?? []) as ConversationMessage[];
 
-    if (messages.length === 0) return messages;
+    const rows = (data ?? []) as ConversationMessage[];
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    page.reverse();
 
-    // Attach media rows so attachments actually render. `message_media` lives in
-    // its own table (the v2 send path writes there); without a join here the
-    // media block in every bubble is dead and sent photos never appear.
-    const { data: mediaRows, error: mediaError } = await supabase
-      .from("message_media")
-      .select("*")
-      .in(
-        "message_id",
-        messages.map((m) => m.id)
-      );
-
-    if (mediaError) {
-      console.warn("Unable to load message attachments:", mediaError.message);
-      return messages;
-    }
-
-    if (mediaRows && mediaRows.length > 0) {
-      const byMessage = new Map<string, ConversationMessage["media"]>();
-      for (const row of mediaRows) {
-        const stored = (row as unknown) as NonNullable<ConversationMessage["media"]>[number];
-        const fileUrl = await resolveChatMediaPath(stored.file_url);
-        if (!fileUrl) continue;
-        const thumbnailUrl = await resolveChatMediaPath(stored.thumbnail_url);
-        const media = { ...stored, file_url: fileUrl, thumbnail_url: thumbnailUrl };
-        const list = byMessage.get(media.message_id) ?? [];
-        list.push(media);
-        byMessage.set(media.message_id, list);
-      }
-      return messages.map((m) => ({
-        ...m,
-        media: byMessage.get(m.id),
-      }));
-    }
-
-    return messages;
+    return { messages: await attachMessageMedia(page), hasMore };
   }
+
   if (!isDemoMode) throw new Error(mockError());
-  return readMockChat().messagesByConversation[conversationId] ?? [];
+  const all = readMockChat().messagesByConversation[conversationId] ?? [];
+  const older = options?.before
+    ? all.filter((m) => m.created_at < options.before!.createdAt)
+    : all;
+  const page = older.slice(-limit);
+  return { messages: page, hasMore: older.length > page.length };
+}
+
+/**
+ * Edit one of your own messages.
+ *
+ * Uses edit_conversation_message(): the `messages` table grants no UPDATE to
+ * `authenticated`, so a direct `.from("messages").update()` is silently dropped
+ * by RLS (zero rows, no error) and the UI showed an edit that never persisted.
+ * The RPC is SECURITY DEFINER, author-scoped and granted to `authenticated`.
+ */
+export async function editMessage(
+  messageId: string,
+  body: string
+): Promise<ConversationMessage> {
+  const trimmed = body.trim();
+  if (!trimmed) throw new Error("A message cannot be empty.");
+
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase.rpc("edit_conversation_message", {
+      p_message_id: messageId,
+      p_body: trimmed,
+    });
+    if (error) throw new Error(error.message || "Unable to edit the message.");
+    return data as ConversationMessage;
+  }
+
+  if (!isDemoMode) throw new Error(mockError());
+  const storage = readMockChat();
+  let updated: ConversationMessage | null = null;
+  for (const conversationId of Object.keys(storage.messagesByConversation)) {
+    storage.messagesByConversation[conversationId] =
+      storage.messagesByConversation[conversationId].map((m) => {
+        if (m.id !== messageId) return m;
+        updated = { ...m, body: trimmed, edited_at: new Date().toISOString() };
+        return updated;
+      });
+  }
+  if (!updated) throw new Error("Unable to edit the message.");
+  writeMockChat(storage);
+  return updated;
+}
+
+/**
+ * Soft-delete one of your own messages via delete_conversation_message().
+ * Same RLS reason as editMessage(): direct writes are dropped without an error.
+ */
+export async function deleteMessage(messageId: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.rpc("delete_conversation_message", {
+      p_message_id: messageId,
+    });
+    if (error) throw new Error(error.message || "Unable to delete the message.");
+    return;
+  }
+
+  if (!isDemoMode) throw new Error(mockError());
+  const storage = readMockChat();
+  let found = false;
+  for (const conversationId of Object.keys(storage.messagesByConversation)) {
+    storage.messagesByConversation[conversationId] =
+      storage.messagesByConversation[conversationId].map((m) => {
+        if (m.id !== messageId) return m;
+        found = true;
+        return { ...m, deleted_at: new Date().toISOString(), body: "Message deleted" };
+      });
+  }
+  if (!found) throw new Error("Unable to delete the message.");
+  writeMockChat(storage);
 }
 
 export async function sendMessage(

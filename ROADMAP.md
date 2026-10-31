@@ -5,6 +5,31 @@ evidence and rules live in `AGENT_HANDOFF.md` and `docs/`.
 
 ---
 
+## Ecosystem evolution chapter (started 2026-10-31)
+
+The platform goal changed from "an online shop with features" to **one ecosystem of specialized
+departments** (DLX Shop, Food, Energy, Shops, Chat, Social, Studio, Intelligence) plus an **Admin
+Control Center** and an internal **Developer Mode**. This chapter's work packages are the authority for
+sequencing; a roadmap phase is only opened when its package starts.
+
+| Package | Scope | State |
+|---|---|---|
+| P0 | Verify release + inventory the real state (no rebuild of finished systems) | ✅ 2026-10-31 (`docs/MASTER_PROJECT_CHECKPOINT.md` §34) |
+| P1 | Chat + communication reliability | 🟡 P1.1 shipped locally; P1.2 migration prepared, not applied |
+| P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ⏭ next |
+| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | not started |
+| P4 | Developer Mode (internal, non-bypassing diagnostics/flags) | not started |
+| P5 | Marketplace operations (ownership, partners, inventory responsibility, commission) | partial |
+| P6 | DLX Social | partial (foundations only) |
+| P7 | Intelligence + catalog automation | partial (no provider approved) |
+| P8 | Growth (loyalty, analytics, marketing, notifications, PWA) | partial |
+
+Rules carried into every package: additive migrations with documented rollback, no RLS weakening, no
+duplicate chat/schema/system, no paid provider without approval, and no production migration, commit,
+push or deploy without explicit approval. DLX Studio / Ghost Mannequin stays with the other agent.
+
+---
+
 ## Phase numbering: roadmap phases vs. checkpoint P-series
 
 Two numbering schemes are in use. They are **not** interchangeable, which has caused
@@ -251,20 +276,28 @@ Goal: admin becomes a real business operating system.
 
 ## Phase 7 — DLX Chat 1.0
 
-Not started. `BACKLOG.md` CHAT-1 … CHAT-5, plus RT-1/RT-2.
+In progress (`BACKLOG.md` CHAT-1 … CHAT-5, plus RT-1/RT-2).
 
 **Core requirement: if someone sends me a message, I see it immediately.**
 
-> ⚠️ **Current state: messages are NOT real-time on production.** The Supabase Realtime
-> subscription exists only on `main`; the production branch has zero realtime code.
-> See `docs/BRANCH_STRATEGY.md` §3a and `BACKLOG.md` RT-1.
+> ✅ **Realtime is shipped.** The Supabase Realtime subscription, presence heartbeat, typing indicators,
+> delivery/read status support and the private `chat-media` bucket are on `main` and therefore on
+> production (`94c606b`). The old "production has zero realtime code" warning belonged to the
+> pre-merge branch state and is retired.
+>
+> **P1.1 (2026-10-31, local/unmerged) fixed the experience layer that the schema could not fix by itself:**
+> edit/delete now go through the existing `SECURITY DEFINER` RPCs instead of silently-blocked table
+> writes; history is paginated (40/page, keyset cursor, "load older") instead of re-reading the whole
+> thread; reaction/status enrichment is batched (2 queries per page instead of 2 per message); draft text
+> survives a failed send; pinned messages actually render; presence no longer claims "Offline" without
+> data; the service worker's "mark as read" action finally does something; notifications use the right
+> conversation title and no longer duplicate the DB trigger; and edits/deletes from the other side appear
+> live. See `docs/MASTER_PROJECT_CHECKPOINT.md` §34.
 
-Needed: realtime, read receipts, delivered, typing indicators, online/offline, last seen,
-unread counts, push, history with pagination, retry, media (photos/video/voice/emoji/
-stickers/GIFs), controls (reply/forward/edit/delete/pin/react/copy/search).
-
-Future: group chats, communities, voice and video calls, camera-first sharing,
-disappearing media, rich presence.
+Still open: real two-account verification (blocked — local Docker stack down), one additive migration
+(`20261031090000`: forward-attribution INSERT policy + chat-media audio MIME allowlist), customer↔partner
+conversations (needs a new `conversations.type` value), push delivery endpoint, message search, group
+chat, calls, disappearing media.
 
 ---
 

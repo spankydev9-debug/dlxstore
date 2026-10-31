@@ -247,7 +247,7 @@ export function InternalChat() {
             )}
 
             <MessageComposer
-              onSend={(body) => void sendMessage(body)}
+              onSend={async (body) => (await sendMessage(body)) !== null}
               sending={isSending}
               placeholder="Écrivez votre message…"
             />

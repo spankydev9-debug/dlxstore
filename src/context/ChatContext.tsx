@@ -16,6 +16,8 @@ import { supabase, isSupabaseConfigured } from "../services/db";
 import {
   addConversationParticipant as dbAddParticipant,
   createInternalConversation as dbCreateInternal,
+  deleteMessage as dbDeleteMessage,
+  editMessage as dbEditMessage,
   getConversations,
   getMessages,
   getOrCreateSupportConversation,
@@ -27,17 +29,22 @@ import {
   type DiscoverableProfile,
 } from "../services/db/chat";
 import {
+  MESSAGE_PAGE_SIZE,
+  mergeNewestPage,
+  prependOlderPage,
+} from "../lib/chat-pagination";
+import {
   isRealtimeChatAvailable,
   updateUserPresence,
   setTypingStatus,
   getTypingIndicators,
   updateMessageStatus,
-  getMessageStatuses,
+  getReactionsForMessages,
+  getStatusesForMessages,
   getConversationWithRealtimeData,
   sendMessageWithMedia,
   addMessageReaction,
   removeMessageReaction,
-  getMessageReactions,
   pinMessage,
   unpinMessage,
   getPinnedMessages,
@@ -60,9 +67,17 @@ type ChatContextType = {
   clearError: () => void;
   realtimeStatus: "connected" | "fallback" | "off";
   typingIndicators: TypingIndicator[];
+  /** True when older messages exist before the oldest loaded message. */
+  hasMoreMessages: boolean;
+  /** True while an older page is being fetched (drives "load older" affordance). */
+  isLoadingOlderMessages: boolean;
+  /** Pinned messages of the open conversation (staff/admin pin them). */
+  pinnedMessages: PinnedMessage[];
   // Core actions
   setActiveConversationId: (id: string | null) => void;
   sendMessage: (body: string, media?: File[]) => Promise<ConversationMessage | null>;
+  /** Fetch the page of history before the oldest loaded message. */
+  loadOlderMessages: () => Promise<void>;
   markRead: (conversationId: string) => Promise<void>;
   markDelivered: (messageId: string) => Promise<void>;
   // Conversation management
@@ -110,8 +125,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "fallback" | "off">("off");
   const [typingIndicators, setTypingIndicators] = useState<TypingIndicator[]>([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const activeRef = useRef<string | null>(null);
   const messagesRef = useRef<ConversationMessage[]>([]);
+  const conversationsRef = useRef<Conversation[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const presenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pushNotificationInitializedRef = useRef<boolean>(false);
@@ -120,7 +139,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     activeRef.current = activeConversationId;
     messagesRef.current = messages;
-  }, [activeConversationId, messages]);
+    conversationsRef.current = conversations;
+  }, [activeConversationId, messages, conversations]);
 
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) ?? null;
@@ -138,31 +158,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMessages = useCallback(async (conversationId: string) => {
     try {
-      const list = await getMessages(conversationId);
-      // Reaction/status enrichment needs the realtime schema. Without it, render the
-      // messages as-is instead of issuing two failing queries per message.
-      if (await isRealtimeChatAvailable()) {
-        const enrichedMessages = await Promise.all(
-          list.map(async (message) => {
-            try {
-              const [reactions, statuses] = await Promise.all([
-                getMessageReactions(message.id),
-                getMessageStatuses(message.id),
-              ]);
-              return {
-                ...message,
-                reactions,
-                status: statuses,
-              };
-            } catch {
-              return message;
-            }
-          })
-        );
-        setMessages(enrichedMessages);
-      } else {
-        setMessages(list);
+      const page = await getMessages(conversationId, { limit: MESSAGE_PAGE_SIZE });
+      let newest = page.messages;
+      // Reaction/status enrichment needs the realtime schema. Without it, render
+      // the messages as-is instead of issuing failing queries on every load.
+      if (newest.length > 0 && (await isRealtimeChatAvailable())) {
+        const [reactions, statuses] = await Promise.all([
+          getReactionsForMessages(newest.map((message) => message.id)),
+          getStatusesForMessages(newest.map((message) => message.id)),
+        ]);
+        newest = newest.map((message) => ({
+          ...message,
+          reactions: reactions[message.id] ?? [],
+          status: statuses[message.id] ?? [],
+        }));
       }
+      // A page that arrives after the reader switched threads is discarded.
+      if (activeRef.current !== conversationId) return;
+      setHasMoreMessages(page.hasMore);
+      // Keep older pages the reader already scrolled to; a realtime insert or the
+      // polling fallback must not silently truncate loaded history.
+      setMessages((current) => mergeNewestPage(conversationId, current, newest));
       // Mark as read automatically whenever we load the open thread.
       await markConversationRead(conversationId);
     } catch (err) {
@@ -181,6 +197,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setTypingIndicators(indicators);
     } catch (err) {
       console.error("Error refreshing typing indicators:", err);
+    }
+  }, []);
+
+  /** Pinned messages are staff-authored context, not realtime-critical: a
+      failure here must never break opening a conversation. */
+  const refreshPinnedMessages = useCallback(async (conversationId: string) => {
+    try {
+      setPinnedMessages(await getPinnedMessages(conversationId));
+    } catch (err) {
+      console.error("Error loading pinned messages:", err);
+      setPinnedMessages([]);
     }
   }, []);
 
@@ -249,9 +276,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               if (realtimeAvailable && payload.new.sender_id !== user?.id) {
                 updateMessageStatus(payload.new.id, "delivered").catch(() => undefined);
               }
-            } else if (payload.new.sender_id !== user?.id) {
-              // Show push notification for messages in other conversations
-              const conversation = conversations.find(c => c.id === payload.new.conversation_id);
+            } else if (
+              payload.new.sender_id !== user?.id &&
+              // The database trigger already sends a push notification; a local
+              // one is only useful while the app is in the background.
+              typeof document !== "undefined" &&
+              document.visibilityState === "hidden"
+            ) {
+              // Show push notification for messages in other conversations.
+              // Read the title from a ref: `conversations` is not a dependency of
+              // this effect, so the closure is frozen at subscription time.
+              const conversation = conversationsRef.current.find(
+                (c) => c.id === payload.new.conversation_id
+              );
               PushNotificationService.notifyNewMessage(
                 payload.new.conversation_id,
                 payload.new.sender_name || "User",
@@ -259,6 +296,31 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 conversation?.title ?? undefined
               ).catch(() => undefined);
             }
+          }
+        )
+        // Edits and soft deletes are UPDATEs. Without this listener the other
+        // participant kept reading the old body until a manual refresh.
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "messages" },
+          (payload) => {
+            const activeId = activeRef.current;
+            if (activeId && payload.new.conversation_id === activeId) {
+              const updated = payload.new as Partial<ConversationMessage> & { id: string };
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === updated.id
+                    ? {
+                        ...message,
+                        body: updated.body ?? message.body,
+                        edited_at: updated.edited_at ?? message.edited_at,
+                        deleted_at: updated.deleted_at ?? message.deleted_at,
+                      }
+                    : message
+                )
+              );
+            }
+            void refreshConversations();
           }
         )
         .on(
@@ -381,9 +443,36 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // The service worker posts MARK_CONVERSATION_READ when a chat notification is
+  // dismissed with the "mark as read" action. Nothing listened for it, so the
+  // action did nothing and the badge stayed.
+  useEffect(() => {
+    if (!user || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+    const onServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "MARK_CONVERSATION_READ") return;
+      const conversationId = event.data?.conversationId;
+      if (typeof conversationId !== "string" || !conversationId) return;
+      // Call the data layer directly: this effect runs before markRead is
+      // defined, so referencing the callback here would hit the TDZ.
+      void markConversationRead(conversationId).catch((err) => {
+        console.error("Error marking conversation as read from notification:", err);
+      });
+      setConversations((current) =>
+        current.map((c) => (c.id === conversationId ? { ...c, unread_count: 0 } : c))
+      );
+    };
+    navigator.serviceWorker.addEventListener("message", onServiceWorkerMessage);
+    return () =>
+      navigator.serviceWorker.removeEventListener("message", onServiceWorkerMessage);
+  }, [user]);
+
   const openConversation = useCallback(
     async (id: string | null) => {
       setActiveConversationId(id);
+      setHasMoreMessages(false);
+      setPinnedMessages([]);
       if (!id) {
         setMessages([]);
         setTypingIndicators([]);
@@ -394,12 +483,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         refreshMessages(id),
         refreshTypingIndicators(id),
+        refreshPinnedMessages(id),
       ]);
       // Refresh unread counts after marking read.
       await refreshConversations();
     },
-    [refreshConversations, refreshMessages, refreshTypingIndicators]
+    [refreshConversations, refreshMessages, refreshPinnedMessages, refreshTypingIndicators]
   );
+
+  const loadOlderMessages = useCallback(async () => {
+    const conversationId = activeRef.current;
+    if (!conversationId) return;
+    const oldest = messagesRef.current[0];
+    if (!oldest) return;
+
+    setIsLoadingOlderMessages(true);
+    try {
+      const page = await getMessages(conversationId, {
+        limit: MESSAGE_PAGE_SIZE,
+        before: { createdAt: oldest.created_at, id: oldest.id },
+      });
+      let older = page.messages;
+      if (older.length > 0 && (await isRealtimeChatAvailable())) {
+        const [reactions, statuses] = await Promise.all([
+          getReactionsForMessages(older.map((message) => message.id)),
+          getStatusesForMessages(older.map((message) => message.id)),
+        ]);
+        older = older.map((message) => ({
+          ...message,
+          reactions: reactions[message.id] ?? [],
+          status: statuses[message.id] ?? [],
+        }));
+      }
+      setHasMoreMessages(page.hasMore);
+      if (activeRef.current !== conversationId) return;
+      setMessages((current) => prependOlderPage(current, older));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load older messages.");
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  }, []);
 
   const sendMessage = useCallback(
     async (body: string, mediaFiles?: File[]) => {
@@ -646,75 +770,72 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const handlePinMessage = useCallback(async (messageId: string, note?: string) => {
     const conversationId = activeRef.current;
     if (!conversationId) return;
-    
-    try {
-      await pinMessage(conversationId, messageId, note);
-      // Refresh conversation data
-      await refreshConversations();
-    } catch (err) {
-      console.error("Error pinning message:", err);
-    }
-  }, [refreshConversations]);
+
+    await pinMessage(conversationId, messageId, note);
+    await Promise.all([
+      refreshPinnedMessages(conversationId),
+      refreshConversations(),
+    ]);
+  }, [refreshConversations, refreshPinnedMessages]);
 
   const handleUnpinMessage = useCallback(async (messageId: string) => {
     const conversationId = activeRef.current;
     if (!conversationId) return;
-    
+
+    await unpinMessage(conversationId, messageId);
+    await Promise.all([
+      refreshPinnedMessages(conversationId),
+      refreshConversations(),
+    ]);
+  }, [refreshConversations, refreshPinnedMessages]);
+
+  /**
+   * Edit one of your own messages.
+   *
+   * Goes through edit_conversation_message(): `messages` has no UPDATE grant for
+   * `authenticated`, so the previous direct table update was silently dropped by
+   * RLS (0 rows, no error) and the UI showed an edit that never persisted. Errors
+   * now surface instead of being swallowed.
+   */
+  const editMessage = useCallback(async (messageId: string, newBody: string) => {
     try {
-      await unpinMessage(conversationId, messageId);
-      // Refresh conversation data
-      await refreshConversations();
+      const updated = await dbEditMessage(messageId, newBody);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                body: updated.body ?? message.body,
+                edited_at: updated.edited_at ?? new Date().toISOString(),
+              }
+            : message
+        )
+      );
+      void refreshConversations();
     } catch (err) {
-      console.error("Error unpinning message:", err);
+      setError(err instanceof Error ? err.message : "Unable to edit the message.");
+      throw err;
     }
   }, [refreshConversations]);
 
-  const editMessage = useCallback(async (messageId: string, newBody: string) => {
-    if (!isSupabaseConfigured || !supabase) return;
-    
-    try {
-      const { error } = await supabase
-        .from("messages")
-        .update({ 
-          body: newBody.trim(),
-          edited_at: new Date().toISOString()
-        })
-        .eq("id", messageId);
-      
-      if (error) throw error;
-      
-      // Refresh messages
-      const conversationId = activeRef.current;
-      if (conversationId) {
-        await refreshMessages(conversationId);
-      }
-    } catch (err) {
-      console.error("Error editing message:", err);
-    }
-  }, [refreshMessages]);
-
+  /** Soft-delete one of your own messages through delete_conversation_message(). */
   const deleteMessage = useCallback(async (messageId: string) => {
-    if (!isSupabaseConfigured || !supabase) return;
-    
     try {
-      const { error } = await supabase
-        .from("messages")
-        .update({ 
-          deleted_at: new Date().toISOString()
-        })
-        .eq("id", messageId);
-      
-      if (error) throw error;
-      
-      // Refresh messages
-      const conversationId = activeRef.current;
-      if (conversationId) {
-        await refreshMessages(conversationId);
-      }
+      await dbDeleteMessage(messageId);
+      const deletedAt = new Date().toISOString();
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId && !message.deleted_at
+            ? { ...message, deleted_at: deletedAt, body: "Message deleted" }
+            : message
+        )
+      );
+      void refreshConversations();
     } catch (err) {
-      console.error("Error deleting message:", err);
+      setError(err instanceof Error ? err.message : "Unable to delete the message.");
+      throw err;
     }
-  }, [refreshMessages]);
+  }, [refreshConversations]);
 
   const handleForwardMessage = useCallback(async (messageId: string, targetConversationId: string, additionalText?: string) => {
     try {
@@ -752,12 +873,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         refreshMessages(conversationId),
         refreshTypingIndicators(conversationId),
+        refreshPinnedMessages(conversationId),
         refreshConversations(),
       ]);
     } catch (err) {
       console.error("Error refreshing conversation data:", err);
     }
-  }, [refreshMessages, refreshTypingIndicators, refreshConversations]);
+  }, [refreshMessages, refreshPinnedMessages, refreshTypingIndicators, refreshConversations]);
 
   const clearError = useCallback(() => setError(null), []);
   
@@ -773,8 +895,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       clearError,
       realtimeStatus,
       typingIndicators,
+      hasMoreMessages,
+      isLoadingOlderMessages,
+      pinnedMessages,
       setActiveConversationId: (id) => void openConversation(id),
       sendMessage,
+      loadOlderMessages,
       markRead,
       markDelivered,
       openSupportConversation,
@@ -816,6 +942,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       realtimeStatus,
       refreshConversations,
       sendMessage,
+      loadOlderMessages,
+      hasMoreMessages,
+      isLoadingOlderMessages,
+      pinnedMessages,
       typingIndicators,
       handleSetTypingStatus,
       updatePresence,

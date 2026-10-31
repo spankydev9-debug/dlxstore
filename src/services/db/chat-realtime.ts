@@ -352,6 +352,91 @@ export async function getMessageReactions(
 // Message Status (Read Receipts)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Batched enrichment for a whole page of messages
+//
+// The thread used to issue two queries per message (plus one profile query per
+// reaction) on every load, every realtime insert and every 8s poll. A bounded
+// page already caps that growth; batching makes it two queries per page instead
+// of 2N.
+// ---------------------------------------------------------------------------
+
+async function getProfileNames(userIds: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (!supabase || userIds.length === 0) return names;
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", userIds);
+  if (error) return names;
+  for (const row of (data ?? []) as { id: string; full_name: string | null }[]) {
+    names.set(row.id, row.full_name || "User");
+  }
+  return names;
+}
+
+export async function getReactionsForMessages(
+  messageIds: string[]
+): Promise<Record<string, MessageReaction[]>> {
+  const byMessage: Record<string, MessageReaction[]> = {};
+  if (!isSupabaseConfigured || !supabase || messageIds.length === 0) {
+    return byMessage;
+  }
+
+  const { data, error } = await supabase
+    .from("message_reactions")
+    .select("message_id, user_id, emoji, created_at")
+    .in("message_id", messageIds)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    if (!isRealtimeSchemaError(error)) {
+      console.warn("Unable to load reactions:", error.message);
+    }
+    return byMessage;
+  }
+
+  const rows = (data ?? []) as MessageReaction[];
+  if (rows.length === 0) return byMessage;
+
+  const names = await getProfileNames([...new Set(rows.map((r) => r.user_id))]);
+  for (const row of rows) {
+    const reaction = { ...row, user_name: names.get(row.user_id) ?? "User" };
+    const list = byMessage[row.message_id] ?? [];
+    list.push(reaction);
+    byMessage[row.message_id] = list;
+  }
+  return byMessage;
+}
+
+export async function getStatusesForMessages(
+  messageIds: string[]
+): Promise<Record<string, MessageStatus[]>> {
+  const byMessage: Record<string, MessageStatus[]> = {};
+  if (!isSupabaseConfigured || !supabase || messageIds.length === 0) {
+    return byMessage;
+  }
+
+  const { data, error } = await supabase
+    .from("message_status")
+    .select("message_id, user_id, status, updated_at")
+    .in("message_id", messageIds);
+
+  if (error) {
+    if (!isRealtimeSchemaError(error)) {
+      console.warn("Unable to load message statuses:", error.message);
+    }
+    return byMessage;
+  }
+
+  for (const row of (data ?? []) as MessageStatus[]) {
+    const list = byMessage[row.message_id] ?? [];
+    list.push(row);
+    byMessage[row.message_id] = list;
+  }
+  return byMessage;
+}
+
 export async function updateMessageStatus(
   messageId: string,
   status: MessageStatusType

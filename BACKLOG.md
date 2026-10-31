@@ -98,11 +98,28 @@ Phase 0/1 findings. Maintained by the Lead / Architect agent.
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| CHAT-1 | Realtime delivery: incoming/outgoing, read receipts, delivered, typing, online/offline, last seen, unread counts, push | OPEN | Depends on RT-1. |
-| CHAT-2 | Message history with pagination; retry failed messages | OPEN | |
-| CHAT-3 | Media: photos, video, voice notes, emoji, stickers, GIFs | OPEN | |
-| CHAT-4 | Message controls: reply, forward, edit, delete, pin, react, copy, search | OPEN | |
-| CHAT-5 | Future: group chats, communities, voice/video calls, disappearing media, rich presence | OPEN | |
+| CHAT-1 | Realtime delivery: incoming/outgoing, read receipts, delivered, typing, online/offline, last seen, unread counts, push | **PARTIAL — live** | Realtime channel, presence heartbeat, typing, delivered/read status and unread counts are shipped on `main`/production (`94c606b`). Push is **not** live: `PushNotificationService` posts to `/api/push-subscriptions`, which does not exist. Local notifications now fire only while the document is hidden (no duplicate of the DB trigger). P1.1 2026-10-31. |
+| CHAT-2 | Message history with pagination; retry failed messages | **DONE (local)** / retry OPEN | Pagination shipped in P1.1: newest 40, keyset cursor, `hasMore`, "Load older messages" with scroll restore, and a refresh that cannot truncate loaded history (`src/lib/chat-pagination.ts`, 7 regression tests). Retry of a failed send is still manual: the composer keeps the text (no auto-retry queue). |
+| CHAT-3 | Media: photos, video, voice notes, emoji, stickers, GIFs | **PARTIAL** | Photos/video/voice notes/emoji work on the private `chat-media` bucket. Voice notes fail on Safari/Android recorders because the bucket allowlist lacks `audio/mp4`/`m4a`/`x-m4a`/`aac` — fix prepared in `20261031090000_chat_reliability_fixes.sql` (not applied). Stickers/GIFs: none. |
+| CHAT-4 | Message controls: reply, forward, edit, delete, pin, react, copy, search | **PARTIAL → core fixed (local)** | P1.1: edit/delete now use the SECURITY DEFINER RPCs (direct writes were silently dropped by RLS), inline edit + inline delete confirmation, pins fetched and rendered, live propagation of the other side's edits/deletes. Forward attribution needs the prepared INSERT policy. Search (in-conversation) still missing. |
+| CHAT-5 | Future: group chats, communities, voice/video calls, disappearing media, rich presence | OPEN | Group chats need a new `conversations.type` value (additive migration); customer↔partner 1-to-1 is the same blocker. Rich presence: badge is now honest (renders nothing without a heartbeat) rather than simulated. |
+
+### Ecosystem chapter (started 2026-10-31)
+
+> Sequenced by `ROADMAP.md` → "Ecosystem evolution chapter". One package at a time; nothing here
+> rebuilds a completed system (auth, checkout/COD, images, SEO, feedback, categories, partner
+> foundations).
+
+| ID | Item | Status | Notes |
+|---|---|---|---|
+| ECO-0 | Migrations prepared but **not applied anywhere** | ⏸ awaiting approval | `20261031090000_chat_reliability_fixes.sql` — `forwarded_messages` INSERT policy (forward attribution was refused by RLS while the text still sent) + `chat-media` audio MIME allowlist (`audio/mp4`, `m4a`, `x-m4a`, `aac`) so Safari/Android voice notes stop failing. Additive; rollback SQL is in the file header. |
+| ECO-1 | Chat reliability package (P1.1) | **DONE (local, unmerged)** | See `CHAT-2`/`CHAT-4` above and checkpoint §34. Verified: `tsc` 0, `eslint` 0 errors, `npm test` 22/22, `next build` PASS, local routes 200, production RPC probe. Blocked for final verification: real two-account journey (local Docker stack down). |
+| ECO-2 | Department architecture (P2) | OPEN — **next** | No department concept exists today: placement is 4 unrelated mechanisms (`products.category_id`, `vendor_id`+`shop_products`, `product_type`/`food_vendor_id`, curated `sessions`/`session_products`). Needs `departments` + a placement relation so one product can appear in Shop/Food/Energy/partner storefronts **without duplicated records**, plus real DLX Food and DLX Energy experiences. Also fixes the dead Home & Energy CTA `/shop?category=maison-energie` (slug absent; the 2 solar products have `category_id = NULL`). |
+| ECO-3 | Admin Control Center (P3) | OPEN | Current admin is one 1325-line `/admin/dashboard` with 20 tabs and a **client-side** `role === "admin"` gate; no storefront content editing (homepage copy is hardcoded in `src/lib/i18n.ts`), no section editor, no department management, no granular roles. Server-side authorization must exist before any editor ships. |
+| ECO-4 | Developer Mode (P4) | OPEN | No feature flags, no diagnostics surface, no migration-ledger view in-app. Must never bypass RLS/authz, expose secrets or offer a browser terminal/SQL console. |
+| ECO-5 | Customer ↔ partner conversations | BLOCKED | `conversations.type` allows only `customer_support\|internal\|direct` (although `src/types/index.ts` declares `group`). Needs an additive migration adding the type + participant rules. |
+| ECO-6 | Push notifications | BROKEN | `PushNotificationService` posts to `/api/push-subscriptions`, which does not exist; in-app notification rows and the realtime channel do work. Fix before claiming push support anywhere. |
+| ECO-7 | Local Supabase/Docker stack | BLOCKED (environment) | Daemon unresponsive and socket stale after a quit/reopen cycle; `127.0.0.1:54321` → `000`, `docker ps` hangs. Blocks RLS harness runs, migration dry-runs and realtime browser tests. Not a code defect. |
 
 ### Inventory & operations (Phase 6)
 

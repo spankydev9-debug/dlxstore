@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useState } from "react";
-import { Clock, Send, MessageSquare, Wifi, WifiOff, FileDown } from "lucide-react";
+import { Clock, Send, MessageSquare, Wifi, WifiOff, FileDown, Loader2 } from "lucide-react";
 import { Conversation, ConversationMessage } from "../../types";
 import { useLanguage } from "../../context/LanguageContext";
 import { ChatTimestamp } from "./chatTime";
@@ -87,47 +87,73 @@ export function MessageComposer({
   placeholder,
   sending,
 }: {
-  onSend: (body: string) => void;
+  /**
+   * Return false (or throw) when the message did not persist. The draft is only
+   * cleared on success so a failed send never destroys what the user typed.
+   * Returning nothing keeps the legacy fire-and-forget behaviour.
+   */
+  onSend: (body: string) => void | boolean | Promise<void | boolean>;
   disabled?: boolean;
   sending?: boolean;
   placeholder: string;
 }) {
   const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
-  const submit = (event?: FormEvent) => {
+  const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     const body = draft.trim();
-    if (!body || disabled) return;
-    onSend(body);
-    setDraft("");
+    if (!body || disabled || submitting) return;
+    setSubmitting(true);
+    setSendError(null);
+    try {
+      const result = await onSend(body);
+      if (result === false) {
+        setSendError("Message not sent. Your text is still here — try again.");
+        return;
+      }
+      setDraft("");
+    } catch {
+      setSendError("Message not sent. Your text is still here — try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      submit();
+      void submit();
     }
   };
 
   return (
-    <form onSubmit={submit} className="flex items-end gap-2 border-t border-border bg-card/60 p-3">
-      <textarea
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={handleKeyDown}
-        rows={1}
-        disabled={disabled}
-        placeholder={placeholder}
-        className="min-h-[42px] flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-foreground/70 disabled:opacity-60"
-      />
-      <button
-        type="submit"
-        disabled={disabled || !draft.trim() || sending}
-        aria-label="Send"
-        className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
-      >
-        <Send className="h-4.5 w-4.5" />
-      </button>
+    <form onSubmit={submit} className="border-t border-border bg-card/60 p-3">
+      {sendError ? (
+        <p role="alert" className="mb-2 text-xs text-destructive">
+          {sendError}
+        </p>
+      ) : null}
+      <div className="flex items-end gap-2">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={1}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="min-h-[42px] flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-foreground/70 disabled:opacity-60"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !draft.trim() || sending || submitting}
+          aria-label="Send"
+          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+        >
+          {submitting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Send className="h-4.5 w-4.5" />}
+        </button>
+      </div>
     </form>
   );
 }
