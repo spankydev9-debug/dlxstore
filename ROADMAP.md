@@ -15,7 +15,7 @@ sequencing; a roadmap phase is only opened when its package starts.
 | Package | Scope | State |
 |---|---|---|
 | P0 | Verify release + inventory the real state (no rebuild of finished systems) | ✅ 2026-10-31 (`docs/MASTER_PROJECT_CHECKPOINT.md` §34) |
-| P1 | Chat + communication reliability | 🟡 P1.1 shipped locally; P1.2 migration prepared, not applied |
+| P1 | Chat + communication reliability | ✅ P1.1 + P1.2 verified on the real stack (local); production migration still approval-gated |
 | P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ⏭ next |
 | P3 | Admin Control Center (content editor, visual page editor, department management, roles) | not started |
 | P4 | Developer Mode (internal, non-bypassing diagnostics/flags) | not started |

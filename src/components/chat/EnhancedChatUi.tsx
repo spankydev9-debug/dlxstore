@@ -272,13 +272,18 @@ return (
                   </button>
                 </>
               )}
-              <button
-                onClick={onPin}
-                className="p-1 hover:bg-muted rounded"
-                title="Pin"
-              >
-                <Pin className="h-3 w-3" />
-              </button>
+              {/* Pinning is staff-only (RLS: "Staff/admins can pin/unpin
+                  messages"), so the caller withholds `onPin` for customers
+                  instead of offering an action the server will reject. */}
+              {onPin && (
+                <button
+                  onClick={onPin}
+                  className="p-1 hover:bg-muted rounded"
+                  title="Pin"
+                >
+                  <Pin className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </div>
         )}

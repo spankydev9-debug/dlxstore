@@ -175,9 +175,12 @@ export async function getTypingIndicators(
   conversationId: string
 ): Promise<TypingIndicator[]> {
   if (isSupabaseConfigured && supabase) {
+    // `profiles` is embedded through the existing typing_indicators_user_id_fkey so
+    // one request answers the question. This used to issue one extra profiles query
+    // per indicator, and the caller polls.
     const { data, error } = await supabase
       .from("typing_indicators")
-      .select("conversation_id, user_id, is_typing, last_updated_at")
+      .select("conversation_id, user_id, is_typing, last_updated_at, profiles(full_name)")
       .eq("conversation_id", conversationId)
       .eq("is_typing", true)
       .gt("last_updated_at", new Date(Date.now() - 10000).toISOString()); // Last 10 seconds
@@ -187,31 +190,16 @@ export async function getTypingIndicators(
       if (isRealtimeSchemaError(error)) return [];
       return [];
     }
-    
-    // Enrich with user names
-    const enrichedIndicators = await Promise.all(
-      (data || []).map(async (indicator) => {
-        try {
-          const { data: userData } = await supabase!
-            .from("profiles")
-            .select("full_name")
-            .eq("id", indicator.user_id)
-            .single();
-          
-          return {
-            ...indicator,
-            user_name: userData?.full_name || "User",
-          } as TypingIndicator;
-        } catch {
-          return {
-            ...indicator,
-            user_name: "User",
-          } as TypingIndicator;
-        }
-      })
-    );
-    
-    return enrichedIndicators;
+
+    return (data || []).map((row) => {
+      const { profiles, ...indicator } = row as typeof row & {
+        profiles?: { full_name: string | null } | null;
+      };
+      return {
+        ...indicator,
+        user_name: profiles?.full_name || "User",
+      } as TypingIndicator;
+    });
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
   
@@ -677,31 +665,12 @@ export async function getPinnedMessages(
       if (isRealtimeSchemaError(error)) return [];
       return [];
     }
-    
-    // Enrich with user names
-    const enrichedPins = await Promise.all(
-      (data || []).map(async (pin) => {
-        try {
-          const { data: userData } = await supabase!
-            .from("profiles")
-            .select("full_name")
-            .eq("id", pin.pinned_by)
-            .single();
-          
-          return {
-            ...pin,
-            pinned_by_name: userData?.full_name || "User",
-          } as PinnedMessage;
-        } catch {
-          return {
-            ...pin,
-            pinned_by_name: "User",
-          } as PinnedMessage;
-        }
-      })
-    );
-    
-    return enrichedPins;
+
+    // Author names are resolved by the caller from the conversation's
+    // participants. `profiles` is readable only for yourself (or as an admin),
+    // so a customer querying `pinned_by` here always got null -- every pin was
+    // attributed to a literal "User" and cost one extra request per pin.
+    return (data ?? []) as PinnedMessage[];
   }
   if (!isDemoMode) throw new Error("DLXSTORE is not configured.");
   

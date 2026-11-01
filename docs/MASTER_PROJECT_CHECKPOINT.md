@@ -1,5 +1,73 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §35 (2026-11-01) — P1.2 VERIFIED ON THE REAL STACK + 4 MORE CHAT DEFECTS FIXED (LOCAL, UNMERGED)
+>
+> P1.2 was **verified, not assumed**. The Docker/Supabase stack came back, the migration was applied to the
+> **local** database only, and every claim below comes from a real request or a real two-account browser
+> journey. Nothing was applied to production, committed, pushed, or deployed.
+>
+> ### Migration `20261031090000_chat_reliability_fixes.sql` — verified locally, still unapplied in production
+>
+> | Check | Result |
+> |---|---|
+> | Defect reproduced **before** apply | as a real participant (`can_access_conversation` = `true`) the insert still failed: `new row violates row-level security policy for table "forwarded_messages"` |
+> | Forward attribution after apply | own forward → **INSERT 0 1**; a message the actor did not send → **RLS block**; original from a conversation the actor cannot access (`can_access = false`) → **RLS block**; `anon` → **blocked** |
+> | Idempotency | re-running the file leaves exactly **2 policies** and **20 MIME types** |
+> | `chat-media` allowlist through the real Storage API with a user JWT | `audio/mp4` (Safari m4a) → **200**, `audio/aac` → **200**, `audio/webm` → **200**, `audio/x-flac` (control) → **415 `invalid_mime_type`**; bucket still `public=false`, `file_size_limit=10485760` |
+> | Storage path shape | must be `chat-media/<conversationId>/<file>` — the INSERT policy reads `split_part(name,'/',2)`. Uploading at `<conversationId>/<file>` is refused; this is a convention, not a bug |
+> | Over PostgREST with a real token | `POST /rest/v1/forwarded_messages` → **201**; duplicate → **409 `23505`** (constraint, not policy); direct `PATCH /rest/v1/messages` → **`200 []`** (0 rows, body unchanged) while the edit/delete RPCs work |
+>
+> Applied locally with `psql --single-transaction` (never `supabase migration up`) so the local migration
+> ledger stayed untouched. **The production apply is still waiting on explicit approval.**
+>
+> ### Real two-account journey (local production build, two browsers isolated by origin)
+>
+> Supabase sessions live in `localStorage`, so two tabs on one origin overwrite each other. The customer ran
+> on `127.0.0.1:3005` and the admin on `localhost:3005`; an earlier run that shared one origin made the
+> customer's list show other customers' threads, which was a session artifact, not a leak
+> (`list_my_conversations` scopes to participant **OR** `(is_staff_or_admin() AND customer_support)`).
+>
+> | Step | Result |
+> |---|---|
+> | Customer starts a support conversation and sends | admin's list went **20 → 21**, unread **75 → 76**, with **no refresh** |
+> | Admin replies | customer received it live, sender name correct |
+> | Customer edits | admin saw the new body plus **"(edited)"** live |
+> | Customer deletes | admin saw **"Message deleted"** live |
+> | Receipts | 49 `delivered` / 5 `sent` rows in `message_status`; `last_read_at` updated for both participants |
+> | Pagination | 45 messages seeded through `send_conversation_message`; first render **40 bubbles** + "Load older messages"; after click **47 bubbles**, numbers 1..45 strictly increasing, **0 duplicates**, button disappears, scroll anchored (`scrollTop` 2465 → 2993 as the container grew) |
+> | Realtime outage | stopping `supabase_realtime_dlxstore` produced a fallback window (the 8 s safety net delivered the message, no loss, no duplication); after restart live delivery resumed at **~1.0–1.6 s** |
+> | Console errors | **0** across the whole journey |
+>
+> ### Four more defects found by that journey — all fixed
+>
+> | # | Defect (observed) | Fix | Files |
+> |---|---|---|---|
+> | D1 | Pin/unpin called `window.prompt`/`window.confirm`; the embedded webview throws `"prompt() is not supported"`, so pinning was unreachable | Inline note field + inline confirm, matching the existing edit/delete pattern | `ModernChatInterface.tsx` |
+> | D1b | Pin is **staff-only** (`Staff/admins can pin/unpin messages`, `is_staff_or_admin()`); a customer got `400 Permission denied` with a console-only error | `canPin` gates the action, `MessageBubble` renders the button only when `onPin` is supplied, and failures now surface inline (`pinError`) instead of being swallowed | `ModernChatInterface.tsx`, `EnhancedChatUi.tsx` |
+> | D1c | `message.is_pinned` is never populated (pins live in `pinned_messages`), so a staff member clicking the pin control on an already-pinned message got the *pin* form again and could never unpin | Pinned state is derived from the loaded pins (`pinnedIds`), so the same control offers Unpin | `ModernChatInterface.tsx` |
+> | D1d | The pin author rendered as a literal **"User"** for customers: `profiles` SELECT is `auth.uid() = id OR is_admin()`, so a customer can never read the pinning staff member's name — and the query ran once per pin | Name resolved from the conversation participants the client already has (fallback "DLX Team"); the N+1 profiles query is gone | `chat-realtime.ts`, `ModernChatInterface.tsx` |
+> | D2 | Typing indicators were polled every 2 s **unconditionally** (~47 requests / 80 s ≈ **35/min per open thread**) despite a live realtime subscription, and each indicator cost an extra `profiles` query | Poll gated on `realtimeStatus !== "connected"` at a 4 s interval; `profiles(full_name)` embedded through `typing_indicators_user_id_fkey` so one request answers the question | `ChatContext.tsx`, `chat-realtime.ts` |
+>
+> ### Post-fix verification
+> - **Customer session:** React/Reply/Edit/Delete present, **0 Pin controls**; pin banner shows the real staff
+>   name ("DLXSTORE Customer — Reference: delai de verification COD").
+> - **Admin session:** pin with a note → `Pinned (1)` banner, 0 console errors; the same control on the pinned
+>   message offers **Unpin**, which removes the banner and leaves `pinned_messages` at **0 rows**.
+> - **Typing poll while connected:** **0 requests in 30 s** (was ~35/min). With `supabase_realtime_dlxstore`
+>   restarted: **3 polls in 14 s** (the 4 s fallback), 2 conversation safety-net polls, and the badge
+>   self-healed back to **Connected** — the fallback engages only while realtime is actually down.
+> - `npx tsc --noEmit` **0 errors** · `npx eslint .` **0 errors**, 144 warnings · `npm test` **22/22** ·
+>   `npx next build --webpack` **PASS**.
+>
+> ### Cannot be verified locally (needs production, approval-gated)
+> The migration's effect **in production**, and whether the production database's `forwarded_messages`
+> policies match the local ones. Everything else above is evidence from the running system.
+>
+> ### Next
+> Commit locally (no push), then **P2 — department architecture**: a first-class `departments` + placement
+> relation so Shop/Food/Energy are real experiences without duplicating products; real DLX Food; real DLX
+> Energy; and the dead `/shop?category=maison-energie` CTA.
+
 > ## ✅ §34 (2026-10-31) — ECOSYSTEM EVOLUTION STARTED: P1 CHAT RELIABILITY SHIPPED (LOCAL, UNMERGED)
 >
 > Starting point was verified, not assumed: `main` @ `94c606b`, in sync with `origin/main` (0 ahead /

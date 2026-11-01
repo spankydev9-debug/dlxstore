@@ -410,14 +410,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, refreshConversations, refreshMessages, refreshTypingIndicators]);
 
-  // Polling fallback for typing indicators
+  // Polling fallback for typing indicators. Only runs while realtime is not
+  // confirmed: the channel above already subscribes to typing_indicators, and
+  // polling unconditionally was ~30 requests/minute per open thread for nothing.
   useEffect(() => {
-    if (!user || !activeConversationId) return;
+    if (!user || !activeConversationId || realtimeStatus === "connected") return;
     const interval = setInterval(() => {
       void refreshTypingIndicators(activeConversationId);
-    }, 2000); // Check typing indicators every 2 seconds
+    }, 4000);
     return () => clearInterval(interval);
-  }, [user, activeConversationId, refreshTypingIndicators]);
+  }, [user, activeConversationId, realtimeStatus, refreshTypingIndicators]);
 
   // Safety net so a failed realtime channel degrades to polling instead of
   // silently showing a stale inbox. Only active while the channel is not

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import {
   MessageSquare, Users, Search,
   CheckCircle, AlertCircle, UserPlus, Settings,
   ArrowLeft, Filter, Archive, Trash2, Loader2, Plus, Pin, ChevronUp,
 } from "lucide-react";
-import { Conversation, ConversationMessage } from "../../types";
+import { Conversation, ConversationMessage, PinnedMessage } from "../../types";
 import { useChat } from "../../context/ChatContext";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -73,6 +73,17 @@ export function ModernChatInterface() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Pinning asks for an optional note, unpinning asks for confirmation. Both used
+  // window.prompt/confirm, which throw outright in embedded browsers (the Electron
+  // webview reports "prompt() is not supported"), so pinning was unreachable there.
+  const [pinTargetId, setPinTargetId] = useState<string | null>(null);
+  const [pinDraft, setPinDraft] = useState("");
+  const [unpinTargetId, setUnpinTargetId] = useState<string | null>(null);
+  const [isPinning, setIsPinning] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  // Pinning is staff-only, enforced by the `Staff/admins can pin/unpin messages`
+  // policy. Offering the action to customers produced a silent 400.
+  const canPin = user?.role === "admin" || user?.role === "staff";
   // Restores scroll position after older history is prepended.
   const pendingScrollRestoreRef = useRef<number | null>(null);
   const deliveredRef = useRef<Set<string>>(new Set());
@@ -232,24 +243,74 @@ export function ModernChatInterface() {
     }
   }, [deleteMessage]);
 
-  const handlePinMessage = useCallback(async (messageId: string) => {
-    const note = prompt("Add a note for this pinned message (optional):");
-    try {
-      await pinMessage(messageId, note || undefined);
-    } catch (err) {
-      console.error("Error pinning message:", err);
-    }
-  }, [pinMessage]);
+  const handlePinMessage = useCallback((messageId: string) => {
+    setUnpinTargetId(null);
+    setPinDraft("");
+    setPinError(null);
+    setPinTargetId(messageId);
+  }, []);
 
-  const handleUnpinMessage = useCallback(async (messageId: string) => {
-    if (confirm("Unpin this message?")) {
-      try {
-        await unpinMessage(messageId);
-      } catch (err) {
-        console.error("Error unpinning message:", err);
-      }
+  const cancelPin = useCallback(() => {
+    setPinTargetId(null);
+    setPinDraft("");
+    setPinError(null);
+  }, []);
+
+  const confirmPin = useCallback(async (messageId: string) => {
+    setIsPinning(true);
+    setPinError(null);
+    try {
+      await pinMessage(messageId, pinDraft.trim() || undefined);
+      setPinTargetId(null);
+      setPinDraft("");
+    } catch (err) {
+      setPinError(
+        err instanceof Error && err.message ? err.message : "Unable to pin this message."
+      );
+    } finally {
+      setIsPinning(false);
+    }
+  }, [pinDraft, pinMessage]);
+
+  const handleUnpinMessage = useCallback((messageId: string) => {
+    setPinTargetId(null);
+    setPinDraft("");
+    setPinError(null);
+    setUnpinTargetId(messageId);
+  }, []);
+
+  const confirmUnpin = useCallback(async (messageId: string) => {
+    setIsPinning(true);
+    setPinError(null);
+    try {
+      await unpinMessage(messageId);
+      setUnpinTargetId(null);
+    } catch (err) {
+      setPinError(
+        err instanceof Error && err.message ? err.message : "Unable to unpin this message."
+      );
+    } finally {
+      setIsPinning(false);
     }
   }, [unpinMessage]);
+
+  // Pinning is staff-only (enforced by RLS), and `profiles` is readable only for
+  // yourself unless you are an admin, so the author's name comes from the
+  // conversation participants the client already has.
+  const pinAuthorName = useCallback(
+    (pin: PinnedMessage) => {
+      const author = activeConversation?.participants?.find(
+        (participant) => participant.profile_id === pin.pinned_by
+      );
+      return author?.full_name || pin.pinned_by_name || "DLX Team";
+    },
+    [activeConversation]
+  );
+
+  const pinnedIds = useMemo(
+    () => new Set(pinnedMessages.map((pin) => pin.message_id)),
+    [pinnedMessages]
+  );
 
   const renderConversationItem = (conversation: Conversation) => {
     const isActive = conversation.id === activeConversation?.id;
@@ -578,7 +639,7 @@ export function ModernChatInterface() {
                   <ul className="space-y-1.5">
                     {pinnedMessages.map((pin) => (
                       <li key={pin.message_id} className="text-xs">
-                        <span className="font-medium">{pin.pinned_by_name ?? "DLX"}</span>
+                        <span className="font-medium">{pinAuthorName(pin)}</span>
                         {pin.note ? <span className="text-muted-foreground"> — {pin.note}</span> : null}
                       </li>
                     ))}
@@ -653,7 +714,14 @@ export function ModernChatInterface() {
                       </div>
                     ) : (
                       <MessageBubble
-                        message={message}
+                        message={
+                          // Pins live in `pinned_messages`, not on `messages`, so the
+                          // bubble was never told a message was pinned: staff got the
+                          // pin form again and could not unpin from the UI.
+                          pinnedIds.has(message.id)
+                            ? { ...message, is_pinned: true }
+                            : message
+                        }
                         /* Ownership is decided by sender_id, not sender_role: role is
                            "customer" for every member of a 1-to-1 chat, so comparing
                            the role right-aligned the other person's messages too. */
@@ -661,7 +729,13 @@ export function ModernChatInterface() {
                         onReaction={(emoji) => handleReaction(message.id, emoji)}
                         onEdit={() => handleEditMessage(message)}
                         onDelete={() => handleDeleteMessage(message.id)}
-                        onPin={() => message.is_pinned ? handleUnpinMessage(message.id) : handlePinMessage(message.id)}
+                        onPin={
+                          canPin
+                            ? () => (pinnedIds.has(message.id)
+                                ? handleUnpinMessage(message.id)
+                                : handlePinMessage(message.id))
+                            : undefined
+                        }
                       />
                     )}
 
@@ -683,6 +757,66 @@ export function ModernChatInterface() {
                         >
                           {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                           Delete
+                        </button>
+                      </div>
+                    )}
+
+                    {pinTargetId === message.id && (
+                      <div className="mt-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs">
+                        <label className="mb-1 block font-medium text-muted-foreground">
+                          Pin this message
+                        </label>
+                        <input
+                          type="text"
+                          value={pinDraft}
+                          onChange={(event) => setPinDraft(event.target.value)}
+                          maxLength={200}
+                          placeholder="Optional note for everyone in this conversation"
+                          className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-foreground/70"
+                          autoFocus
+                        />
+                        <div className="mt-2 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelPin}
+                            className="rounded-full px-3 py-1 font-medium text-muted-foreground hover:bg-muted"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void confirmPin(message.id)}
+                            disabled={isPinning}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-semibold text-primary-foreground disabled:opacity-50"
+                          >
+                            {isPinning ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pin className="h-3 w-3" />}
+                            Pin
+                          </button>
+                        </div>
+                        {pinError && (
+                          <p className="mt-2 text-destructive">{pinError}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {unpinTargetId === message.id && (
+                      <div className="mt-1 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs">
+                        <span className="mr-auto text-muted-foreground">Unpin this message?</span>
+                        <button
+                          type="button"
+                          onClick={() => setUnpinTargetId(null)}
+                          className="rounded-full px-3 py-1 font-medium text-muted-foreground hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void confirmUnpin(message.id)}
+                          disabled={isPinning}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 font-semibold text-primary-foreground disabled:opacity-50"
+                        >
+                          {isPinning ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          Unpin
                         </button>
                       </div>
                     )}
