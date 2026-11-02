@@ -161,6 +161,8 @@ production data was written, and no deployment was triggered.
 | Area | Owner now | Rule |
 |---|---|---|
 | DLX Chat (`src/context/ChatContext.tsx`, `src/services/db/chat*.ts`, `src/components/chat/*`, chat migrations) | this run (P1) | extend the single implementation; never add a second one |
+| Departments foundation (`departments`, `department_sections`, `department_navigation`, `department_placements`, `src/services/db/departments.ts`, `src/components/departments/*`, `/d/[slug]`, `/energy`) | this run (**P2 done locally**, migration approval-gated) | content is data; a new department is rows, not a component |
+| Department content in production + Control Center editors + partner-scoped department writes | **P3** (next) | rows via the admin surface, never a production seed; partner scoping is a policy change on `owner_vendor_id` |
 | Departments, Admin Control Center, Developer Mode, marketplace ops, Social, Intelligence | this run (P2–P8) | additive migrations only, each with rollback text |
 | DLX Studio / Ghost Mannequin (`@google/model-viewer`, `public/models/**`, Studio viewer components) | **the other agent** | do not edit, do not add the dependency, do not touch its assets |
 | Auth, checkout/COD, images, SEO, feedback, categories, partner foundations | complete | do not rebuild |
@@ -172,3 +174,23 @@ needed (forward attribution INSERT policy, chat-media audio allowlist) and both 
 migration awaiting approval.
 
 
+
+---
+
+## 9. P2 departments foundation (2026-11-02)
+
+The department model is built and verified **locally only**. No production migration, no production
+content, no push and no deploy were performed.
+
+- Schema: `supabase/migrations/20261101090000_departments_foundation.sql` (4 additive tables, 8 policies,
+  rollback in the header). `department_placements` has a composite PK, so one product can live in Shop,
+  Food, Energy or a partner storefront with **one** product row.
+- Content: `supabase/seed/departments_local.sql` — local-only on purpose. Production departments are an
+  Admin Control Center job, not a migration.
+- Rendering: one generic renderer (`src/components/departments/DepartmentStorefront.tsx`) driven by
+  `departments` + sections + navigation + placements. No department-specific component or branch exists.
+- `/food` and `/energy` render the same storefront; `/food` keeps the legacy shell as a fallback only
+  while its department row is absent, so production cannot regress before approval.
+- Partner boundary: `departments.owner_vendor_id` exists and is unused by write policies today. P3 must
+  replace the `is_staff_or_admin()` write policies with an owner-aware predicate while keeping the
+  platform-admin branch.

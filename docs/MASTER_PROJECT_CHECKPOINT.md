@@ -1,5 +1,85 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §36 (2026-11-02) — P2 DEPARTMENT ARCHITECTURE (LOCAL, UNMERGED, PRODUCTION UNTOUCHED)
+>
+> DLX Shop / Food / Energy stop being hand-written pages and `?category=` filters. A department is now
+> **rows**: copy, theme, ordering, visibility, SEO, the blocks it renders, its navigation, and which
+> products appear in it. One generic renderer turns those rows into a storefront. Nothing here was applied
+> to production or seeded into production: the migration is written and verified locally, the content seed
+> is a **local-only** file.
+>
+> ### New schema — `supabase/migrations/20261101090000_departments_foundation.sql` (local only)
+>
+> | Table | Purpose | Key decision |
+> |---|---|---|
+> | `departments` | one row per storefront experience | `slug` (kebab CHECK), copy, `accent_from`/`accent_to`/`accent_color`, `icon` (name, not component), `sort_order`, `is_active`, `show_in_navigation`, SEO, `owner_vendor_id`, `metadata jsonb` |
+> | `department_sections` | the ordered blocks a page renders | `kind` closed set `hero\|product_grid\|vendor_grid\|category_grid\|promo\|text`, plus `config jsonb` (`source`, `limit`, `category_slug`, `cta_*`, `tone`, `anchor`) |
+> | `department_navigation` | in-department nav chips | `label` + `href` are data; anchors are declared by sections via `config.anchor` |
+> | `department_placements` | product ↔ department | **PK `(department_id, product_id)`** — one product in many departments, one product row, per-department `is_primary` / `is_featured` / `sort_order` / `label` badge |
+>
+> Additive only (4 new tables, 5 indexes, 1 touch trigger, 8 policies). Rollback in the header. Reads are
+> public; writes go through `is_staff_or_admin()`; `owner_vendor_id` is already there so **P3 partner scoping
+> is a policy change, not a schema rewrite**.
+>
+> ### RLS verified locally (psql, real roles)
+>
+> | Check | Result |
+> |---|---|
+> | `anon` reads | 3 departments / 12 sections / 7 nav rows / 11 placements |
+> | `anon` insert / update | **permission denied** (this mattered: Supabase default privileges had granted ALL to `anon`, so the migration now explicitly `revoke`s insert/update/delete/truncate from `anon`) |
+> | inactive department | `anon` sees **0**, staff sees **1** (same row, same transaction) |
+> | platform admin insert | **INSERT 0 1**; customer insert → **RLS block** |
+> | migration re-run | 47 DDL statements, 8 policies, no errors (idempotent) |
+>
+> ### Code
+>
+> | File | Role |
+> |---|---|
+> | `src/services/db/departments.ts` | `getDepartments`, `getDepartmentBySlug`, `getDepartmentSections`, `getDepartmentNavigation`, `getDepartmentPlacements`, `getDepartmentStorefront`, `getNavigationDepartments`. Missing tables degrade to empty/null instead of throwing, so production cannot break before the migration is approved |
+> | `src/services/db/departments.ts` (`getDepartmentStorefront`) | resolves each `product_grid` once, server-side, from its `config.source`: `placements` (department merchandise + badge), `featured` (catalogue flag), `category` (category shelf), honouring `config.limit`; returns `sectionProducts` keyed by section id + `otherDepartments` |
+> | `src/components/departments/DepartmentStorefront.tsx` | the one renderer: hero (gradient from department colors, icon from a name→icon map), nav chips, all six section kinds, `#anchor` targets, "other departments" strip, empty states. **No `slug === "food"` branch anywhere** |
+> | `src/lib/departments.ts` | `departmentHref()` (canonical URL from `metadata.canonical_path`) + translated labels for the renderer |
+> | `src/app/d/[slug]/page.tsx` | generic department route, metadata from `seo_title`/`seo_description`, canonical via `departmentHref`, real **404** when the row is absent |
+> | `src/app/food/page.tsx` | `/food` = the same renderer; falls back to the legacy `FoodPage.tsx` **only** while the `food` department row does not exist (production pre-approval) |
+> | `src/app/energy/page.tsx` | `/energy`, same renderer, 404 until the department exists |
+> | `src/lib/i18n.ts` | `departmentsOther` / `departmentsEmpty` added in all **6** languages |
+> | `src/app/HomePage.tsx`, `src/components/shared/Footer.tsx` | dead `/shop?category=maison-energie` → `/energy` (the slug does not exist; the 2 solar products have `category_id = NULL`) |
+>
+> ### Local-only seed — `supabase/seed/departments_local.sql` (never applied to production)
+> Departments `shop` / `food` / `energy`, 4 sections each, 7 nav rows, placements (shop 9 products, food 1,
+> energy 1), 2 demo food vendors and 1 demo dish. Content is deliberately **not** in the migration: the
+> production departments are an Admin Control Center job once the migration is approved.
+> Verified after every re-run: `shop 4/3/9`, `food 4/2/1`, `energy 4/2/1`.
+>
+> ### Verified in the running local stack (`next start`, local Supabase, French locale)
+>
+> | Check | Result |
+> |---|---|
+> | `/d/shop`, `/d/food`, `/d/energy`, `/food`, `/energy` | **200**, server-rendered HTML (hero copy, sections, products, vendors, nav, other-departments strip), **0 console errors** each |
+> | `/d/<unknown>` | **404** (no fabricated storefront) |
+> | canonical | `/d/shop` → `/d/shop`; `/d/food` → **`/food`**; `/d/energy` → **`/energy`** (SEO titles from `seo_title`) |
+> | product reuse | `ecoflow-river-2` appears in Shop **and** Energy from **1** product row + 2 placement rows; Energy shows its own **"Best-seller"** badge |
+> | products/vendors | Shop 8 placement products (limit 8, food dish excluded); Food 2 vendors + 1 dish ("Préparé aujourd'hui"); Energy 1 solution |
+> | anchors | Energy "Conseil" → `/d/energy#advice`, `scrollY` 1340, section top 96 px (nav is data-driven) |
+> | cross-department nav | real clicks: `/d/energy` → "DLX Food" → `/food` → "DLX Energy" → `/energy` |
+> | category + featured sources | verified with temporary local sections: `source: category` (3 products in `maison-energie`) and `source: featured` (4 products), then removed |
+> | home/footer CTA | Home solar banner "Équipez votre maison" → `/energy` renders the department; footer "Maison & Énergie" → `/energy` |
+> | reused product page | department card → `/product/ecoflow-river-2` renders (319 $ / 349 $), 0 errors |
+> | gates | `npx tsc --noEmit` **0**, `npx eslint .` **0 errors** (144 pre-existing warnings), `npm test` **22/22**, `npx next build --webpack` **PASS** |
+>
+> ### Deliberately not done (P3 + approval gates)
+> Admin Control Center editors for departments/sections/placements/navigation; partner-scoped write
+> policies on `owner_vendor_id`; header navigation driven by `show_in_navigation`; production migration
+> apply; production department content; removing the legacy `FoodPage` fallback. None of these is a
+> code rewrite — each is a policy change, an editor, or a data action on top of this foundation.
+>
+> ### What needs the owner
+> 1. Approve `20261101090000_departments_foundation.sql` for production (additive, rollback in header).
+> 2. Approve creating the Shop/Food/Energy department rows + sections + placements in production through
+>    the Control Center (or authorise a one-off admin script) — **no production seed was written**.
+> 3. Confirm `/d/<slug>` is the canonical pattern; friendly routes (`/food`, `/energy`) are configured
+>    per department through `metadata.canonical_path`.
+
 > ## ✅ §35 (2026-11-01) — P1.2 VERIFIED ON THE REAL STACK + 4 MORE CHAT DEFECTS FIXED (LOCAL, UNMERGED)
 >
 > P1.2 was **verified, not assumed**. The Docker/Supabase stack came back, the migration was applied to the

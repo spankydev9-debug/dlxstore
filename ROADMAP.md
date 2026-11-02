@@ -585,6 +585,13 @@ channel, recorded only when the OS sheet resolves and hidden when unsupported), 
 system** is implemented locally (mobile-first feedback page, Supabase-backed schema and admin
 management; migration `20261028090000_feedback_system.sql` was applied to production on
 2026-10-30). The feedback page persists to production as of that release.
+**P2 — department architecture (2026-11-02, local, unmerged).** Departments are now rows, not pages:
+`departments` + `department_sections` + `department_navigation` + `department_placements`, one generic
+renderer, `/d/<slug>` plus `/food` and `/energy` friendly routes, and the dead
+`/shop?category=maison-energie` CTA repointed at `/energy`. The migration and the local content seed are
+**local only**; production apply and production department content are approval-gated, and the Admin
+Control Center editors that will manage departments, sections, navigation and placements are P3.
+
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migration (done
 2026-10-30), push and deploy local `main` (DEP-2, done 2026-10-30), and seed a redeemable coupon plus

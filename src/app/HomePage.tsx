@@ -235,7 +235,7 @@ export default function HomePage() {
           </p>
           <div className="pt-2">
             <Link
-              href="/shop?category=maison-energie"
+              href="/energy"
               className="inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-6 py-2.5 text-xs sm:text-sm font-semibold hover:bg-emerald-50 transition-colors shadow-lg"
             >
               {t.solarEquipHome}
