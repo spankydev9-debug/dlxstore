@@ -9,6 +9,7 @@ import { getOrders, updateOrderStatus } from "../../../services/db/orders";
 import { getDeliveries, assignDriver } from "../../../services/db/deliveries";
 import { getProfiles } from "../../../services/auth";
 import { BusinessControls } from "../../../components/admin/BusinessControls";
+import DepartmentsConsole from "../../../components/admin/departments/DepartmentsConsole";
 import { VisualStudioReview } from "../../../components/admin/VisualStudioReview";
 import { CatalogAssistant } from "../../../components/admin/CatalogAssistant";
 import { SessionControls } from "../../../components/admin/SessionControls";
@@ -74,7 +75,7 @@ function AdminDashboardContent() {
   const VALID_TABS = new Set([
     "analytics", "orders", "products", "deliveries", "inventory", "sessions",
     "partners", "marketplace", "custom-orders", "food", "coupons", "campaigns", "feedback", "notifications", "reports",
-    "support", "internal", "visuals", "catalog-ai", "business",
+    "support", "internal", "visuals", "catalog-ai", "business", "departments",
   ]);
   const [activeTab, setActiveTab] = useState(
     VALID_TABS.has(tabParam) ? tabParam : "analytics"
@@ -483,6 +484,7 @@ function AdminDashboardContent() {
     { key: "marketplace", label: "Marketplace", icon: Banknote },
     { key: "custom-orders", label: "Commandes sur mesure", icon: PackageSearch },
     { key: "food", label: "DLX Food", icon: UtensilsCrossed },
+    { key: "departments", label: "Départements", icon: Store },
     { key: "coupons", label: "Coupons & Promos", icon: TicketPercent },
     { key: "campaigns", label: "Campagnes", icon: Megaphone },
     { key: "notifications", label: "Notifications", icon: Bell },
@@ -1000,6 +1002,7 @@ function AdminDashboardContent() {
               {activeTab === "catalog-ai" && <CatalogAssistant />}
 
               {activeTab === "business" && <BusinessControls />}
+              {activeTab === "departments" && <DepartmentsConsole scope="admin" />}
 
             </div>
           )}

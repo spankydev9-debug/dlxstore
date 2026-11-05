@@ -31,6 +31,9 @@ import { useLanguage } from "../../context/LanguageContext";
 import { useNotifications } from "../../context/NotificationContext";
 import { useOverlay } from "../../context/OverlayContext";
 import { useStreakContext } from "../../context/StreakContext";
+import { useDepartmentsNav } from "../../hooks/useDepartmentsNav";
+import { departmentHref } from "../../lib/departments";
+import { departmentIcon } from "../../lib/department-icons";
 import { DownloadApp } from "./DownloadApp";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { OverlayLink } from "./OverlayLink";
@@ -95,6 +98,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export function AccountMoreDrawer() {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const { departments } = useDepartmentsNav();
   const { theme, toggleTheme } = useTheme();
   const { closeOverlay, toggleOverlay, navigateFromOverlay } = useOverlay();
   const { streak } = useStreakContext();
@@ -320,10 +324,24 @@ export function AccountMoreDrawer() {
             <History className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.discoverRecentlyViewed}
           </Row>
-          <Row href="/food">
-            <Utensils className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
-            {t.food}
-          </Row>
+          {/* Storefronts come from the department rows, so a new department (or
+              a renamed one) appears here without touching this drawer. */}
+          {departments.length === 0 ? (
+            <Row href="/food">
+              <Utensils className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+              {t.food}
+            </Row>
+          ) : (
+            departments.map((department) => {
+              const Icon = departmentIcon(department.icon);
+              return (
+                <Row key={department.id} href={departmentHref(department)}>
+                  <Icon className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
+                  {department.name}
+                </Row>
+              );
+            })
+          )}
           <Row href="/partners">
             <Store className="h-4.5 w-4.5 text-muted-foreground" aria-hidden />
             {t.shops}

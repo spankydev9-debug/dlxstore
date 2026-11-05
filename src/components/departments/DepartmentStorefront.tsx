@@ -11,11 +11,12 @@ import {
   Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Category, FoodVendor } from "../../types";
+import type { Category } from "../../types";
 import type {
   Department,
   DepartmentProductItem,
   DepartmentSection,
+  DepartmentVendor,
   DepartmentStorefront as DepartmentStorefrontData,
 } from "../../services/db/departments";
 import { departmentHref, type DepartmentStorefrontLabels } from "../../lib/departments";
@@ -62,6 +63,21 @@ function heroStyle(department: Department) {
 
 function sectionAnchor(section: DepartmentSection): string | undefined {
   return section.config.anchor;
+}
+
+/**
+ * Desktop column count is a per-section setting, not a theme constant, so an
+ * admin can decide that Energy shows two large cards and Shop shows three.
+ */
+function productGridClass(section: DepartmentSection): string {
+  const columns = section.config.columns;
+  const desktop =
+    columns === 4
+      ? "lg:grid-cols-4"
+      : columns === 2
+        ? "lg:grid-cols-2"
+        : "lg:grid-cols-3";
+  return `grid grid-cols-1 gap-4 sm:grid-cols-2 ${desktop}`;
 }
 
 
@@ -148,7 +164,7 @@ function ProductGrid({
           {labels.empty}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={productGridClass(section)}>
           {items.map(({ product, label }) => (
             <Link
               key={product.id}
@@ -205,7 +221,7 @@ function VendorGrid({
   labels,
 }: {
   section: DepartmentSection;
-  vendors: FoodVendor[];
+  vendors: DepartmentVendor[];
   labels: DepartmentStorefrontLabels;
 }) {
   return (
@@ -228,19 +244,23 @@ function VendorGrid({
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {vendors.map((vendor) => (
-            <article
-              key={vendor.id}
-              className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm"
+            <Link
+              key={`${vendor.kind}-${vendor.id}`}
+              href={vendor.href}
+              className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-foreground/30 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate font-bold">{vendor.name}</h3>
+                  <h3 className="truncate font-bold group-hover:underline">{vendor.name}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {vendor.city}
-                    {vendor.province ? `, ${vendor.province}` : ""}
+                    {[vendor.city, vendor.province].filter(Boolean).join(", ")}
                   </p>
                 </div>
-                {vendor.is_24_7 ? (
+                {vendor.label ? (
+                  <span className="shrink-0 rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold text-background">
+                    {vendor.label}
+                  </span>
+                ) : vendor.is_24_7 ? (
                   <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-600">
                     24/7
                   </span>
@@ -251,14 +271,14 @@ function VendorGrid({
               {vendor.description && (
                 <p className="line-clamp-3 text-sm text-muted-foreground">{vendor.description}</p>
               )}
-              {vendor.food_categories.length > 0 && (
+              {vendor.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {vendor.food_categories.map((category) => (
+                  {vendor.tags.map((tag) => (
                     <span
-                      key={category}
+                      key={tag}
                       className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium"
                     >
-                      {category}
+                      {tag}
                     </span>
                   ))}
                 </div>
@@ -273,11 +293,13 @@ function VendorGrid({
                 {typeof vendor.preparation_time_minutes === "number" && (
                   <span>{vendor.preparation_time_minutes} min</span>
                 )}
-                {typeof vendor.delivery_fee === "number" && vendor.delivery_fee === 0 && (
-                  <span>Livraison gratuite</span>
-                )}
+                {vendor.delivery_fee === 0 && <span>Livraison gratuite</span>}
+                <span className="ml-auto inline-flex items-center gap-1 font-semibold text-foreground">
+                  {labels.viewVendor}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}
@@ -296,7 +318,16 @@ function CategoryGrid({
     typeof section.config.limit === "number" && section.config.limit > 0
       ? section.config.limit
       : 8;
-  const visible = categories.slice(0, limit);
+  // An admin-picked list wins and keeps its order; otherwise the department
+  // shows the catalogue's own order.
+  const picked = section.config.category_slugs ?? [];
+  const ordered =
+    picked.length > 0
+      ? picked
+          .map((slug) => categories.find((category) => category.slug === slug))
+          .filter((category): category is Category => Boolean(category))
+      : categories;
+  const visible = ordered.slice(0, limit);
   if (visible.length === 0) return null;
 
   return (

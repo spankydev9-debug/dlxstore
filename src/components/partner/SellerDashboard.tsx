@@ -7,6 +7,7 @@ import {
   Banknote,
   Boxes,
   Check,
+  LayoutGrid,
   Handshake,
   Loader2,
   Pencil,
@@ -43,11 +44,12 @@ import {
   setSubOrderStatus,
   setWarehouseStock
 } from "../../services/db/marketplace";
+import DepartmentsConsole from "../admin/departments/DepartmentsConsole";
 import { useLanguage } from "../../context/LanguageContext";
 import type { TranslationKeys } from "../../lib/i18n";
 import { formatMoney } from "../../lib/format";
 
-type Tab = "overview" | "orders" | "payouts" | "warehouses" | "suppliers" | "profile";
+type Tab = "overview" | "orders" | "payouts" | "warehouses" | "suppliers" | "storefront" | "profile";
 
 const EMPTY_DASHBOARD: SellerDashboardData = {
   product_count: 0,
@@ -156,6 +158,7 @@ export function SellerDashboard() {
     { key: "payouts", label: t.sellerPayouts, icon: Banknote },
     { key: "warehouses", label: t.sellerWarehouses, icon: Boxes },
     { key: "suppliers", label: t.sellerSuppliers, icon: Handshake },
+    { key: "storefront", label: t.sellerStorefront, icon: LayoutGrid },
     { key: "profile", label: t.sellerShopProfile, icon: Check }
   ];
 
@@ -220,6 +223,14 @@ export function SellerDashboard() {
         />
       )}
       {tab === "suppliers" && <Suppliers suppliers={suppliers} t={t} />}
+      {/*
+        The seller's own department storefront, when DLX has assigned one. Same
+        console as the admin Control Center, with `scope="partner"`: the editor
+        cannot offer platform-owned fields and the database refuses them anyway
+        (`protect_department_columns()`), so this surface needs no separate
+        write path.
+      */}
+      {tab === "storefront" && <DepartmentsConsole scope="partner" />}
       {tab === "profile" && <ProfileForm busy={busy} t={t} vendor={vendor}
         onSave={(input) => act(() => saveVendorOnboarding(input), t.sellerProfileSaved)} />}
     </div>

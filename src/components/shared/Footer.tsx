@@ -1,14 +1,58 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Truck, ShieldCheck, MapPin, MessageSquare } from "lucide-react";
 import { DownloadApp } from "./DownloadApp";
 import { useLanguage } from "../../context/LanguageContext";
 import { useAuth } from "../../context/AuthContext";
+import { useDepartmentsNav } from "../../hooks/useDepartmentsNav";
+import { departmentHref } from "../../lib/departments";
+import { departmentIcon } from "../../lib/department-icons";
+import { getCategories } from "../../services/db/products";
+import type { Category } from "../../types";
+
+/** Shortcut categories the footer offers, resolved against the real catalogue. */
+const FOOTER_CATEGORY_SLUGS = ["electronique", "mode-vetements"] as const;
 
 export default function Footer() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { departments } = useDepartmentsNav();
+  const [categories, setCategories] = useState<Category[]>([]);
   const currentYear = new Date().getFullYear();
+
+  // A category shortcut whose slug no longer exists must disappear rather than
+  // link to an empty storefront filter.
+  useEffect(() => {
+    let cancelled = false;
+    getCategories()
+      .then((rows) => {
+        if (!cancelled) setCategories(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const shortcutCategories = FOOTER_CATEGORY_SLUGS.map((slug) =>
+    categories.find((category) => category.slug === slug)
+  ).filter((category): category is Category => Boolean(category));
+
+  // Until the categories arrive — or if they never do — the footer keeps the
+  // two links it has always shipped rather than dropping a column of navigation.
+  const categoryLinks =
+    categories.length === 0
+      ? [
+          { key: "electronique", href: "/shop?category=electronique", label: t.footerElectronics },
+          { key: "mode-vetements", href: "/shop?category=mode-vetements", label: t.footerFashion },
+        ]
+      : shortcutCategories.map((category) => ({
+          key: category.id,
+          href: `/shop?category=${encodeURIComponent(category.slug)}`,
+          label: category.name,
+        }));
 
   return (
     <footer className="w-full border-t border-border/40 bg-card mt-auto pb-safe-area-inset-bottom">
@@ -74,9 +118,41 @@ export default function Footer() {
         <div>
           <h4 className="font-semibold text-foreground text-sm mb-4">{t.footerCategories}</h4>
           <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
-            <li><Link href="/shop?category=electronique" className="hover:text-foreground transition-colors">{t.footerElectronics}</Link></li>
-            <li><Link href="/shop?category=mode-vetements" className="hover:text-foreground transition-colors">{t.footerFashion}</Link></li>
-            <li><Link href="/energy" className="hover:text-foreground transition-colors">{t.footerHomeEnergy}</Link></li>
+            {categoryLinks.map((category) => (
+              <li key={category.key}>
+                <Link
+                  href={category.href}
+                  className="hover:text-foreground transition-colors"
+                >
+                  {category.label}
+                </Link>
+              </li>
+            ))}
+            {/* Every department that is published and flagged for navigation.
+                This replaces the hardcoded `/energy` entry: DLX Food, DLX
+                Energy and any future department are content, not markup. */}
+            {departments.length === 0 ? (
+              <li>
+                <Link href="/energy" className="hover:text-foreground transition-colors">
+                  {t.footerHomeEnergy}
+                </Link>
+              </li>
+            ) : (
+              departments.map((department) => {
+                const Icon = departmentIcon(department.icon);
+                return (
+                  <li key={department.id}>
+                    <Link
+                      href={departmentHref(department)}
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+                    >
+                      <Icon className="h-3.5 w-3.5" aria-hidden />
+                      {department.name}
+                    </Link>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </div>
 

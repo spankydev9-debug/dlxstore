@@ -103,7 +103,7 @@ values
    '{"cta_label": "Voir les restaurants", "cta_href": "#vendors"}'::jsonb, 10, true),
   ((select id from public.departments where slug = 'food'),
    'vendor_grid', 'Restaurants et fast-foods', 'Ouverts maintenant à Goma', null,
-   '{"limit": 12, "source": "vendors", "anchor": "vendors"}'::jsonb, 20, true),
+   '{"limit": 12, "vendor_source": "curated", "anchor": "vendors"}'::jsonb, 20, true),
   ((select id from public.departments where slug = 'food'),
    'product_grid', 'À commander aujourd''hui', null, null,
    '{"source": "placements", "limit": 8, "anchor": "products"}'::jsonb, 30, true),
@@ -172,6 +172,25 @@ on conflict (department_id, product_id) do update set
   is_featured = excluded.is_featured,
   sort_order = excluded.sort_order,
   label = excluded.label;
+
+-- ---------------------------------------------------------------------------
+-- Curated vendors — the `vendor_grid` reads *these*, not a global vendor list,
+-- so what a department shows is an editorial decision the Control Center owns.
+-- ---------------------------------------------------------------------------
+delete from public.department_vendors
+where department_id in (select id from public.departments where slug in ('shop', 'food', 'energy'));
+
+insert into public.department_vendors
+  (department_id, food_vendor_id, sort_order, is_featured, label, is_active)
+select d.id, v.id,
+       case v.slug when 'chez-mama-kivu' then 10 else 20 end,
+       v.is_featured,
+       null,
+       true
+from public.departments d
+join public.food_vendors v on v.active
+where d.slug = 'food'
+on conflict do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Local demo data so the food storefront renders real blocks locally.

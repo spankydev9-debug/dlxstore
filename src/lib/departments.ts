@@ -7,6 +7,7 @@ export interface DepartmentStorefrontLabels {
   other: string;
   empty: string;
   vendorCount: string;
+  viewVendor: string;
 }
 
 /**
@@ -36,5 +37,6 @@ export function departmentStorefrontLabels(locale: Language): DepartmentStorefro
     other: t.departmentsOther,
     empty: t.departmentsEmpty,
     vendorCount: t.foodVendorsUnit,
+    viewVendor: t.departmentsViewVendor,
   };
 }

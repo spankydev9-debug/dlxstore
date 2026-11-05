@@ -16,8 +16,8 @@ sequencing; a roadmap phase is only opened when its package starts.
 |---|---|---|
 | P0 | Verify release + inventory the real state (no rebuild of finished systems) | ✅ 2026-10-31 (`docs/MASTER_PROJECT_CHECKPOINT.md` §34) |
 | P1 | Chat + communication reliability | ✅ P1.1 + P1.2 verified on the real stack (local); production migration still approval-gated |
-| P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ⏭ next |
-| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | not started |
+| P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ✅ 2026-11-02 (local; production apply approval-gated) |
+| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | ✅ 2026-11-05 for departments: creation, content/theme, blocks, in-page nav, placements, curated vendors, friendly URLs, dynamic site nav, partner-scoped editing (§37) |
 | P4 | Developer Mode (internal, non-bypassing diagnostics/flags) | not started |
 | P5 | Marketplace operations (ownership, partners, inventory responsibility, commission) | partial |
 | P6 | DLX Social | partial (foundations only) |
@@ -589,8 +589,19 @@ management; migration `20261028090000_feedback_system.sql` was applied to produc
 `departments` + `department_sections` + `department_navigation` + `department_placements`, one generic
 renderer, `/d/<slug>` plus `/food` and `/energy` friendly routes, and the dead
 `/shop?category=maison-energie` CTA repointed at `/energy`. The migration and the local content seed are
-**local only**; production apply and production department content are approval-gated, and the Admin
-Control Center editors that will manage departments, sections, navigation and placements are P3.
+**local only**; production apply and production department content are approval-gated.
+
+**P3 — the department Control Center (2026-11-05, local, unmerged).** The P2 tables are now operated, not
+just designed: `/admin/dashboard?tab=departments` creates a department as a draft and edits its copy,
+theme colours, hero image, SEO, friendly URL, blocks, in-page navigation, mirrored products and curated
+vendors (restaurants **and** partner shops), with a live preview of the real storefront. A partner edits
+the storefront they own from « Ma vitrine » in the seller dashboard, and the boundary is the database,
+not the UI: `owns_department()` plus a `protect_department_columns()` trigger clamp slug, owner, routing
+metadata, visibility and order for non-staff, all probed through the live REST API with a real partner
+JWT. Site navigation (header, account drawer, footer) and `sitemap.xml` are driven by the same rows, and
+`metadata.canonical_path` serves a department at a friendly URL (`/beaute`) while `/d/<slug>` stays
+permanent. Production still needs the two migrations, the department content, and the push/deploy —
+all approval-gated (`BACKLOG.md` ECO-2b, ECO-3b, DEP-2).
 
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migration (done

@@ -1,5 +1,114 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §37 (2026-11-05) — P3 DEPARTMENT CONTROL CENTER + PARTNER SCOPING (LOCAL, UNMERGED,
+> PRODUCTION UNTOUCHED)
+>
+> P3 turns the P2 department tables from *schema* into something an operator actually runs the store
+> with. A department — its copy, theme colours, blocks, in-page navigation, mirrored products, curated
+> vendors, public URL and place in the site menu — is now created, published, reordered and edited from
+> `/admin/dashboard?tab=departments` with **zero code changes**, and a partner can edit the storefront
+> they own from their own dashboard with the database (not the UI) deciding what they may touch.
+>
+> ### Migration — `supabase/migrations/20261102090000_departments_control_center.sql` (local only)
+>
+> | Piece | What it does | Why it is built this way |
+> |---|---|---|
+> | `owns_department(uuid)` / `can_manage_department(uuid)` | `SECURITY DEFINER`, `STABLE` ownership predicates: caller is staff **or** the department's `owner_vendor_id` resolves to a vendor whose `profile_id = auth.uid()` | Policies must not recurse into `departments` from a `departments` policy; the definer function breaks the cycle and one helper serves all five tables |
+> | `protect_department_columns()` trigger | For a non-staff writer, silently clamps `slug`, `owner_vendor_id`, `metadata` (it holds `canonical_path`, i.e. routing), `is_active`, `show_in_navigation`, `sort_order` to their existing values | Column-level protection is impossible with RLS alone, and erroring the whole update would make one stray field break a partner's copy save. `metadata` is clamped **wholesale** because routing lives in it |
+> | `department_vendors` | Curated vendor list per department: `vendor_id → vendors` **or** `food_vendor_id → food_vendors`, `CHECK` exactly one set, two partial unique indexes, `sort_order`, `label`, `is_active` | DLX has two vendor systems (partner shops and restaurants); forcing one table would have meant duplicating restaurants |
+> | Read policies, split by role | `to anon`: `is_active` only. `to authenticated`: `is_active OR staff OR owns_department` | `anon` may not execute `owns_department()`, so a single policy would either break anon reads or leak drafts |
+> | Write policies | Departments: INSERT/DELETE staff-only, UPDATE staff **or** owner. Child rows (sections, nav, placements, vendors): full CRUD for staff or the department's manager | The ownership boundary is "whose storefront", not "whose row" — a partner must be able to add their own blocks, links, products and vendors |
+> | Grants | `anon` keeps SELECT only on the four public tables | Supabase default privileges had granted ALL; the P2 lesson is applied again |
+>
+> 17 policies across 5 tables, additive, idempotent (re-applied with `psql --single-transaction`,
+> `COMMIT`, no errors), rollback in the file header.
+>
+> ### RLS verified locally — psql role/JWT simulation **and** the live REST API
+>
+> | Check | Result |
+> |---|---|
+> | `anon` reads | 3 departments / 12 sections / 7 nav / 11 placements / 2 `department_vendors`; every write denied |
+> | customer (`authenticated`, no ownership) | 3 departments; cannot write sections or vendors |
+> | partner (`85f57795…`, owns `atelier-e2e`) | sees **own draft + active rows** and not other drafts; `owns_department` true only for its own; `PATCH /departments?id=eq.<food>` → **`200 []`** (0 rows); `POST /departments` → **403 `42501`**; `DELETE` own department → **`200 []`**; sections/nav/placements/vendors of a foreign department → RLS block |
+> | clamp, through the real API with a real partner JWT | `PATCH` sending `slug:"hijacked"`, `is_active:false`, `show_in_navigation:false`, `sort_order:999`, `owner_vendor_id:null`, `metadata.canonical_path:"/hijacked"` → **all six ignored**, `tagline` updated, HTTP **200** |
+> | trusted SQL branch | a plain `psql` `update` (no JWT) can still set `is_active`/`metadata` — otherwise every seed and operational fix was silently reverted by the trigger. `anon` has no UPDATE grant and every PostgREST caller carries a JWT, so the branch is unreachable from the API |
+>
+> ### Admin Control Center (all reusable DLX primitives, no arbitrary code or CSS)
+>
+> | Surface | What an operator can do |
+> |---|---|
+> | `DepartmentsConsole` | list (public URL, tagline, reorder, navigation badge, draft badge), create as draft, open editor, delete with a confirm dialog |
+> | `DepartmentBasicsForm` → « Contenu & thème » | name, tagline, description, hero image upload, icon, gradient start/end, accent, SEO title/description, **friendly URL** (`metadata.canonical_path`), and — staff only — slug, order, owner shop, « visible », « afficher dans la navigation » |
+> | `DepartmentSectionsEditor` → « Blocs » | add any of the six block kinds, edit each block's typed fields, hide/show, move up/down, delete; anchors are declared here and offered to navigation |
+> | `DepartmentNavigationEditor` → « Navigation » | add/edit/reorder/hide/delete in-page links; `href` is a route or an anchor, and only anchors that a section really declares are suggested |
+> | `DepartmentPlacementsEditor` → « Produits » | search the real catalogue, place a product, badge it per department, feature it, hide it, reorder, remove (the product row itself is never copied or deleted) |
+> | `DepartmentVendorsEditor` → « Vendeurs » | curate restaurants **or** partner shops into the storefront, reorder, label, hide, remove |
+> | « Aperçu » | renders the **real** `DepartmentStorefront` from the same loader the public page uses, with edits visible after a refresh, links disabled |
+> | `useConfirm` + shared `Modal` | the destructive actions ask, in French, in-app — `window.confirm` is gone from these editors |
+>
+> Staff authority over partner-owned departments was exercised for real: an admin edited, published and
+> merchandised a department owned by a partner shop, and the partner then edited its copy from their own
+> dashboard.
+>
+> ### Partner surface — « Ma vitrine » in `SellerDashboard`
+>
+> The same console, `scope="partner"`: no structure inputs (slug, order, owner, visibility, canonical
+> URL), no « Supprimer ce département », and only departments the caller owns. Hiding those inputs is
+> **UX only** — the clamp trigger and the policies are the authority, and they were probed directly
+> against the API after the UI had already been bypassed on purpose.
+>
+> ### Navigation, URLs and discovery
+>
+> | Change | File |
+> |---|---|
+> | Header storefront row, account drawer and footer read `getNavigationDepartments()` (`show_in_navigation`, `sort_order`, `is_active`) with the previous static links as a safe fallback | `DesktopNav.tsx`, `AccountMoreDrawer.tsx`, `Footer.tsx`, `useDepartmentsNav.ts` |
+> | Friendly URL: `/[department]` resolves `metadata.canonical_path` (e.g. `/beaute`) and 404s anything that is not a department; `/d/<slug>` remains the permanent address | `src/app/[department]/page.tsx` |
+> | Department titles are applied **absolute** (`seo_title` already carries the brand, the root layout template would append `| DLXSTORE` twice) | both department routes |
+> | `sitemap.xml` lists each department once at its real address, de-duplicated against the static paths, and is revalidated every 5 min so publishing does not need a deploy | `src/app/sitemap.ts` |
+>
+> ### Defects found by this pass (and fixed, not reported)
+>
+> 1. **Clamp trigger ate trusted writes** — every `psql`/seed update of `is_active`/`metadata` was silently reverted; fixed with the `auth.uid() is null` branch and re-verified in both directions.
+> 2. **Curated partner stores vanished publicly** — the loader asked `vendors` for `includeInactive`, which has no anon read policy, so a curated partner card was dropped from every visitor's page while the admin preview showed it. Now resolved through `vendor_public_cards` (same `id`).
+> 3. **Double brand in titles** — `seo_title` was passed through the root template.
+> 4. **`/beaute` listed twice / stale sitemap** — de-duplication plus `revalidate = 300`.
+> 5. **Two `Placer` clicks produced two placements at the same `sort_order`** — the button is disabled while any placement is in flight.
+> 6. **A database hiccup turned every unknown URL into a 500** — `/[department]` is the catch-all for root segments, so the lookup error escaped. It now goes through `resolveFriendly()`, which answers 404 (the honest, cacheable answer) and leaves a real department one reload away. Proven by stopping the API: `/beaute` and `/this-does-not-exist` stayed **404** where the old build returned **500**.
+>
+> ### Verified in the running local stack (production build, `next start`, local Supabase, French)
+>
+> | Check | Result |
+> |---|---|
+> | Admin browser E2E | created a draft; saved copy + SEO + friendly URL (persisted); blocks add/edit/reorder/hide/unhide/delete (persisted, with confirm dialog); nav add/edit-on-blur/reorder/delete; placements place/badge `Best-seller`/feature/hide/reorder/remove; vendors curated (one restaurant + one partner shop); preview rendered the real storefront; owner set to the test partner shop, then published + added to navigation |
+> | Partner browser E2E | « Ma vitrine » listed **only** the two owned departments; edited tagline/description and a text block (persisted in the DB); published + navigation flags, slug, order, owner, canonical path and the delete action were **absent** |
+> | API probes with a real partner JWT | clamp honoured; foreign department untouched (0 rows); insert/delete refused (`403`, `200 []`); foreign child rows refused |
+> | Public pages | `/beaute` (friendly) 200 and `/d/beaute` 200 while published; after unpublish/delete `/beaute`, `/d/beaute` and `/vitrine-partenaire` → **404**; header renders `/d/shop`, `/food`, `/energy`; page carries the tagline, blocks, badged product, curated vendor, "other departments"; `<title>` exactly `DLX Beauté | DLXSTORE` |
+> | Publish → public, no deploy | admin changed DLX Energy's tagline, `/energy` served the new text on the next request; reverted the same way |
+> | `sitemap.xml` | department URLs at their real addresses, no duplicates, no unpublished department |
+> | API outage | with Kong stopped, `/beaute` and `/this-does-not-exist` → **404** (not 500) and `/` still renders; API restored, `/d/shop` → 200 again |
+> | Local DB after cleanup | the E2E department and its children were deleted; one partner-owned draft remains; `anon` sees exactly `shop`, `food`, `energy` |
+> | Gates | `npx tsc --noEmit` **0** · `npx eslint` on every touched file **0 errors** (11 warnings, all the repo's existing load-in-effect pattern) · `npm test` **22/22** · `next build` **PASS** (30/30 pages, `/sitemap.xml 5m`) |
+>
+> ### Deliberately not done
+>
+> - **Layout templates per department.** The renderer has one layout parameterised by department data
+>   (colours, icon, hero, block order). A second layout is a `config.layout` value plus renderer cases,
+>   not a different architecture — and it is not needed to run the store today.
+> - **Server-side admin page guard.** The repo's session lives in `localStorage` (no auth cookie), so the
+>   server cannot know who is calling `/admin/dashboard`. Enforcement stays where it is effective: RLS +
+>   `SECURITY DEFINER`. Closing this gap means moving the session to cookies — a separate, larger change.
+> - **Retiring the legacy `/food` fallback** — still blocked on the production migration (`ECO-2e`).
+> - Production: the P2 and P3 migrations, the production department content, and the push/deploy of this
+>   local `main` all remain approval-gated.
+>
+> ### What needs the owner
+>
+> 1. Approve `20261101090000_departments_foundation.sql` **and**
+>    `20261102090000_departments_control_center.sql` for production (additive, rollback in each header).
+> 2. After the apply: create the Shop/Food/Energy departments in the Control Center (copy, blocks, nav,
+>    placements, friendly URLs) — or authorise a one-off admin script. No production content was written.
+> 3. Approve the push/deploy of local `main` (4 commits ahead of `origin/main`, nothing else in the tree).
+
 > ## ✅ §36 (2026-11-02) — P2 DEPARTMENT ARCHITECTURE (LOCAL, UNMERGED, PRODUCTION UNTOUCHED)
 >
 > DLX Shop / Food / Energy stop being hand-written pages and `?category=` filters. A department is now

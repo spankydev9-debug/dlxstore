@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, LayoutGrid, Shirt } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { useDepartmentsNav } from "../../hooks/useDepartmentsNav";
 import { getCategories } from "../../services/db/products";
+import { departmentHref } from "../../lib/departments";
+import { departmentIcon } from "../../lib/department-icons";
 import type { Category } from "../../types";
 import { AvatarBadge } from "../account/AvatarBadge";
 import { OverlayLink } from "./OverlayLink";
@@ -18,7 +21,13 @@ import { OverlayLink } from "./OverlayLink";
  *
  * Ordering follows the shopping journey, not the route table:
  *
- *   Shop · Categories · Discover · Studio · DLX Food
+ *   <departments> · Categories · Discover · Studio · Chat
+ *
+ * The storefront entries come from `departments` (`show_in_navigation`, ordered
+ * by `sort_order`), not from this file: publishing DLX Beauty or handing a
+ * partner their own storefront must not require a deploy. Roles that never
+ * change — Categories, Discover, Studio, Chat — stay here because they are
+ * platform chrome, not merchandise.
  *
  * `About` / `Contact` / `Become a partner` are deliberately absent: they are
  * utility destinations that live in the account menu and footer, and were the
@@ -31,6 +40,7 @@ export function DesktopNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { departments } = useDepartmentsNav();
   const [categories, setCategories] = useState<Category[]>([]);
   const [megaOpen, setMegaOpen] = useState(false);
   const megaRef = useRef<HTMLDivElement>(null);
@@ -74,6 +84,16 @@ export function DesktopNav() {
     return undefined;
   };
 
+  /** A department is current at either of its two addresses. */
+  const departmentCurrent = (
+    href: string,
+    slug: string
+  ): "page" | "true" | undefined => {
+    if (pathname === href || pathname === `/d/${slug}`) return "page";
+    if (href !== "/" && pathname.startsWith(`${href}/`)) return "true";
+    return undefined;
+  };
+
   const navClass =
     "rounded-lg px-2 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
   const linkClass = (href: string) =>
@@ -92,13 +112,36 @@ export function DesktopNav() {
       aria-label={t.menu}
       className="hidden items-center gap-1 text-sm font-medium md:flex"
     >
-      <OverlayLink
-        href="/shop"
-        aria-current={current("/shop")}
-        className={linkClass("/shop")}
-      >
-        {t.shop}
-      </OverlayLink>
+      {/* Storefronts. While the list loads — or before departments exist in this
+          environment — the row keeps a working Shop entry rather than collapsing. */}
+      {departments.length === 0 ? (
+        <OverlayLink
+          href="/shop"
+          aria-current={current("/shop")}
+          className={linkClass("/shop")}
+        >
+          {t.shop}
+        </OverlayLink>
+      ) : (
+        departments.map((department) => {
+          const href = departmentHref(department);
+          const active = departmentCurrent(href, department.slug);
+          const Icon = departmentIcon(department.icon);
+          return (
+            <OverlayLink
+              key={department.id}
+              href={href}
+              aria-current={active}
+              className={`${navClass} inline-flex items-center gap-1.5 ${
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4" aria-hidden />
+              {department.name}
+            </OverlayLink>
+          );
+        })
+      )}
 
       {/* Categories — a mega-menu built from the real `categories` table, so the
           entry point reflects what the catalogue actually contains. Gives way
