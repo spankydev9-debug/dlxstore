@@ -27,7 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
     department.seo_description ?? department.description ?? department.tagline ?? "";
 
   return {
-    title,
+    // Absolute, like the other two department routes: `seo_title` is the full
+    // title the admin wrote, and the root layout template would append
+    // "| DLXSTORE" to it a second time.
+    title: { absolute: title },
     description,
     alternates: { canonical: absoluteUrl(canonical) },
     openGraph: { title, description, url: absoluteUrl(canonical) },

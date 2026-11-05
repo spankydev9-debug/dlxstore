@@ -25,7 +25,9 @@ export async function generateMetadata(): Promise<Metadata> {
     const description =
       department.seo_description ?? department.description ?? department.tagline ?? "";
     return {
-      title,
+      // Absolute, like the other department routes: `seo_title` already carries
+      // the brand and the layout template would append it twice.
+      title: { absolute: title },
       description,
       alternates: { canonical: absoluteUrl(canonical) },
       openGraph: { title, description, url: absoluteUrl(canonical) },
