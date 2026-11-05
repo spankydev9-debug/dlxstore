@@ -16,8 +16,8 @@ sequencing; a roadmap phase is only opened when its package starts.
 |---|---|---|
 | P0 | Verify release + inventory the real state (no rebuild of finished systems) | ✅ 2026-10-31 (`docs/MASTER_PROJECT_CHECKPOINT.md` §34) |
 | P1 | Chat + communication reliability | ✅ P1.1 + P1.2 verified on the real stack (local); production migration still approval-gated |
-| P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ✅ 2026-11-02 (local; production apply approval-gated) |
-| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | ✅ 2026-11-05 for departments: creation, content/theme, blocks, in-page nav, placements, curated vendors, friendly URLs, dynamic site nav, partner-scoped editing (§37) |
+| P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ✅ 2026-11-02 built, **2026-11-05 shipped to production** — §38 |
+| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | ✅ 2026-11-05 for departments: creation, content/theme, blocks, in-page nav, placements, curated vendors, friendly URLs, dynamic site nav, partner-scoped editing — **shipped to production, §38** (was §37 local) |
 | P4 | Developer Mode (internal, non-bypassing diagnostics/flags) | not started |
 | P5 | Marketplace operations (ownership, partners, inventory responsibility, commission) | partial |
 | P6 | DLX Social | partial (foundations only) |
@@ -585,13 +585,13 @@ channel, recorded only when the OS sheet resolves and hidden when unsupported), 
 system** is implemented locally (mobile-first feedback page, Supabase-backed schema and admin
 management; migration `20261028090000_feedback_system.sql` was applied to production on
 2026-10-30). The feedback page persists to production as of that release.
-**P2 — department architecture (2026-11-02, local, unmerged).** Departments are now rows, not pages:
-`departments` + `department_sections` + `department_navigation` + `department_placements`, one generic
-renderer, `/d/<slug>` plus `/food` and `/energy` friendly routes, and the dead
-`/shop?category=maison-energie` CTA repointed at `/energy`. The migration and the local content seed are
-**local only**; production apply and production department content are approval-gated.
+**P2 — department architecture (built 2026-11-02, shipped 2026-11-05).** Departments are now rows, not
+pages: `departments` + `department_sections` + `department_navigation` + `department_placements`, one
+generic renderer, `/d/<slug>` plus `/food` and `/energy` friendly routes, and the dead
+`/shop?category=maison-energie` CTA repointed at `/energy`. The migration was applied to production on
+2026-11-05 and the three storefronts were created as content (checkpoint §38).
 
-**P3 — the department Control Center (2026-11-05, local, unmerged).** The P2 tables are now operated, not
+**P3 — the department Control Center (2026-11-05, shipped to production).** The P2 tables are now operated, not
 just designed: `/admin/dashboard?tab=departments` creates a department as a draft and edits its copy,
 theme colours, hero image, SEO, friendly URL, blocks, in-page navigation, mirrored products and curated
 vendors (restaurants **and** partner shops), with a live preview of the real storefront. A partner edits
@@ -599,9 +599,9 @@ the storefront they own from « Ma vitrine » in the seller dashboard, and the b
 not the UI: `owns_department()` plus a `protect_department_columns()` trigger clamp slug, owner, routing
 metadata, visibility and order for non-staff, all probed through the live REST API with a real partner
 JWT. Site navigation (header, account drawer, footer) and `sitemap.xml` are driven by the same rows, and
-`metadata.canonical_path` serves a department at a friendly URL (`/beaute`) while `/d/<slug>` stays
-permanent. Production still needs the two migrations, the department content, and the push/deploy —
-all approval-gated (`BACKLOG.md` ECO-2b, ECO-3b, DEP-2).
+`metadata.canonical_path` serves a department at a friendly URL (`/energy`) while `/d/<slug>` stays
+permanent. Shipped 2026-11-05 with the content job (checkpoint §38). Remaining: `ECO-3b` layout
+templates and `ECO-3c` server-side admin guard (architecture-blocked).
 
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migration (done

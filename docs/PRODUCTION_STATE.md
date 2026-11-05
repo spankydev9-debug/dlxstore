@@ -3,6 +3,39 @@
 Production environment, deployment, and backup reference. Generated 2026-09-28.
 All values verified read-only. No production change was made.
 
+> **Release — 2026-11-05 (approved).** Applies three migrations, pushes `main` and deploys the
+> P2/P3 build. Step-by-step detail in `docs/MASTER_PROJECT_CHECKPOINT.md` §38.
+> * `supabase db push` (`--dry-run` first: **exactly three** migrations, no seeds) applied
+>   `20261031090000_chat_reliability_fixes.sql`, `20261101090000_departments_foundation.sql`,
+>   `20261102090000_departments_control_center.sql`. The ledger then reports **57 local / 57
+>   applied / 0 pending**; nothing else was pending, so no unrelated migration shipped.
+> * Production now holds the five department tables, `owns_department()`,
+>   `can_manage_department()`, `protect_department_columns()` and **17 policies**. Probed after
+>   the push: `anon` `POST`/`PATCH`/`DELETE` on `departments` and `department_sections` → **401
+>   `42501`** (no write grant); a non-staff JWT claim that tried to set
+>   `is_active/show_in_navigation/sort_order/slug/owner_vendor_id/metadata` had all six clamped
+>   while its copy edit went through (transaction rolled back).
+> * **Department content was created as data, not in a migration**: DLX Shop (`/shop`),
+>   DLX Food (`/food`) and DLX Energy (`/energy`) — copy, theme colours, 11 blocks, 7 in-page
+>   links, 67 product placements (**the 65-product catalogue mirrored into Shop; the two real
+>   solar products placed in Energy without duplicating a product row**) and one curated
+>   restaurant (`laliga resort`, the only active `food_vendors` row). No invented products,
+>   vendors or partners: production has 0 approved partner shops and 0 food products.
+> * Commits shipped: `eaa9bfc`, `e3201f1`, `afda728`, `a5bf840` (P3) and `eb8a39d`
+>   (absolute titles on `/food` + `/energy`).
+> * Post-deploy live checks: `/` `/shop` `/cart` `/checkout` `/discover` **200**; `/food`
+>   `/energy` `/d/shop` `/d/food` `/d/energy` **200** with real content and identical titles on
+>   both addresses; `/beaute` and unknown paths **404**; `sitemap.xml` **78 URLs, 0 duplicates**,
+>   departments at `/shop` `/food` `/energy`; `/shop?category=shoes-sneakers` returns the **28**
+>   sneakers in the catalogue; header renders `/shop` `/food` `/energy` from the rows (same URLs
+>   as the old static nav, now content).
+> * Production deployment for this release: `dlxstore-jstb34y2d-dlx2.vercel.app`. Rollback target
+>   is the previous production deployment `dlxstore-dz72supvb-dlx2.vercel.app`; the migrations are
+>   additive and each carries rollback SQL in its header.
+> * **Not verified in production:** the Control Center screens themselves, because the release
+>   was applied with the owner's credentials absent — the admin UI path was verified end to end
+>   locally against the same migration (checkpoint §37).
+
 > **Release — 2026-10-30 (approved).** This release applies one migration, pushes `main` and
 > deploys the stabilized build. Facts recorded here were verified at each step; details in
 > `BACKLOG.md` ("Feedback system") and `docs/MASTER_PROJECT_CHECKPOINT.md` §33.

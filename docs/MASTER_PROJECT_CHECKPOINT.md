@@ -1,5 +1,75 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## ✅ §38 (2026-11-05) — P1.2 + P2 + P3 SHIPPED TO PRODUCTION (supersedes the "local, unmerged"
+> > status of §36/§37)
+>
+> Owner approval: "Approve everything" — migrations, push, deploy, then create and verify the
+> production department content. Nothing outside this release was touched: the other agent's
+> `package.json` / `package-lock.json` / `public/models/**` remain uncommitted and unpushed, and
+> the four stashes were left alone.
+>
+> ### What ran, in order
+>
+> | Step | Command / action | Result |
+> |---|---|---|
+> | 1 | `supabase migration list --linked` | ledger at `20261028090000`; exactly our 3 migrations pending |
+> | 2 | `supabase db push --dry-run` | would push **only** the 3 migrations, `seeds: []` |
+> | 3 | `supabase db push --yes` | 3 applied, ledger **57/57, 0 pending** |
+> | 4 | `git push origin main` | `94c606b..a5bf840`, then `a5bf840..eb8a39d` |
+> | 5 | Vercel auto-deploy from `main` | `dlxstore-as5vm9k5r…` → `dlxstore-jstb34y2d…`, both Ready |
+> | 6 | one-off content job (privileged SQL, `begin/rollback` dry run first) | 3 departments, 11 blocks, 7 links, 67 placements, 1 curated vendor |
+> | 7 | live verification (below) | all green |
+>
+> ### Why the content was data, not a migration
+>
+> Same rule as §37, applied literally: the migration creates the tables, and the storefronts are
+> created *afterwards* through the data path. Production has **65 active products** (fashion,
+> sneakers, perfume, caps, two solar items), **1 active restaurant**, **0 approved partner shops**
+> and **0 food products**, so the content mirrors that and nothing else: Shop gets the whole
+> catalogue with a category grid built from the 8 categories that actually hold stock, Food gets
+> the one restaurant plus a "become a partner" block (no product grid, because an empty grid reads
+> as a broken page), Energy gets the two real solar products with a "Station solaire" badge.
+> Shop's `metadata.canonical_path` is `/shop`, so the header keeps pointing at the real catalogue
+> (filters, search, sort) instead of a thinner department page, and the sitemap de-duplicates it
+> against the static entry.
+>
+> ### Production verification (live, after the deploy)
+>
+> | Check | Result |
+> |---|---|
+> | Routes | `/` `/shop` `/food` `/energy` `/cart` `/checkout` `/discover` `/d/shop` `/d/food` `/d/energy` → **200**; `/beaute`, `/does-not-exist` → **404** |
+> | Titles | `/food` and `/d/food` both `DLX Food — restaurants et fast-foods à Goma`; `/energy` and `/d/energy` both `DLX Energy — énergie solaire à Goma`; `/shop` keeps `Boutique | DLXSTORE` |
+> | Content | `/energy` renders the hero, both products, the promo and the advisor block; `/food` renders the restaurant card and the partner CTA; `/d/shop` renders the category grid, 8 of 65 placed products and the delivery promo |
+> | Anchors | `/food#vendors`, `/energy#products`, `/energy#advice` all resolve to real section ids |
+> | Department nav | `/shop?category=shoes-sneakers` returns exactly the **28** sneakers in the catalogue, so the in-page links are not decorative |
+> | Site nav (browser, hydrated) | header `DLX Shop→/shop`, `DLX Food→/food`, `DLX Energy→/energy` from the rows; footer keeps its category links and the department link — same URLs as the old static nav |
+> | `sitemap.xml` | **78 URLs, 0 duplicates**, departments listed once each at `/shop` `/food` `/energy` |
+> | `anon` writes | `POST`/`PATCH`/`DELETE` on `departments` and `department_sections` → **401 `42501`** in production |
+> | Clamp trigger in production | non-staff claim updating `is_active`, `show_in_navigation`, `sort_order`, `slug`, `owner_vendor_id`, `metadata` → **all six clamped**, copy edit applied; transaction rolled back |
+> | Catalogue integrity | `products` still **65** rows and `food_vendors` still **1** — the placements mirror rows instead of copying them |
+>
+> ### Defect found by this pass (and fixed in the same release)
+>
+> `/food` and `/energy` passed `seo_title` through the root layout template while `/d/<slug>` and
+> `/[department]` passed it absolute, so the same storefront served two different titles
+> (`… | DLXSTORE` vs `…`) depending on the URL a visitor used. Both static friendly routes now
+> match (`eb8a39d`), verified live on both addresses.
+>
+> ### Still open after this release
+>
+> - **Control Center screens not exercised in production** — the release ran with the owner's
+>   credentials absent, so the admin UI could not be signed into live. The same screens, the same
+>   migration and the same policies were driven end to end locally (§37), and the production
+>   boundary was probed directly through the API. Signing in once as the admin to open
+>   `?tab=departments` remains the last manual confirmation.
+> - **`ECO-2e`** (delete the legacy `/food` → `FoodPage` fallback) is now *unblocked* — production
+>   has the `food` row — but was not shipped in this release; it is a code-only cleanup and a
+>   safety net if the row is ever deleted.
+> - `ECO-3b` (layout templates) and `ECO-3c` (server-side admin guard) unchanged: deferred and
+>   architecture-blocked respectively.
+> - Local stack still holds the local seed content (including the demo restaurant and dish) and one
+>   partner-owned draft; none of it was pushed anywhere.
+
 > ## ✅ §37 (2026-11-05) — P3 DEPARTMENT CONTROL CENTER + PARTNER SCOPING (LOCAL, UNMERGED,
 > PRODUCTION UNTOUCHED)
 >
