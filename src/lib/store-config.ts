@@ -1,4 +1,5 @@
 import { StoreSettings } from "../types";
+import { normalizeHomepageSettings } from "./homepage-content";
 
 /** Safe defaults used until an administrator supplies operational information. */
 export const defaultStoreSettings: StoreSettings = {
@@ -18,6 +19,7 @@ export const defaultStoreSettings: StoreSettings = {
   contacts: {},
   homepage_banners: [],
   homepage_promotions: [],
+  homepage: { hero: {} },
   delivery_zones: [
     { country: "CD", province: "Nord-Kivu", city: "Goma", active: true, fee: 0, currency: "USD" },
   ],
@@ -31,6 +33,7 @@ export function normalizeStoreSettings(value: Partial<StoreSettings> | null | un
     contacts: { ...defaultStoreSettings.contacts, ...value?.contacts },
     homepage_banners: value?.homepage_banners ?? defaultStoreSettings.homepage_banners,
     homepage_promotions: value?.homepage_promotions ?? defaultStoreSettings.homepage_promotions,
+    homepage: normalizeHomepageSettings(value?.homepage),
     delivery_zones: value?.delivery_zones ?? defaultStoreSettings.delivery_zones,
   };
 }

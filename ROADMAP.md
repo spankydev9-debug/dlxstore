@@ -17,7 +17,7 @@ sequencing; a roadmap phase is only opened when its package starts.
 | P0 | Verify release + inventory the real state (no rebuild of finished systems) | ✅ 2026-10-31 (`docs/MASTER_PROJECT_CHECKPOINT.md` §34) |
 | P1 | Chat + communication reliability | ✅ P1.1 + P1.2 verified on the real stack (local); production migration still approval-gated |
 | P2 | Department architecture (first-class departments, real DLX Food, real DLX Energy, placement without duplicated products) | ✅ 2026-11-02 built, **2026-11-05 shipped to production** — §38 |
-| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | ✅ 2026-11-05 for departments: creation, content/theme, blocks, in-page nav, placements, curated vendors, friendly URLs, dynamic site nav, partner-scoped editing — **shipped to production, §38** (was §37 local) |
+| P3 | Admin Control Center (content editor, visual page editor, department management, roles) | ✅ 2026-11-05 for departments: creation, content/theme, blocks, in-page nav, placements, curated vendors, friendly URLs, dynamic site nav, partner-scoped editing — **shipped to production, §38** (was §37 local). 2026-11-07: homepage hero copy per language added locally (§39, unreleased) |
 | P4 | Developer Mode (internal, non-bypassing diagnostics/flags) | not started |
 | P5 | Marketplace operations (ownership, partners, inventory responsibility, commission) | partial |
 | P6 | DLX Social | partial (foundations only) |
@@ -602,6 +602,14 @@ JWT. Site navigation (header, account drawer, footer) and `sitemap.xml` are driv
 `metadata.canonical_path` serves a department at a friendly URL (`/energy`) while `/d/<slug>` stays
 permanent. Shipped 2026-11-05 with the content job (checkpoint §38). Remaining: `ECO-3b` layout
 templates and `ECO-3c` server-side admin guard (architecture-blocked).
+
+**P3 follow-up — homepage copy (2026-11-07, local, unreleased).** The hero badge, title, highlight,
+description and both CTA labels/links are now Control Center content (`?tab=homepage`), stored in
+`settings.value.homepage` with no migration. Each of the six languages is edited separately and an
+empty field keeps the shipped text *for that language*, so a French edit cannot leak into the English
+storefront; links are validated in the form and again on read. Verified end to end on the local stack
+(save → DB → homepage, EN isolation, reset → built-in copy, injected `javascript:` link falls back).
+Production still serves the previously built hero until this commit is pushed (checkpoint §39).
 
 **AI Product Studio (step 4) and Avatar / Ghost Mannequin stay paused by project direction.**
 Nothing below reaches a customer without three owner decisions: apply the pending migration (done

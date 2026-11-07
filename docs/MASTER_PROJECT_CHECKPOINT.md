@@ -1,5 +1,64 @@
 # MASTER_PROJECT_CHECKPOINT.md
 
+> ## §39 (2026-11-07) — homepage storefront copy is now Control Center content (LOCAL, NOT RELEASED)
+>
+> Continuing the Control Center gap identified in §38: the homepage hero was the last piece of
+> first-paint storefront copy that still required a code change. It is now authored per language at
+> `/admin/dashboard?tab=homepage` and stored in `settings.value.homepage` (the existing `store_info`
+> key) — **no migration**, because the `settings` table already exists with SELECT-for-everyone and
+> ALL-for-admins policies.
+>
+> ### What was built
+>
+> | Piece | File | Behaviour |
+> |---|---|---|
+> | Resolution + sanitising | `src/lib/homepage-content.ts` (new) | `resolveHeroCopy(settings, language, t)` merges stored fields over that **same language's** built-in translation; `sanitizeHref()` allows only `/path` (not `//host`), `#anchor`, `http(s)://`, `mailto:`, `tel:`; `withHeroCopy()` writes or removes one language. |
+> | Storefront | `src/app/HomePage.tsx` | Loads settings in the existing `Promise.all` with `.catch(() => defaultStoreSettings)`, so a settings failure degrades to shipped copy instead of blanking the page. Hero badge/title/highlight/description and both CTA labels + hrefs now come from the resolver. |
+> | Control Center | `src/components/admin/homepage/HomepageControls.tsx` (new) + tab `homepage` in `src/app/admin/dashboard/page.tsx` | Six language tabs, eight fields with the shipped text as placeholder and a per-field "Par défaut" reset, live `<div>` preview of the real hero, href validation before saving, whole-language reset through `useConfirm`. Save is disabled until something changed. |
+> | Defaults | `src/types/index.ts`, `src/lib/store-config.ts` | `StoreSettings.homepage` (`hero` keyed by language code); `normalizeStoreSettings` runs `normalizeHomepageSettings` on every read. |
+> | Tests | `tests/homepage-content.test.ts` (new, 15 cases) | Defaults, single-field override, whitespace fallback, per-language isolation, unsafe/`//`/backslash href rejection, allowed link shapes, newline handling, length caps, garbage payloads, add/clear round-trips. |
+>
+> ### Design decisions worth keeping
+> * **Per language, never cross-language.** A French override must not appear to an English or Swahili
+>   visitor; the fallback is the shipped text *for the visitor's language*. Verified: FR override
+>   rendered while EN showed "Shop Smart. / Pay on Delivery."
+> * **Empty means default.** Blank/whitespace fields are dropped from storage, so "field absent" has
+>   exactly one meaning and an operator can never blank the hero by accident. Reset removes the
+>   language key entirely (`hero: {}`), not empty strings.
+> * **Untrusted JSON.** Settings are hand-editable and reachable from several consoles, so the read
+>   path re-validates: `javascript:`, `data:`, protocol-relative `//host` and `/\host` (HTML parsers
+>   treat `\` as `/`) all fall back to `/shop` and `/about`.
+> * The module has **no runtime app imports** (type-only imports from `i18n.ts`/`types`), so the Node
+>   test runner loads it without a bundler; this is why unknown language keys are kept rather than
+>   filtered — inert, and filtering would require a runtime language-list import.
+>
+> ### Verified (local, `localhost:3100`, local Supabase)
+> * Admin panel: all 8 fields render with FR defaults as placeholders; saving `javascript:alert(1)`
+>   as the primary link shows "Lien refusé…" and **writes nothing** (DB still `homepage: null`).
+> * Saved FR copy (badge/title/highlight/description/primary href `/shop?sort=newest`/secondary
+>   label) → DB `settings.value.homepage.hero.fr` holds exactly those six keys; `/` renders them and
+>   the CTA points at `/shop?sort=newest`; secondary link untouched stays `/about`.
+> * Switching the storefront to English → shipped English copy, no FR leak. Admin EN tab is empty
+>   with EN placeholders and reset disabled.
+> * "Réinitialiser fr" → confirm dialog → DB `homepage = {"hero": {}}`; `/` in FR shows
+>   "Achetez Malin. / Payez à la Livraison." again. No empty strings stored.
+> * Defence in depth: injected `javascript:alert(1)` + `//evil.example.com` straight into the DB →
+>   the page rendered the injected *text* but the links fell back to `/shop` and `/about`.
+> * 0 console errors on the homepage after each step.
+> * Gates: `tsc` 0, `eslint` 0 errors on touched files (only pre-existing HomePage warnings),
+>   `npm test` **37/37**, `next build` PASS (30/30).
+>
+> ### Not done / next
+> * Not pushed or deployed: production still serves the shipped hero. No migration is needed, so the
+>   release is code-only (`git push` → Vercel auto-deploy). Awaiting approval.
+> * Production content is a Control Center action, not a migration: an admin sets the copy once the
+>   build is live.
+> * Next Control Center gaps: `homepage_banners` / `homepage_promotions` are declared in
+>   `StoreSettings` but no renderer reads them (dead settings — wire or remove), `launch.announcement`
+>   only surfaces on the coming-soon screen, and the Campaign Studio placements in §22 remain open.
+> * Untouched as required: the other agent's `package.json` / `package-lock.json` / `public/models/**`
+>   and all four stashes.
+>
 > ## ✅ §38 (2026-11-05) — P1.2 + P2 + P3 SHIPPED TO PRODUCTION (supersedes the "local, unmerged"
 > > status of §36/§37)
 >

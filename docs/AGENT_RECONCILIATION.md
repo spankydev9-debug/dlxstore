@@ -196,3 +196,27 @@ content, no push and no deploy were performed.
 - Partner boundary: `departments.owner_vendor_id` exists and is unused by write policies today. P3 must
   replace the `is_staff_or_admin()` write policies with an owner-aware predicate while keeping the
   platform-admin branch.
+
+---
+
+## 10. Homepage copy in the Control Center (2026-11-07, local only)
+
+The homepage hero was the last first-paint storefront copy that needed a code change. It is now data.
+
+- Storage: `settings.value.homepage.hero[<language>]` inside the existing `store_info` row — **no
+  migration**, because `settings` already grants SELECT to everyone and ALL to `profiles.role='admin'`.
+  RLS remains the authority; the panel is only the editor.
+- Resolution: `src/lib/homepage-content.ts` merges stored fields over the built-in translation for the
+  **visitor's** language. There is no cross-language fallback: an English visitor never sees a French
+  override, and a blank field means "use the shipped text", so an accidental empty save cannot blank
+  the hero.
+- Safety: `sanitizeHref()` is applied on read as well as in the form — `/path`, `#anchor`,
+  `http(s)://`, `mailto:` and `tel:` only; `javascript:`, `data:`, protocol-relative `//host` and
+  `/\host` are rejected. Settings JSON is treated as untrusted input everywhere.
+- UI: `?tab=homepage` → `HomepageControls` (six language tabs, eight fields, per-field default reset,
+  live preview, whole-language reset through `useConfirm`, save disabled until dirty).
+- Verified locally (`localhost:3100`, local Supabase): save → DB → `/` render; EN shows built-in EN;
+  reset removes the language key; injected bad links fall back; 0 console errors; `tsc` 0, `eslint` 0
+  errors, `npm test` 37/37, `next build` PASS.
+- Not released: no push, no deploy, no production data change. Production keeps the shipped hero until
+  the commit is approved (checkpoint §39).

@@ -19,9 +19,13 @@ import {
 } from "lucide-react";
 import { ProductImage } from "../components/shared/ProductImage";
 import { useLanguage } from "../context/LanguageContext";
+import { getStoreSettings } from "../services/db/settings";
+import { defaultStoreSettings } from "../lib/store-config";
+import { resolveHeroCopy } from "../lib/homepage-content";
 
 export default function HomePage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const [settings, setSettings] = useState(defaultStoreSettings);
   const [categories, setCategories] = useState<Category[]>([]);
   const [sessions, setSessions] = useState<StoreSession[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -32,7 +36,15 @@ export default function HomePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [cats, sess, prods] = await Promise.all([getCategories(), getSessions(), getProducts()]);
+        const [cats, sess, prods, store] = await Promise.all([
+          getCategories(),
+          getSessions(),
+          getProducts(),
+          // Hero copy is authored in the Control Center; a settings failure must
+          // degrade to the built-in copy, never blank the homepage.
+          getStoreSettings().catch(() => defaultStoreSettings),
+        ]);
+        setSettings(store);
         setCategories(
           cats.filter((cat) =>
             prods.some(
@@ -97,6 +109,9 @@ export default function HomePage() {
     return <div role="alert" className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center gap-4 text-center"><h1 className="text-2xl font-bold">{t.shopUnavailable}</h1><p className="text-sm text-muted-foreground">{loadError}</p><button onClick={() => window.location.reload()} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">{t.retry}</button></div>;
   }
 
+  // Admin-editable hero copy, resolved for the visitor's language (never mixed).
+  const hero = resolveHeroCopy(settings, language, t);
+
   return (
     <div className="space-y-20 pb-16 animate-fade-in">
       
@@ -108,33 +123,33 @@ export default function HomePage() {
         <div className="relative max-w-2xl space-y-8">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-gold/10 px-4 py-1.5 text-xs font-medium text-gold border border-gold/20 backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5" />
-            {t.heroPremiumDelivery}
+            {hero.badge}
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-light tracking-tighter leading-[1.1]">
-            {t.heroTitle} <br />
+            {hero.title} <br />
             <span className="font-bold bg-clip-text text-transparent bg-gradient-to-r from-gold via-gold-muted to-white">
-              {t.heroTitleHighlight}
+              {hero.highlight}
             </span>
           </h1>
 
           <p className="text-sm sm:text-base lg:text-lg text-neutral-400 max-w-lg leading-relaxed font-light">
-            {t.heroDescription}
+            {hero.description}
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">
             <Link
-              href="/shop"
+              href={hero.primary.href}
               className="inline-flex items-center gap-2 rounded-full bg-white text-black px-6 py-3 text-sm font-semibold hover:bg-neutral-100 transition-colors shadow-lg"
             >
-              {t.heroDiscoverShop}
+              {hero.primary.label}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/about"
+              href={hero.secondary.href}
               className="inline-flex items-center gap-2 rounded-full bg-white/10 text-white border border-white/20 px-6 py-3 text-sm font-semibold hover:bg-white/20 transition-colors"
             >
-              {t.heroHowItWorks}
+              {hero.secondary.label}
             </Link>
           </div>
         </div>

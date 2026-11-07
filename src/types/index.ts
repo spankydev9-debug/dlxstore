@@ -379,6 +379,36 @@ export interface StoreSettings {
   delivery_zones: DeliveryZone[];
   homepage_banners?: HomepageBanner[];
   homepage_promotions?: HomepagePromotion[];
+  /**
+   * Storefront copy authored in the Control Center. Stored beside the other
+   * business settings so no migration is needed; every field is optional and a
+   * blank field falls back to the built-in translation for that language.
+   */
+  homepage?: HomepageSettings;
+}
+
+/**
+ * One language's override of the homepage hero.
+ *
+ * Keys are the settings JSON keys, not display labels: renaming one would
+ * silently detach already-saved content. `*_href` values are sanitised on read
+ * (`sanitizeHref` in `lib/homepage-content`) so a bad link can never become a
+ * `javascript:` URL on the storefront.
+ */
+export interface HomepageHeroCopy {
+  badge?: string;
+  title?: string;
+  highlight?: string;
+  description?: string;
+  primary_label?: string;
+  primary_href?: string;
+  secondary_label?: string;
+  secondary_href?: string;
+}
+
+export interface HomepageSettings {
+  /** Keyed by language code (`fr`, `en`, …). Languages are resolved per visitor. */
+  hero?: Record<string, HomepageHeroCopy>;
 }
 
 export interface DeliveryZone { country: "CD"; province: string; city?: string; territory?: string; commune?: string; active: boolean; fee: number; currency: "USD" | "CDF"; }

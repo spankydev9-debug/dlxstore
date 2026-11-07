@@ -3,6 +3,12 @@
 Production environment, deployment, and backup reference. Generated 2026-09-28.
 All values verified read-only. No production change was made.
 
+> **Unreleased local work — 2026-11-07.** `main` has a local commit that lets an admin edit the
+> homepage hero copy per language from the Control Center (`/admin/dashboard?tab=homepage`), stored in
+> `settings.value.homepage` inside the existing `store_info` row. **No migration**; production does
+> not have this build until `main` is pushed and Vercel redeploys. Detail: `MASTER_PROJECT_CHECKPOINT.md`
+> §39. Production content for it will be an admin action after the deploy, not a data job.
+
 > **Release — 2026-11-05 (approved).** Applies three migrations, pushes `main` and deploys the
 > P2/P3 build. Step-by-step detail in `docs/MASTER_PROJECT_CHECKPOINT.md` §38.
 > * `supabase db push` (`--dry-run` first: **exactly three** migrations, no seeds) applied
